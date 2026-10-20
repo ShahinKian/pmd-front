@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ClipboardList,
   FolderKanban,
+  Link2,
   LogOut,
   Menu,
   RadioTower,
@@ -35,10 +36,17 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { data: session } = useSession();
 
+  const canManagePlanProviders = Boolean(
+    session?.isSystemAdmin || session?.user.roles.includes("PlanManager"),
+  );
+
   const items = [
     ...baseItems,
     ...(session?.user.roles.includes("Providers")
       ? [{ href: "/my-plans", label: "طرح‌های من", icon: FolderKanban }]
+      : []),
+    ...(canManagePlanProviders
+      ? [{ href: "/plan-providers", label: "طرح و تهیه‌کننده", icon: Link2 }]
       : []),
     ...(session?.isSystemAdmin ? adminItems : []),
   ];
