@@ -9,6 +9,7 @@ import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { RoleResponse } from "@/lib/auth/types";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
+import { roleLabel } from "@/lib/auth/roles";
 
 const PROVIDERS_ROLE = "Providers";
 
@@ -26,19 +27,23 @@ export default function NewUserPage() {
 
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [selectedNetworkIds, setSelectedNetworkIds] = useState<number[]>([]);
+  const [groupNetworkId, setGroupNetworkId] = useState<number | null>(null);
+  const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
   const [providerNetworkId, setProviderNetworkId] = useState<number | null>(null);
   const [providerId, setProviderId] = useState<number | null>(null);
-  const [networkGroupId, setNetworkGroupId] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const isProvider = selectedRoles.includes(PROVIDERS_ROLE);
 
+  const groupsUrl = groupNetworkId ? `/base-info/network-groups/${groupNetworkId}` : null;
+  const { data: groups, isLoading: groupsLoading } =
+    useSWR<BaseInfoListResponse>(groupsUrl);
+
   const providerUrl =
     isProvider && providerNetworkId
       ? `/base-info/providers/${providerNetworkId}`
       : null;
-
   const { data: providers, isLoading: providersLoading } =
     useSWR<BaseInfoListResponse>(providerUrl);
 
@@ -69,9 +74,13 @@ export default function NewUserPage() {
       const exists = current.includes(networkId);
       const next = exists ? current.filter((id) => id !== networkId) : [...current, networkId];
 
-      if (providerNetworkId === networkId && exists) {
+      if (exists && providerNetworkId === networkId) {
         setProviderNetworkId(null);
         setProviderId(null);
+      }
+      if (exists && groupNetworkId === networkId) {
+        setGroupNetworkId(null);
+        setNetworkGroupId(null);
       }
 
       return next;
@@ -79,9 +88,13 @@ export default function NewUserPage() {
   }
 
   function changeProviderNetwork(value: string) {
-    const id = toPositiveInt(value);
-    setProviderNetworkId(id);
+    setProviderNetworkId(toPositiveInt(value));
     setProviderId(null);
+  }
+
+  function changeGroupNetwork(value: string) {
+    setGroupNetworkId(toPositiveInt(value));
+    setNetworkGroupId(null);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -107,12 +120,6 @@ export default function NewUserPage() {
     }
 
     const form = new FormData(event.currentTarget);
-    const groupId = networkGroupId.trim() ? toPositiveInt(networkGroupId) : null;
-    if (networkGroupId.trim() && !groupId) {
-      setMessage({ type: "error", text: "شناسه گروه برنامه‌ساز معتبر نیست." });
-      return;
-    }
-
     setSaving(true);
 
     try {
@@ -122,7 +129,7 @@ export default function NewUserPage() {
         password: String(form.get("password") ?? ""),
         roles: selectedRoles,
         networkIds: selectedNetworkIds,
-        networkGroupId: groupId,
+        networkGroupId,
         providerId: isProvider ? providerId : null,
       });
 
@@ -131,9 +138,10 @@ export default function NewUserPage() {
       event.currentTarget.reset();
       setSelectedRoles([]);
       setSelectedNetworkIds([]);
+      setGroupNetworkId(null);
+      setNetworkGroupId(null);
       setProviderNetworkId(null);
       setProviderId(null);
-      setNetworkGroupId("");
     } catch (error) {
       setMessage({ type: "error", text: apiErrorMessage(error, "ثبت کاربر انجام نشد.") });
     } finally {
@@ -155,7 +163,7 @@ export default function NewUserPage() {
         <div>
           <h1 className="page-title">تعریف کاربر جدید</h1>
           <p className="page-description">
-            ایجاد کاربر، تخصیص نقش و اتصال تهیه‌کننده به شناسه پرسنلی سرویس اطلاعات پایه
+            ایجاد کاربر، تخصیص نقش، شبکه، گروه برنامه‌ساز و شناسه تهیه‌کننده
           </p>
         </div>
       </div>
@@ -175,7 +183,7 @@ export default function NewUserPage() {
             <div className="stat-icon"><UserPlus size={20}/></div>
             <div>
               <strong>اطلاعات حساب</strong>
-              <div className="muted" style={{fontSize:12,marginTop:3}}>فیلدهای اصلی مطابق قرارداد pmd-api هستند.</div>
+              <div className="muted" style={{fontSize:12,marginTop:3}}>فیلدها مطابق قرارداد واقعی pmd-api ارسال می‌شوند.</div>
             </div>
           </div>
 
@@ -196,19 +204,6 @@ export default function NewUserPage() {
               <small className="muted">حداقل ۸ کاراکتر</small>
             </label>
 
-            <label className="field">
-              <span className="label">شناسه گروه برنامه‌ساز</span>
-              <input
-                className="input"
-                value={networkGroupId}
-                onChange={(event) => setNetworkGroupId(event.target.value)}
-                inputMode="numeric"
-                dir="ltr"
-                placeholder="اختیاری"
-              />
-              <small className="muted">انتخاب گروه از سرویس اطلاعات پایه در مرحله اتصال کامل فرم‌های سازمانی تکمیل می‌شود.</small>
-            </label>
-
             <div className="field full">
               <span className="label">نقش‌ها *</span>
               {rolesLoading ? <span className="muted">در حال دریافت نقش‌ها...</span> : null}
@@ -220,13 +215,7 @@ export default function NewUserPage() {
                       checked={selectedRoles.includes(role.name)}
                       onChange={() => toggleRole(role.name)}
                     />
-                    <span>
-                      {role.name === "Admin" ? "مدیر سیستم" :
-                       role.name === "Providers" ? "تهیه‌کننده" :
-                       role.name === "PlanManager" ? "مدیر طرح و برنامه‌ریزی" :
-                       role.name === "NetworkGroupManager" ? "مدیر گروه برنامه‌ساز" :
-                       role.name}
-                    </span>
+                    <span>{roleLabel(role.name)}</span>
                     <small className="muted">({role.name})</small>
                   </label>
                 ))}
@@ -255,6 +244,35 @@ export default function NewUserPage() {
                 ))}
               </div>
             </div>
+
+            <label className="field">
+              <span className="label">شبکه گروه برنامه‌ساز</span>
+              <select className="select" value={groupNetworkId ?? ""} onChange={(e) => changeGroupNetwork(e.target.value)}>
+                <option value="">بدون گروه</option>
+                {networkOptions
+                  .filter((network) => selectedNetworkIds.includes(network.id))
+                  .map((network) => (
+                    <option key={network.id} value={network.id}>{network.label}</option>
+                  ))}
+              </select>
+              <small className="muted">ابتدا شبکه‌ای از شبکه‌های همین کاربر را انتخاب کنید.</small>
+            </label>
+
+            <label className="field">
+              <span className="label">گروه برنامه‌ساز</span>
+              <select
+                className="select"
+                value={networkGroupId ?? ""}
+                onChange={(e) => setNetworkGroupId(toPositiveInt(e.target.value))}
+                disabled={!groupNetworkId || groupsLoading}
+              >
+                <option value="">{groupsLoading ? "در حال دریافت گروه‌ها..." : "بدون گروه / انتخاب کنید"}</option>
+                {(groups?.Data ?? []).map((group) => {
+                  const id = toPositiveInt(group.Value);
+                  return id ? <option key={id} value={id} disabled={group.Disabled}>{group.Text}</option> : null;
+                })}
+              </select>
+            </label>
 
             {isProvider ? (
               <>
@@ -290,15 +308,12 @@ export default function NewUserPage() {
                     </option>
                     {(providers?.Data ?? []).map((provider) => {
                       const id = toPositiveInt(provider.Value);
-                      if (!id) return null;
-                      return (
-                        <option key={id} value={id} disabled={provider.Disabled}>
-                          {provider.Text}
-                        </option>
-                      );
+                      return id ? (
+                        <option key={id} value={id} disabled={provider.Disabled}>{provider.Text}</option>
+                      ) : null;
                     })}
                   </select>
-                  <small className="muted">شناسه انتخاب‌شده به‌عنوان providerId در User ذخیره می‌شود.</small>
+                  <small className="muted">Value پرسنل به‌عنوان providerId ذخیره می‌شود.</small>
                 </label>
               </>
             ) : null}

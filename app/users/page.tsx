@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus, ShieldCheck, Users } from "lucide-react";
+import { Plus, ShieldCheck, UserCog, Users } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
 
@@ -17,7 +17,10 @@ export default function UsersPage() {
           <p className="page-description">تعریف کاربران و مدیریت سطح دسترسی سامانه</p>
         </div>
         {session?.isSystemAdmin ? (
-          <Link href="/users/new" className="btn btn-primary"><Plus size={17}/>تعریف کاربر جدید</Link>
+          <div style={{display:"flex",gap:8}}>
+            <Link href="/users/manage" className="btn btn-outline"><UserCog size={17}/>ویرایش دسترسی</Link>
+            <Link href="/users/new" className="btn btn-primary"><Plus size={17}/>تعریف کاربر جدید</Link>
+          </div>
         ) : null}
       </div>
 
@@ -39,7 +42,7 @@ export default function UsersPage() {
               </p>
               <div className="alert" style={{marginTop:16,background:"#fffbeb",border:"1px solid #fde68a",color:"#92400e"}}>
                 <ShieldCheck size={15} style={{verticalAlign:"middle",marginLeft:6}}/>
-                تعریف کاربر جدید، دریافت نقش‌ها و تخصیص providerId از همین پنل به API واقعی متصل است.
+                تعریف کاربر جدید، تغییر نقش‌ها و مدیریت providerId همگی به API واقعی متصل شده‌اند.
               </div>
             </div>
           </div>

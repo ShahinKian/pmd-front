@@ -7,10 +7,12 @@ import {
   BarChart3,
   ChevronLeft,
   ClipboardList,
+  FolderKanban,
   LogOut,
   Menu,
   RadioTower,
   ShieldCheck,
+  UserCog,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -25,13 +27,21 @@ const baseItems = [
 const adminItems = [
   { href: "/users", label: "مدیریت کاربران", icon: Users },
   { href: "/users/new", label: "تعریف کاربر", icon: UserPlus },
+  { href: "/users/manage", label: "ویرایش دسترسی کاربر", icon: UserCog },
 ];
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
-  const items = session?.isSystemAdmin ? [...baseItems, ...adminItems] : baseItems;
+
+  const items = [
+    ...baseItems,
+    ...(session?.user.roles.includes("Providers")
+      ? [{ href: "/my-plans", label: "طرح‌های من", icon: FolderKanban }]
+      : []),
+    ...(session?.isSystemAdmin ? adminItems : []),
+  ];
 
   async function logout() {
     try {
