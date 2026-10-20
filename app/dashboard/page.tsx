@@ -1,68 +1,77 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-
-interface SessionPayload {
-  user: {
-    fullName: string;
-    userName: string;
-    roles: string[];
-  };
-  isSystemAdmin: boolean;
-  roleLabels: string[];
-}
+import { ClipboardCheck, Network, ShieldCheck, UserRound } from "lucide-react";
+import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
+import { useSession } from "@/hooks/use-session";
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [session, setSession] = useState<SessionPayload | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    let active = true;
-
-    fetch("/api/auth/session", { cache: "no-store" })
-      .then(async (response) => {
-        if (response.status === 401) {
-          router.replace("/login");
-          return null;
-        }
-        if (!response.ok) throw new Error("session");
-        return (await response.json()) as SessionPayload;
-      })
-      .then((data) => {
-        if (active && data) setSession(data);
-      })
-      .catch(() => {
-        if (active) setError("دریافت اطلاعات کاربر انجام نشد.");
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [router]);
-
-  async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.replace("/login");
-    router.refresh();
-  }
-
-  if (error) return <main><p role="alert">{error}</p></main>;
-  if (!session) return <main><p>در حال بارگذاری...</p></main>;
+  const { data: session, error, isLoading } = useSession();
 
   return (
-    <main>
-      <h1>سامانه ثبت عملکرد</h1>
-      <p>کاربر: {session.user.fullName || session.user.userName}</p>
-      <p>سطح دسترسی: {session.roleLabels.join("، ")}</p>
-      {session.isSystemAdmin ? (
-        <section>
-          <h2>مدیر سیستم</h2>
-          <p>دسترسی مدیریتی سراسری سامانه مطابق Policyهای بک‌اند فعال است.</p>
-        </section>
+    <DashboardShell>
+      <Breadcrumb items={[{ label: "داشبورد" }]} />
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">داشبورد</h1>
+          <p className="page-description">نمای کلی سامانه ثبت عملکرد متناسب با سطح دسترسی شما</p>
+        </div>
+      </div>
+
+      {error ? <div className="alert alert-error">دریافت اطلاعات کاربر انجام نشد.</div> : null}
+      {isLoading ? <div className="card">در حال بارگذاری اطلاعات...</div> : null}
+
+      {session ? (
+        <>
+          <div className="grid grid-3">
+            <div className="card stat-card">
+              <div className="stat-icon"><UserRound size={22}/></div>
+              <div>
+                <div className="stat-label">کاربر جاری</div>
+                <div className="stat-value">{session.user.fullName || session.user.userName}</div>
+              </div>
+            </div>
+            <div className="card stat-card">
+              <div className="stat-icon"><ShieldCheck size={22}/></div>
+              <div>
+                <div className="stat-label">سطح دسترسی</div>
+                <div className="stat-value" style={{fontSize:15}}>{session.roleLabels.join("، ") || "کاربر"}</div>
+              </div>
+            </div>
+            <div className="card stat-card">
+              <div className="stat-icon"><Network size={22}/></div>
+              <div>
+                <div className="stat-label">شبکه‌های تخصیص‌یافته</div>
+                <div className="stat-value">{session.user.networkIds.length}</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-2" style={{marginTop:18}}>
+            <section className="card">
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                <ClipboardCheck size={20}/>
+                <strong>وضعیت سامانه</strong>
+              </div>
+              <p className="muted" style={{lineHeight:1.9,margin:0}}>
+                آمار عملیاتی پس از اتصال endpointهای مربوط به هر ماژول نمایش داده می‌شود.
+                هیچ عدد ساختگی یا عمومی در داشبورد نمایش داده نخواهد شد.
+              </p>
+            </section>
+
+            {session.isSystemAdmin ? (
+              <section className="card">
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                  <ShieldCheck size={20}/>
+                  <strong>مدیر سیستم</strong>
+                </div>
+                <p className="muted" style={{lineHeight:1.9,margin:0}}>
+                  شما مدیر کل سامانه ثبت عملکرد هستید. دسترسی‌های مدیریتی واقعی بر اساس Policyهای بک‌اند اعمال می‌شوند.
+                </p>
+              </section>
+            ) : null}
+          </div>
+        </>
       ) : null}
-      <button type="button" onClick={logout}>خروج</button>
-    </main>
+    </DashboardShell>
   );
 }

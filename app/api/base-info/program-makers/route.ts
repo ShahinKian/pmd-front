@@ -1,10 +1,11 @@
 import type { NextRequest } from "next/server";
 import { BaseInfoError } from "@/lib/base-info/types";
-import { baseInfoRoute, positiveRouteId } from "@/lib/base-info/route";
+import { authenticatedBaseInfoRoute } from "@/lib/base-info/auth-route";
+import { positiveRouteId } from "@/lib/base-info/route";
 import { baseInfoService } from "@/lib/base-info/service";
 
 export async function GET(request: NextRequest) {
-  return baseInfoRoute(() => {
+  return authenticatedBaseInfoRoute(request, () => {
     const jobId = request.nextUrl.searchParams.get("jobId");
     const networkId = request.nextUrl.searchParams.get("networkId");
 

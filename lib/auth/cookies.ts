@@ -12,13 +12,10 @@ const common = {
 };
 
 export function applyAuthCookies(response: NextResponse, auth: AuthResponse): void {
-  const expiresAt = new Date(auth.expiresAt);
-  response.cookies.set(ACCESS_TOKEN_COOKIE, auth.accessToken, {
-    ...common,
-    expires: Number.isNaN(expiresAt.getTime()) ? undefined : expiresAt,
-  });
-
-  // Backend does not expose refresh-token expiry, so keep it as a browser-session cookie.
+  // Keep both tokens as session cookies. The backend refresh contract needs the
+  // expired access token in the refresh body, so deleting the cookie exactly at
+  // JWT expiry would make refresh impossible.
+  response.cookies.set(ACCESS_TOKEN_COOKIE, auth.accessToken, common);
   response.cookies.set(REFRESH_TOKEN_COOKIE, auth.refreshToken, common);
 }
 

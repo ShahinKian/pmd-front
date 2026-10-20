@@ -3,9 +3,6 @@ import { authenticatedPmdFetch } from "@/lib/auth/request";
 import { proxyJsonResponse } from "@/lib/auth/route";
 
 export async function GET(request: NextRequest) {
-  const { response, rotatedAuth } = await authenticatedPmdFetch(
-    request,
-    "/api/auth/me",
-  );
-  return proxyJsonResponse(response, rotatedAuth);
+  const { response } = await authenticatedPmdFetch(request, "/api/auth/me");
+  return proxyJsonResponse(response);
 }
