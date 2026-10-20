@@ -4,7 +4,7 @@ import { authenticatedPmdFetch } from "@/lib/auth/request";
 import { isSameOriginRequest } from "@/lib/auth/security";
 import type { AuthResponse, RegisterRequest } from "@/lib/auth/types";
 import { readUpstreamBody } from "@/lib/auth/upstream";
-import { applyAuthCookies, clearAuthCookies } from "@/lib/auth/cookies";
+import { clearAuthCookies } from "@/lib/auth/cookies";
 
 export async function POST(request: NextRequest) {
   if (!isSameOriginRequest(request)) {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "بدنه درخواست معتبر نیست." }, { status: 400 });
   }
 
-  const { response: upstream, rotatedAuth } = await authenticatedPmdFetch(
+  const { response: upstream } = await authenticatedPmdFetch(
     request,
     "/api/auth/register",
     { method: "POST", body: JSON.stringify(body) },
@@ -27,22 +27,18 @@ export async function POST(request: NextRequest) {
   const payload = await readUpstreamBody(upstream);
   if (!upstream.ok) {
     const response = NextResponse.json(payload, { status: upstream.status });
-    if (upstream.status === 401 && !rotatedAuth) clearAuthCookies(response);
-    if (rotatedAuth) applyAuthCookies(response, rotatedAuth);
+    if (upstream.status === 401) clearAuthCookies(response);
     return response;
   }
 
-  // Backend register returns tokens for the newly-created user. Never replace
-  // the current administrator session with those tokens and never expose them.
+  // Register returns JWTs for the newly created user. Never replace the current
+  // administrator session and never expose those tokens to the browser.
   const created = payload as AuthResponse;
-  const response = NextResponse.json({
+  return NextResponse.json({
     userName: created.userName,
     roles: created.roles,
     networkIds: created.networkIds,
     networkGroupId: created.networkGroupId,
     providerId: created.providerId,
   });
-
-  if (rotatedAuth) applyAuthCookies(response, rotatedAuth);
-  return response;
 }
