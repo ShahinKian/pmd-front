@@ -13,16 +13,6 @@ import { roleLabel } from "@/lib/auth/roles";
 
 const PROVIDERS_ROLE = "Providers";
 
-const WORKFLOW_TEST_ROLES = [
-  "Providers",
-  "NetworkGroupManager",
-  "Supervisor",
-  "LiveSupervisor",
-  "BroadcastManager",
-  "PlanManager",
-  "NetworkManager",
-] as const;
-
 function toPositiveInt(value: string): number | null {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -64,17 +54,6 @@ export default function NewUserPage() {
         .filter((item): item is { id: number; label: string; disabled: boolean } => item.id !== null),
     [networks],
   );
-
-  function applyWorkflowTestPreset() {
-    const available = new Set((roles ?? []).map((role) => role.name));
-    const preset = WORKFLOW_TEST_ROLES.filter((role) => available.has(role));
-    setSelectedRoles([...preset]);
-    setProviderId(null);
-    setProviderNetworkId(null);
-    setGroupNetworkId(null);
-    setNetworkGroupId(null);
-    setMessage({ type: "success", text: "نقش‌های تست کل فرآیند اعمال شد؛ حالا شبکه، گروه و تهیه‌کننده واقعی را انتخاب کنید." });
-  }
 
   function toggleRole(role: string) {
     setSelectedRoles((current) => {
@@ -129,13 +108,6 @@ export default function NewUserPage() {
 
     if (selectedRoles.length === 0) {
       setMessage({ type: "error", text: "حداقل یک نقش برای کاربر انتخاب کنید." });
-      return;
-    }
-
-    const isWorkflowTestUser = WORKFLOW_TEST_ROLES.every((role) => selectedRoles.includes(role));
-
-    if (isWorkflowTestUser && (selectedNetworkIds.length === 0 || !networkGroupId)) {
-      setMessage({ type: "error", text: "برای کاربر تست کل فرآیند، حداقل یک شبکه و یک گروه برنامه‌ساز واقعی الزامی است." });
       return;
     }
 
@@ -233,11 +205,7 @@ export default function NewUserPage() {
             </label>
 
             <div className="field full">
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
-                <span className="label">نقش‌ها *</span>
-                <button type="button" className="btn btn-outline" onClick={applyWorkflowTestPreset} disabled={rolesLoading || !roles?.length}>کاربر تست کل فرآیند</button>
-              </div>
-              <small className="muted">همه نقش‌های عملیاتی گردش‌کار انتخاب می‌شوند؛ Admin عمداً اضافه نمی‌شود تا هر مرحله با نقش واقعی خودش تست شود.</small>
+              <span className="label">نقش‌ها *</span>
               {rolesLoading ? <span className="muted">در حال دریافت نقش‌ها...</span> : null}
               <div className="checkbox-row">
                 {(roles ?? []).map((role) => (
