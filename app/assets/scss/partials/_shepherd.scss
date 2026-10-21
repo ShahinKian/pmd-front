@@ -1,0 +1,141 @@
+// shepherd.scss - نسخه سازگار با Tailwind CSS v4
+
+.dash-tail-app {
+  .shepherd-button {
+    background-color: var(--color-success);
+    border: 0;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-right: 0.5rem;
+    padding: 0.5rem 1.5rem;
+    transition: all 0.5s ease;
+    
+    &.btn-light {
+      background-color: var(--color-secondary);
+      color: var(--color-secondary-foreground);
+    }
+    
+    &.btn-light:hover {
+      color: var(--color-card-foreground);
+      background-color: color-mix(in srgb, var(--color-secondary) 90%, transparent);
+    }
+  }
+  
+  .shepherd-button:not(:disabled):hover {
+    background-color: color-mix(in srgb, var(--color-success) 80%, transparent);
+  }
+  
+  .shepherd-button.shepherd-button-secondary {
+    background: #f1f2f3;
+    color: rgba(0, 0, 0, 0.75);
+  }
+  
+  .shepherd-button.shepherd-button-secondary:not(:disabled):hover {
+    background: #d6d9db;
+    color: rgba(0, 0, 0, 0.75);
+  }
+  
+  .shepherd-button:disabled {
+    cursor: not-allowed;
+  }
+
+  // tour css
+  .shepherd-element {
+    background-color: var(--color-card);
+    margin-top: 10px;
+    padding-bottom: 1.25rem; /* pb-5 */
+  }
+  
+  .shepherd-element.shadow-sm {
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+
+  // .shepherd-element.shepherd-has-title[data-popper-placement^="bottom"]
+  //   > .shepherd-arrow:before {
+  //   background-color: var(--color-slate-600);
+  // }
+
+  .shepherd-has-cancel-icon.shepherd-has-title[data-popper-placement^="right"].shepherd-element.shadow-md.bg-purple-dark.shepherd-enabled {
+    margin-left: 15px;
+  }
+ 
+  .shepherd-arrow:before {
+    background-color: var(--color-card);
+    content: "";
+    transform: rotate(45deg);
+  }
+  
+  .shepherd-element.shepherd-has-title[data-popper-placement^="bottom"] > .shepherd-arrow {
+    top: -6px;
+  }
+  
+  .shepherd-element.shepherd-has-title[data-popper-placement^="bottom"] > .shepherd-arrow:before {
+    background-color: var(--color-card);
+    top: -1px;
+    content: "";
+    font-size: 24px;
+    transform: rotate(45deg);
+    z-index: 99;
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 20%;
+  }
+  
+  .shepherd-has-title {
+    .shepherd-content {
+      .shepherd-header {
+        background-color: var(--color-accent);
+        padding: 0.5rem 0.75rem;
+      }
+
+      .shepherd-cancel-icon {
+        color: var(--color-muted-foreground);
+      }
+    }
+  }
+  
+  .shepherd-title {
+    font-size: 1rem; /* text-base */
+    color: var(--color-foreground);
+    font-weight: 500;
+  }
+
+  .shepherd-text {
+    font-size: 0.875rem; /* text-sm */
+    color: var(--color-muted-foreground);
+  }
+
+  .shepherd-button {
+    &.btn-success:not(:disabled):hover {
+      background-color: color-mix(in srgb, var(--color-success) 80%, transparent);
+      color: var(--color-primary-foreground);
+    }
+    
+    &.btn-warning {
+      background-color: var(--color-warning);
+      color: var(--color-primary-foreground);
+    }
+    
+    &.btn-warning:not(:disabled):hover {
+      background-color: color-mix(in srgb, var(--color-warning) 80%, transparent);
+      color: var(--color-primary-foreground);
+    }
+
+    &.btn-light:not(:disabled):hover {
+      background-color: var(--color-secondary);
+    }
+
+    &.btn-primary:not(:disabled):hover {
+      background-color: var(--color-primary);
+    }
+  }
+  
+  .shepherd-footer {
+    padding: 0 0.75rem 0.75rem;
+  }
+  
+  .shepherd-button {
+    margin-right: 0.5rem;
+  }
+}

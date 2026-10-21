@@ -1,0 +1,130 @@
+// react-select.scss - نسخه سازگار با Tailwind CSS v4
+
+.dash-tail-app .react-select {
+  .react-select.is-invalid {
+    .select__control {
+      border-color: none !important;
+    }
+  }
+  
+  .select__control {
+    background-color: var(--color-background);
+    height: 2rem; /* h-8 */
+    border: 1px solid var(--color-default-200);
+  }
+  
+  .select__control:focus {
+    border-color: var(--color-primary);
+  }
+  
+  .select__single-value {
+    font-size: 0.875rem; /* text-sm */
+    font-weight: 500;
+    color: var(--color-default-800);
+  }
+  
+  .select__menu {
+    background-color: var(--color-background);
+  }
+  
+  .select__placeholder {
+    color: var(--color-default-500);
+  }
+  
+  .select__menu .select__option {
+    background-color: transparent;
+  }
+  
+  .select__menu .select__option:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  }
+  
+  .select__menu .select__option.select__option--is-selected {
+    background-color: var(--color-primary);
+  }
+  
+  &.is-invalid .select__control {
+    border-color: none !important;
+  }
+  
+  .has-error .select__control {
+    border-color: var(--color-destructive);
+  }
+  
+  .react-select__control .select__input {
+    color: var(--color-default-500);
+  }
+  
+  .react-select__control.select__control--is-disabled {
+    cursor: not-allowed;
+  }
+  
+  .react-select__control .select__indicator-separator {
+    background-color: var(--color-default-50);
+    color: var(--color-default-800);
+  }
+  
+  .react-select__control .select__indicator-separator::placeholder {
+    opacity: 0.6;
+  }
+  
+  .react-select__control .select__indicator svg {
+    cursor: pointer;
+    color: var(--color-default-600);
+  }
+  
+  .has-error .react-select__control .select__indicator svg {
+    color: var(--color-destructive-700);
+  }
+  
+  .select__multi-value__label {
+    font-size: 0.75rem; /* text-xs */
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
+    border-radius: 0; /* rounded-none */
+  }
+  
+  // RTL و LTR برای multi-value__label
+  html[dir="ltr"] .select__multi-value__label {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  
+  html[dir="rtl"] .select__multi-value__label {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  
+  .select__multi-value__remove {
+    background-color: var(--color-primary);
+    border-radius: 0; /* rounded-none */
+  }
+  
+  .select__multi-value__remove svg {
+    fill: var(--color-primary-foreground);
+  }
+  
+  // RTL برای multi-value__remove
+  html[dir="ltr"] .select__multi-value__remove {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  
+  html[dir="rtl"] .select__multi-value__remove {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+}
+
+// RTL برای loading indicator
+html[dir="rtl"] .react-select .select__loading-indicator {
+  flex-direction: row-reverse;
+}

@@ -1,0 +1,57 @@
+
+.dashtail-codeVmapPrimary path {
+  fill: var(--color-primary);
+
+  .svg-map__location[aria-checked="true"] {
+    fill: var(--color-primary);
+  }
+}
+
+.dashtail-codeVmapWhite path {
+  fill: var(--color-default-200);
+
+  .svg-map__location[aria-checked="true"] {
+    fill: var(--color-default-500);
+  }
+}
+
+// حالت dark برای dashtail-codeVmapWhite
+.dark .dashtail-codeVmapWhite path {
+  fill: var(--color-slate-500);
+}
+
+.dark .dashtail-codeVmapWhite .svg-map__location[aria-checked="true"] {
+  fill: var(--color-slate-200);
+}
+
+.dashtail-codeVmapInfo path {
+  fill: var(--color-info);
+
+  .svg-map__location[aria-checked="true"] {
+    fill: var(--color-info);
+  }
+}
+
+.dashtail-codeVmapWarning path {
+  fill: var(--color-warning);
+
+  .svg-map__location[aria-checked="true"] {
+    fill: var(--color-warning);
+  }
+}
+
+.dashtail-codeVmapSuccess path {
+  fill: var(--color-success);
+
+  .svg-map__location[aria-checked="true"] {
+    fill: var(--color-success);
+  }
+}
+
+.dashtail-codevmap path {
+  fill: var(--color-primary);
+
+  .svg-map__location[aria-checked="true"] {
+    fill: var(--color-primary);
+  }
+}

@@ -1,0 +1,138 @@
+@use "sass:meta";
+@import "tailwindcss";
+
+
+@include meta.load-css("partials/calendar.scss");
+@include meta.load-css("partials/react-slect");
+@include meta.load-css("partials/map");
+@include meta.load-css("partials/shepherd");
+
+
+
+
+
+
+@theme {
+
+  --breakpoint-xs: 30rem;
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 96rem;
+
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(222.2 84% 4.9%);
+  --color-muted: hsl(220 14.3% 95.9%);
+  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(222.2 84% 4.9%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(222.2 84% 4.9%);
+  --color-border: hsl(220 13% 91%);
+  --color-input: hsl(220 13% 91%);
+
+  --color-primary-50: hsl(240 100% 98%);
+  --color-primary-100: hsl(243 91% 95%);
+  --color-primary-200: hsl(243 100% 92%);
+  --color-primary-300: hsl(244 97% 85%);
+  --color-primary-400: hsl(247 95% 76%);
+  --color-primary-500: hsl(250 92% 70%);
+  --color-primary-600: hsl(254 86% 58%);
+  --color-primary-700: hsl(255 72% 50%);
+  --color-primary-800: hsl(255 71% 42%);
+  --color-primary-900: hsl(255 70% 35%);
+  --color-primary-950: hsl(255 70% 35%);
+  --color-primary: hsl(250 92% 70%);
+  --color-primary-foreground: hsl(240 100% 98%);
+
+  --color-secondary: hsl(214.3 31.8% 91.4%);
+  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
+
+  --color-accent: hsl(214.3 31.8% 91.4%);
+  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
+
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: hsl(0 85.7% 97.3%); /* ✅ اصلاح شد */
+
+  --color-ring: hsl(262.1 83.3% 57.8%);
+
+  --color-success: hsl(142.1 70.6% 45.3%);
+  --color-success-foreground: hsl(138.5 76.5% 96.7%);
+
+  --color-warning: hsl(24.6 95% 53.1%);
+  --color-warning-foreground: hsl(33.3 100% 96.5%);
+
+  --color-info: hsl(188.7 94.5% 42.7%);
+  --color-info-foreground: hsl(183.2 100% 96.3%);
+
+  --color-default-50: hsl(210 40% 98%);
+  --color-default-100: hsl(210 40% 96.1%);
+  --color-default-200: hsl(214.3 31.8% 91.4%);
+  --color-default-300: hsl(212.7 26.8% 83.9%);
+  --color-default-400: hsl(215 20.2% 65.1%);
+  --color-default-500: hsl(215.4 16.3% 46.9%);
+  --color-default-600: hsl(215.3 19.3% 34.5%);
+  --color-default-700: hsl(215.3 25% 26.7%);
+  --color-default-800: hsl(217.2 32.6% 17.5%);
+  --color-default-900: hsl(222.2 47.4% 11.2%);
+  --color-default-950: hsl(222.2 84% 4.9%);
+
+  --radius: 0.5rem;
+}
+
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #eef1f9;
+    color: var(--color-foreground);
+    font-size: 0.875rem;
+  }
+
+  .dark {
+    --color-background: hsl(222.2 47.4% 11.2%);
+    --color-foreground: hsl(210 40% 98%);
+    --color-muted: hsl(215 27.9% 16.9%);
+    --color-muted-foreground: hsl(217.9 10.6% 64.9%);
+    --color-popover: hsl(222.2 47.4% 11.2%);
+    --color-popover-foreground: hsl(210 40% 98%);
+    --color-card: hsl(215 27.9% 16.9%);
+    --color-card-foreground: hsl(210 40% 98%);
+    --color-border: hsl(215.3 25% 26.7%);
+    --color-input: hsl(215 27.9% 16.9%);
+    --color-primary: hsl(254 86% 58%);
+    --color-secondary: hsl(215.3 25% 26.7%);
+    --color-secondary-foreground: hsl(210 40% 98%);
+    --color-accent: hsl(215 27.9% 16.9%);
+    --color-accent-foreground: hsl(210 40% 98%);
+    --color-destructive: hsl(0 84.2% 60.2%);
+    --color-destructive-foreground: hsl(0 85.7% 97.3%); /* ✅ اصلاح شد */
+    --color-ring: hsl(263.4 70% 50.4%);
+    --color-success: hsl(142.1 70.6% 45.3%);
+    --color-success-foreground: hsl(138.5 76.5% 96.7%);
+    --color-info: hsl(188.7 94.5% 42.7%);
+    --color-info-foreground: hsl(183.2 100% 96.3%);
+    --color-warning: hsl(24.6 95% 53.1%);
+    --color-warning-foreground: hsl(33.3 100% 96.5%);
+    --color-default-950: hsl(210 40% 98%);
+    --color-default-900: hsl(210 40% 96.1%);
+    --color-default-800: hsl(214.3 31.8% 91.4%);
+    --color-default-700: hsl(212.7 26.8% 83.9%);
+    --color-default-600: hsl(215 20.2% 65.1%);
+    --color-default-500: hsl(215.4 16.3% 46.9%);
+    --color-default-300: hsl(215.3 19.3% 34.5%);
+    --color-default-200: hsl(215.3 25% 26.7%);
+    --color-default-100: hsl(217.2 32.6% 17.5%);
+    --color-default-50: hsl(222.2 47.4% 11.2%);
+  }
+}
+
