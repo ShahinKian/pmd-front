@@ -8,6 +8,7 @@ import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { roleLabel } from "@/lib/auth/roles";
+import { Switch } from "@/components/ui/switch";
 
 interface UserRolesResponse {
   userId: string;
@@ -184,18 +185,28 @@ export default function ManageUserPage() {
                   <strong>نقش‌های کاربر</strong>
                 </div>
 
-                <div className="checkbox-row">
-                  {roleData.roles.map((role) => (
-                    <label className="check-card" key={role.id}>
-                      <input
-                        type="checkbox"
-                        checked={selectedRoleIds.includes(role.id)}
-                        onChange={() => toggleRole(role.id)}
-                      />
-                      <span>{roleLabel(role.name)}</span>
-                      <small className="muted">({role.name})</small>
-                    </label>
-                  ))}
+                <div className="role-grid">
+                  {roleData.roles.map((role) => {
+                    const active = selectedRoleIds.includes(role.id);
+                    return (
+                      <div className={`role-card ${active ? "active" : ""}`} key={role.id}>
+                        <div className="role-title">
+                          <strong>{roleLabel(role.name)}</strong>
+                          <small>{role.name}</small>
+                        </div>
+                        <Switch
+                          checked={active}
+                          onCheckedChange={(checked) =>
+                            setSelectedRoleIds((current) =>
+                              checked
+                                ? Array.from(new Set([...current, role.id]))
+                                : current.filter((id) => id !== role.id),
+                            )
+                          }
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {selectedRoleIds.some((id) => roleData.roles.find((r) => r.id === id)?.name === "Admin") ? (

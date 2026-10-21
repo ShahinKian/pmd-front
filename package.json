@@ -14,7 +14,11 @@
     "next": "16.4.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "swr": "^2.3.6"
+    "swr": "^2.3.6",
+    "@fontsource/vazirmatn": "^5.2.6",
+    "@radix-ui/react-switch": "^1.2.6",
+    "react-multi-date-picker": "^4.5.2",
+    "react-date-object": "^2.1.9"
   },
   "devDependencies": {
     "@types/node": "^20",

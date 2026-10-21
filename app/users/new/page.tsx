@@ -3,13 +3,14 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { Loader2, Save, ShieldAlert, UserPlus } from "lucide-react";
+import { Loader2, Save, ShieldAlert, UserPlus, UsersRound } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { RoleResponse } from "@/lib/auth/types";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { roleLabel } from "@/lib/auth/roles";
+import { Switch } from "@/components/ui/switch";
 
 const PROVIDERS_ROLE = "Providers";
 
@@ -29,20 +30,23 @@ export default function NewUserPage() {
   const [selectedNetworkIds, setSelectedNetworkIds] = useState<number[]>([]);
   const [groupNetworkId, setGroupNetworkId] = useState<number | null>(null);
   const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
-  const [providerNetworkId, setProviderNetworkId] = useState<number | null>(null);
+  const [providerLookupNetworkId, setProviderLookupNetworkId] = useState<number | null>(null);
   const [providerId, setProviderId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const isProvider = selectedRoles.includes(PROVIDERS_ROLE);
 
-  const groupsUrl = groupNetworkId ? `/base-info/network-groups/${groupNetworkId}` : null;
+  const groupsUrl =
+    !isProvider && groupNetworkId
+      ? `/base-info/network-groups/${groupNetworkId}`
+      : null;
   const { data: groups, isLoading: groupsLoading } =
     useSWR<BaseInfoListResponse>(groupsUrl);
 
   const providerUrl =
-    isProvider && providerNetworkId
-      ? `/base-info/providers/${providerNetworkId}`
+    isProvider && providerLookupNetworkId
+      ? `/base-info/providers/${providerLookupNetworkId}`
       : null;
   const { data: providers, isLoading: providersLoading } =
     useSWR<BaseInfoListResponse>(providerUrl);
@@ -50,51 +54,47 @@ export default function NewUserPage() {
   const networkOptions = useMemo(
     () =>
       (networks?.Data ?? [])
-        .map((item) => ({ id: toPositiveInt(item.Value), label: item.Text, disabled: item.Disabled }))
-        .filter((item): item is { id: number; label: string; disabled: boolean } => item.id !== null),
+        .map((item) => ({
+          id: toPositiveInt(item.Value),
+          label: item.Text,
+          disabled: item.Disabled,
+        }))
+        .filter(
+          (item): item is { id: number; label: string; disabled: boolean } =>
+            item.id !== null,
+        ),
     [networks],
   );
 
-  function toggleRole(role: string) {
+  function setRole(role: string, checked: boolean) {
     setSelectedRoles((current) => {
-      const exists = current.includes(role);
-      const next = exists ? current.filter((item) => item !== role) : [...current, role];
+      const next = checked
+        ? Array.from(new Set([...current, role]))
+        : current.filter((item) => item !== role);
 
-      if (role === PROVIDERS_ROLE && exists) {
+      if (role === PROVIDERS_ROLE) {
+        setSelectedNetworkIds([]);
+        setGroupNetworkId(null);
+        setNetworkGroupId(null);
+        setProviderLookupNetworkId(null);
         setProviderId(null);
-        setProviderNetworkId(null);
       }
-
       return next;
     });
   }
 
-  function toggleNetwork(networkId: number) {
+  function setNetwork(networkId: number, checked: boolean) {
     setSelectedNetworkIds((current) => {
-      const exists = current.includes(networkId);
-      const next = exists ? current.filter((id) => id !== networkId) : [...current, networkId];
+      const next = checked
+        ? Array.from(new Set([...current, networkId]))
+        : current.filter((id) => id !== networkId);
 
-      if (exists && providerNetworkId === networkId) {
-        setProviderNetworkId(null);
-        setProviderId(null);
-      }
-      if (exists && groupNetworkId === networkId) {
+      if (!checked && groupNetworkId === networkId) {
         setGroupNetworkId(null);
         setNetworkGroupId(null);
       }
-
       return next;
     });
-  }
-
-  function changeProviderNetwork(value: string) {
-    setProviderNetworkId(toPositiveInt(value));
-    setProviderId(null);
-  }
-
-  function changeGroupNetwork(value: string) {
-    setGroupNetworkId(toPositiveInt(value));
-    setNetworkGroupId(null);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -111,10 +111,10 @@ export default function NewUserPage() {
       return;
     }
 
-    if (isProvider && (!providerNetworkId || !providerId)) {
+    if (isProvider && !providerId) {
       setMessage({
         type: "error",
-        text: "برای نقش تهیه‌کننده، شبکه مبنا و تهیه‌کننده همان شبکه الزامی است.",
+        text: "برای نقش تهیه‌کننده، انتخاب پرسنل تهیه‌کننده الزامی است.",
       });
       return;
     }
@@ -128,22 +128,30 @@ export default function NewUserPage() {
         userName: String(form.get("userName") ?? "").trim(),
         password: String(form.get("password") ?? ""),
         roles: selectedRoles,
-        networkIds: selectedNetworkIds,
-        networkGroupId,
+        networkIds: isProvider ? [] : selectedNetworkIds,
+        networkGroupId: isProvider ? null : networkGroupId,
         providerId: isProvider ? providerId : null,
       });
 
-      const createdName = response.data?.userName ?? String(form.get("userName") ?? "");
-      setMessage({ type: "success", text: `کاربر «${createdName}» با موفقیت ایجاد شد.` });
+      const createdName =
+        response.data?.userName ?? String(form.get("userName") ?? "");
+      setMessage({
+        type: "success",
+        text: `کاربر «${createdName}» با موفقیت ایجاد شد.`,
+      });
+
       event.currentTarget.reset();
       setSelectedRoles([]);
       setSelectedNetworkIds([]);
       setGroupNetworkId(null);
       setNetworkGroupId(null);
-      setProviderNetworkId(null);
+      setProviderLookupNetworkId(null);
       setProviderId(null);
     } catch (error) {
-      setMessage({ type: "error", text: apiErrorMessage(error, "ثبت کاربر انجام نشد.") });
+      setMessage({
+        type: "error",
+        text: apiErrorMessage(error, "ثبت کاربر انجام نشد."),
+      });
     } finally {
       setSaving(false);
     }
@@ -163,7 +171,7 @@ export default function NewUserPage() {
         <div>
           <h1 className="page-title">تعریف کاربر جدید</h1>
           <p className="page-description">
-            ایجاد کاربر، تخصیص نقش، شبکه، گروه برنامه‌ساز و شناسه تهیه‌کننده
+            اطلاعات حساب، نقش‌ها و دسترسی‌های سازمانی کاربر را تعریف کنید.
           </p>
         </div>
       </div>
@@ -172,163 +180,252 @@ export default function NewUserPage() {
 
       {session && !session.isSystemAdmin ? (
         <div className="alert alert-error">
-          <ShieldAlert size={16} style={{verticalAlign:"middle",marginLeft:6}}/>
+          <ShieldAlert size={16} style={{ verticalAlign: "middle", marginLeft: 6 }} />
           دسترسی به این صفحه فقط برای مدیر سیستم مجاز است.
         </div>
       ) : null}
 
       {session?.isSystemAdmin ? (
-        <form onSubmit={submit} className="card">
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
-            <div className="stat-icon"><UserPlus size={20}/></div>
-            <div>
-              <strong>اطلاعات حساب</strong>
-              <div className="muted" style={{fontSize:12,marginTop:3}}>فیلدها مطابق قرارداد واقعی pmd-api ارسال می‌شوند.</div>
-            </div>
-          </div>
-
-          <div className="form-grid">
-            <label className="field">
-              <span className="label">نام و نام خانوادگی *</span>
-              <input className="input" name="fullName" required />
-            </label>
-
-            <label className="field">
-              <span className="label">نام کاربری *</span>
-              <input className="input" name="userName" dir="ltr" autoComplete="off" required />
-            </label>
-
-            <label className="field">
-              <span className="label">رمز عبور *</span>
-              <input className="input" name="password" type="password" dir="ltr" minLength={8} autoComplete="new-password" required />
-              <small className="muted">حداقل ۸ کاراکتر</small>
-            </label>
-
-            <div className="field full">
-              <span className="label">نقش‌ها *</span>
-              {rolesLoading ? <span className="muted">در حال دریافت نقش‌ها...</span> : null}
-              <div className="checkbox-row">
-                {(roles ?? []).map((role) => (
-                  <label className="check-card" key={role.id}>
-                    <input
-                      type="checkbox"
-                      checked={selectedRoles.includes(role.name)}
-                      onChange={() => toggleRole(role.name)}
-                    />
-                    <span>{roleLabel(role.name)}</span>
-                    <small className="muted">({role.name})</small>
-                  </label>
-                ))}
+        <form onSubmit={submit} className="grid" style={{ gap: 18 }}>
+          <section className="form-section">
+            <div className="form-section-head">
+              <div>
+                <strong>اطلاعات حساب</strong>
+                <div className="section-kicker">مشخصات اصلی ورود به سامانه</div>
               </div>
+              <div className="stat-icon"><UserPlus size={20} /></div>
+            </div>
+            <div className="form-section-body">
+              <div className="form-grid">
+                <label className="field">
+                  <span className="label">نام و نام خانوادگی *</span>
+                  <input className="input" name="fullName" required />
+                </label>
+                <label className="field">
+                  <span className="label">نام کاربری *</span>
+                  <input className="input" name="userName" dir="ltr" autoComplete="off" required />
+                </label>
+                <label className="field">
+                  <span className="label">رمز عبور *</span>
+                  <input
+                    className="input"
+                    name="password"
+                    type="password"
+                    dir="ltr"
+                    minLength={8}
+                    autoComplete="new-password"
+                    required
+                  />
+                  <small className="muted">حداقل ۸ کاراکتر</small>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section className="form-section">
+            <div className="form-section-head">
+              <div>
+                <strong>نقش‌های کاربر</strong>
+                <div className="section-kicker">همه انتخاب‌ها به‌صورت Switch هستند.</div>
+              </div>
+              <div className="stat-icon"><UsersRound size={20} /></div>
+            </div>
+            <div className="form-section-body">
+              {rolesLoading ? <div className="muted">در حال دریافت نقش‌ها...</div> : null}
+              <div className="role-grid">
+                {(roles ?? []).map((role) => {
+                  const active = selectedRoles.includes(role.name);
+                  return (
+                    <div className={`role-card ${active ? "active" : ""}`} key={role.id}>
+                      <div className="role-title">
+                        <strong>{roleLabel(role.name)}</strong>
+                        <small>{role.name}</small>
+                      </div>
+                      <Switch
+                        checked={active}
+                        onCheckedChange={(checked) => setRole(role.name, checked)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
               {selectedRoles.includes("Admin") ? (
-                <div className="alert" style={{background:"#fff7ed",border:"1px solid #fed7aa",color:"#9a3412"}}>
-                  نقش «مدیر سیستم» دسترسی سراسری دارد؛ فقط برای مدیران کل سامانه ثبت عملکرد استفاده شود.
+                <div
+                  className="alert"
+                  style={{
+                    marginTop: 14,
+                    background: "#fff7ed",
+                    border: "1px solid #fed7aa",
+                    color: "#9a3412",
+                  }}
+                >
+                  نقش «مدیر سیستم» دسترسی سراسری سامانه ثبت عملکرد دارد.
                 </div>
               ) : null}
             </div>
+          </section>
 
-            <div className="field full">
-              <span className="label">شبکه‌های کاربر</span>
-              {networksLoading ? <span className="muted">در حال دریافت شبکه‌ها...</span> : null}
-              <div className="checkbox-row">
-                {networkOptions.map((network) => (
-                  <label className="check-card" key={network.id}>
-                    <input
-                      type="checkbox"
-                      disabled={network.disabled}
-                      checked={selectedNetworkIds.includes(network.id)}
-                      onChange={() => toggleNetwork(network.id)}
-                    />
-                    <span>{network.label}</span>
-                  </label>
-                ))}
+          {isProvider ? (
+            <section className="form-section">
+              <div className="form-section-head">
+                <div>
+                  <strong>اتصال کاربر به تهیه‌کننده</strong>
+                  <div className="section-kicker">
+                    برای تهیه‌کننده networkIds و networkGroupId ذخیره نمی‌شود؛ دسترسی طرح‌ها از PlanProvider تعیین می‌شود.
+                  </div>
+                </div>
               </div>
-            </div>
-
-            <label className="field">
-              <span className="label">شبکه گروه برنامه‌ساز</span>
-              <select className="select" value={groupNetworkId ?? ""} onChange={(e) => changeGroupNetwork(e.target.value)}>
-                <option value="">بدون گروه</option>
-                {networkOptions
-                  .filter((network) => selectedNetworkIds.includes(network.id))
-                  .map((network) => (
-                    <option key={network.id} value={network.id}>{network.label}</option>
-                  ))}
-              </select>
-              <small className="muted">ابتدا شبکه‌ای از شبکه‌های همین کاربر را انتخاب کنید.</small>
-            </label>
-
-            <label className="field">
-              <span className="label">گروه برنامه‌ساز</span>
-              <select
-                className="select"
-                value={networkGroupId ?? ""}
-                onChange={(e) => setNetworkGroupId(toPositiveInt(e.target.value))}
-                disabled={!groupNetworkId || groupsLoading}
-              >
-                <option value="">{groupsLoading ? "در حال دریافت گروه‌ها..." : "بدون گروه / انتخاب کنید"}</option>
-                {(groups?.Data ?? []).map((group) => {
-                  const id = toPositiveInt(group.Value);
-                  return id ? <option key={id} value={id} disabled={group.Disabled}>{group.Text}</option> : null;
-                })}
-              </select>
-            </label>
-
-            {isProvider ? (
-              <>
-                <label className="field">
-                  <span className="label">شبکه مبنای تهیه‌کننده *</span>
-                  <select
-                    className="select"
-                    value={providerNetworkId ?? ""}
-                    onChange={(event) => changeProviderNetwork(event.target.value)}
-                    required
-                  >
-                    <option value="">انتخاب کنید</option>
-                    {networkOptions
-                      .filter((network) => selectedNetworkIds.includes(network.id))
-                      .map((network) => (
-                        <option key={network.id} value={network.id}>{network.label}</option>
+              <div className="form-section-body">
+                <div className="form-grid">
+                  <label className="field">
+                    <span className="label">شبکه جستجوی تهیه‌کننده *</span>
+                    <select
+                      className="select"
+                      value={providerLookupNetworkId ?? ""}
+                      onChange={(e) => {
+                        setProviderLookupNetworkId(toPositiveInt(e.target.value));
+                        setProviderId(null);
+                      }}
+                      required
+                    >
+                      <option value="">انتخاب شبکه برای جستجو</option>
+                      {networkOptions.map((network) => (
+                        <option key={network.id} value={network.id} disabled={network.disabled}>
+                          {network.label}
+                        </option>
                       ))}
-                  </select>
-                  <small className="muted">فقط از بین شبکه‌های انتخاب‌شده کاربر.</small>
-                </label>
+                    </select>
+                    <small className="muted">
+                      این شبکه فقط برای یافتن پرسنل است و به‌عنوان دسترسی کاربر ذخیره نمی‌شود.
+                    </small>
+                  </label>
 
-                <label className="field">
-                  <span className="label">تهیه‌کننده *</span>
-                  <select
-                    className="select"
-                    value={providerId ?? ""}
-                    onChange={(event) => setProviderId(toPositiveInt(event.target.value))}
-                    disabled={!providerNetworkId || providersLoading}
-                    required
-                  >
-                    <option value="">
-                      {providersLoading ? "در حال دریافت تهیه‌کنندگان..." : "انتخاب تهیه‌کننده"}
-                    </option>
-                    {(providers?.Data ?? []).map((provider) => {
-                      const id = toPositiveInt(provider.Value);
-                      return id ? (
-                        <option key={id} value={id} disabled={provider.Disabled}>{provider.Text}</option>
-                      ) : null;
-                    })}
-                  </select>
-                  <small className="muted">Value پرسنل به‌عنوان providerId ذخیره می‌شود.</small>
-                </label>
-              </>
-            ) : null}
-          </div>
+                  <label className="field">
+                    <span className="label">تهیه‌کننده *</span>
+                    <select
+                      className="select"
+                      value={providerId ?? ""}
+                      onChange={(e) => setProviderId(toPositiveInt(e.target.value))}
+                      disabled={!providerLookupNetworkId || providersLoading}
+                      required
+                    >
+                      <option value="">
+                        {providersLoading
+                          ? "در حال دریافت تهیه‌کنندگان..."
+                          : "انتخاب تهیه‌کننده"}
+                      </option>
+                      {(providers?.Data ?? []).map((provider) => {
+                        const id = toPositiveInt(provider.Value);
+                        return id ? (
+                          <option key={id} value={id} disabled={provider.Disabled}>
+                            {provider.Text}
+                          </option>
+                        ) : null;
+                      })}
+                    </select>
+                    <small className="muted">
+                      Value پرسنل به‌عنوان providerId روی کاربر ذخیره می‌شود.
+                    </small>
+                  </label>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="form-section">
+              <div className="form-section-head">
+                <div>
+                  <strong>دسترسی سازمانی</strong>
+                  <div className="section-kicker">
+                    شبکه‌ها و در صورت نیاز گروه برنامه‌ساز را تعیین کنید.
+                  </div>
+                </div>
+              </div>
+              <div className="form-section-body">
+                {networksLoading ? <div className="muted">در حال دریافت شبکه‌ها...</div> : null}
+                <div className="role-grid">
+                  {networkOptions.map((network) => {
+                    const active = selectedNetworkIds.includes(network.id);
+                    return (
+                      <div className={`role-card ${active ? "active" : ""}`} key={network.id}>
+                        <div className="role-title">
+                          <strong>{network.label}</strong>
+                          <small>NetworkId: {network.id}</small>
+                        </div>
+                        <Switch
+                          checked={active}
+                          disabled={network.disabled}
+                          onCheckedChange={(checked) => setNetwork(network.id, checked)}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="form-grid" style={{ marginTop: 16 }}>
+                  <label className="field">
+                    <span className="label">شبکه گروه برنامه‌ساز</span>
+                    <select
+                      className="select"
+                      value={groupNetworkId ?? ""}
+                      onChange={(e) => {
+                        setGroupNetworkId(toPositiveInt(e.target.value));
+                        setNetworkGroupId(null);
+                      }}
+                    >
+                      <option value="">بدون گروه</option>
+                      {networkOptions
+                        .filter((network) => selectedNetworkIds.includes(network.id))
+                        .map((network) => (
+                          <option key={network.id} value={network.id}>
+                            {network.label}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+
+                  <label className="field">
+                    <span className="label">گروه برنامه‌ساز</span>
+                    <select
+                      className="select"
+                      value={networkGroupId ?? ""}
+                      onChange={(e) => setNetworkGroupId(toPositiveInt(e.target.value))}
+                      disabled={!groupNetworkId || groupsLoading}
+                    >
+                      <option value="">
+                        {groupsLoading ? "در حال دریافت گروه‌ها..." : "بدون گروه / انتخاب کنید"}
+                      </option>
+                      {(groups?.Data ?? []).map((group) => {
+                        const id = toPositiveInt(group.Value);
+                        return id ? (
+                          <option key={id} value={id} disabled={group.Disabled}>
+                            {group.Text}
+                          </option>
+                        ) : null;
+                      })}
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </section>
+          )}
 
           {message ? (
-            <div className={`alert ${message.type === "error" ? "alert-error" : "alert-success"}`} style={{marginTop:18}}>
+            <div className={`alert ${message.type === "error" ? "alert-error" : "alert-success"}`}>
               {message.text}
             </div>
           ) : null}
 
-          <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:20}}>
-            <button type="button" className="btn btn-outline" onClick={() => router.push("/users")}>انصراف</button>
-            <button type="submit" className="btn btn-primary" disabled={saving || rolesLoading || networksLoading}>
-              {saving ? <Loader2 size={17}/> : <Save size={17}/>}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <button type="button" className="btn btn-outline" onClick={() => router.push("/users")}>
+              انصراف
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={saving || rolesLoading || networksLoading}
+            >
+              {saving ? <Loader2 size={17} /> : <Save size={17} />}
               {saving ? "در حال ثبت..." : "ثبت کاربر"}
             </button>
           </div>

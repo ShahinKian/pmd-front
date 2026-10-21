@@ -1,121 +1,115 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import { CheckCircle2, Loader2, Save, Send, Trash2, Undo2, XCircle } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import { useSession } from "@/hooks/use-session";
-import {
-  FORECAST_STATUS,
-  forecastStatusLabel,
-  type ForecastResponse,
-} from "@/lib/forecasts/types";
+import { FORECAST_STATUS, forecastStatusLabel, type ForecastResponse } from "@/lib/forecasts/types";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import { Switch } from "@/components/ui/switch";
+import { TopicAxesEditor } from "@/components/forecasts/topic-axes-editor";
+import { ExpertSelector, type ExpertOption } from "@/components/forecasts/expert-selector";
 
-interface ExpertItem {
-  id: string;
-  firstName: string;
-  lastName: string;
-  specialty: string;
-}
-
-function toLocalDateTime(value: string): string {
+function isoToDateOnly(value: string): string {
   const date = new Date(value);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    date.getFullYear() +
-    "-" +
-    pad(date.getMonth() + 1) +
-    "-" +
-    pad(date.getDate()) +
-    "T" +
-    pad(date.getHours()) +
-    ":" +
-    pad(date.getMinutes())
-  );
+  if (Number.isNaN(date.getTime())) return "";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export default function ForecastDetailsPage() {
-  const params = useParams<{ id: string }>();
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const id = params.id;
   const { data: session } = useSession();
   const { data, error, isLoading, mutate } = useSWR<ForecastResponse>("/forecasts/" + id);
-  const { data: experts } = useSWR<ExpertItem[]>("/experts?pageNumber=1&pageSize=100&isActive=true");
 
   const [broadcastDate, setBroadcastDate] = useState("");
   const [mainTopic, setMainTopic] = useState("");
   const [hasExpert, setHasExpert] = useState(false);
-  const [topicAxes, setTopicAxes] = useState("");
+  const [topicAxes, setTopicAxes] = useState<string[]>([]);
   const [expertIds, setExpertIds] = useState<string[]>([]);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
+  const { data: experts } = useSWR<ExpertOption[]>(
+    data?.networkId
+      ? `/experts?pageNumber=1&pageSize=100&isActive=true&networkId=${data.networkId}`
+      : null,
+  );
+
   useEffect(() => {
     if (!data) return;
-    setBroadcastDate(toLocalDateTime(data.broadcastDate));
+    setBroadcastDate(isoToDateOnly(data.broadcastDate));
     setMainTopic(data.mainTopic);
     setHasExpert(data.hasExpert);
-    setTopicAxes(data.topicAxes.map((item) => item.title).join("\n"));
+    setTopicAxes(data.topicAxes.map((item) => item.title));
     setExpertIds(data.expertIds);
   }, [data]);
 
-  const editable = data?.status === FORECAST_STATUS.Draft || data?.status === FORECAST_STATUS.ReturnedForEdit;
+  const editable =
+    data?.status === FORECAST_STATUS.Draft ||
+    data?.status === FORECAST_STATUS.ReturnedForEdit;
   const pendingReview = data?.status === FORECAST_STATUS.PendingReview;
   const canReview = Boolean(
     pendingReview &&
-    (session?.isSystemAdmin || session?.user.roles.includes("NetworkGroupManager")),
-  );
-
-  const selectedExpertNames = useMemo(
-    () =>
-      expertIds
-        .map((expertId) => {
-          const expert = experts?.find((item) => item.id === expertId);
-          return expert ? expert.firstName + " " + expert.lastName : expertId;
-        })
-        .join("، "),
-    [expertIds, experts],
+      (session?.isSystemAdmin ||
+        session?.user.roles.includes("NetworkGroupManager")),
   );
 
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!data || !editable) return;
 
+    if (!broadcastDate || !mainTopic.trim()) {
+      setMessage({ type: "error", text: "موضوع و تاریخ پخش الزامی هستند." });
+      return;
+    }
+
     setBusy("save");
     setMessage(null);
     try {
       await apiClient.put("/forecasts/" + id, {
         id,
-        broadcastDate: new Date(broadcastDate).toISOString(),
+        broadcastDate: `${broadcastDate}T00:00:00`,
         mainTopic: mainTopic.trim(),
         hasExpert,
-        topicAxes: topicAxes
-          .split(/\r?\n/)
-          .map((item) => item.trim())
-          .filter(Boolean),
+        topicAxes,
         expertIds: hasExpert ? expertIds : [],
       });
       await mutate();
       setMessage({ type: "success", text: "پیش‌بینی با موفقیت ویرایش شد." });
     } catch (err) {
-      setMessage({ type: "error", text: apiErrorMessage(err, "ویرایش پیش‌بینی انجام نشد.") });
+      setMessage({
+        type: "error",
+        text: apiErrorMessage(err, "ویرایش پیش‌بینی انجام نشد."),
+      });
     } finally {
       setBusy("");
     }
   }
 
-  async function action(name: "submit" | "approve" | "reject" | "return-for-edit") {
+  async function action(
+    name: "submit" | "approve" | "reject" | "return-for-edit",
+  ) {
     let payload: Record<string, string> | undefined;
 
     if (name === "reject" || name === "return-for-edit") {
       const reason = window.prompt(
-        name === "reject" ? "دلیل رد را وارد کنید:" : "دلیل بازگشت برای اصلاح را وارد کنید:",
+        name === "reject"
+          ? "دلیل رد را وارد کنید:"
+          : "دلیل بازگشت برای اصلاح را وارد کنید:",
       );
       if (reason === null) return;
       if (!reason.trim()) {
-        setMessage({ type: "error", text: "ثبت دلیل برای این عملیات الزامی است." });
+        setMessage({
+          type: "error",
+          text: "ثبت دلیل برای این عملیات الزامی است.",
+        });
         return;
       }
       payload = { reason: reason.trim() };
@@ -126,9 +120,15 @@ export default function ForecastDetailsPage() {
     try {
       await apiClient.post("/forecasts/" + id + "/" + name, payload);
       await mutate();
-      setMessage({ type: "success", text: "عملیات گردش‌کار با موفقیت انجام شد." });
+      setMessage({
+        type: "success",
+        text: "عملیات گردش‌کار با موفقیت انجام شد.",
+      });
     } catch (err) {
-      setMessage({ type: "error", text: apiErrorMessage(err, "عملیات گردش‌کار انجام نشد.") });
+      setMessage({
+        type: "error",
+        text: apiErrorMessage(err, "عملیات گردش‌کار انجام نشد."),
+      });
     } finally {
       setBusy("");
     }
@@ -142,7 +142,10 @@ export default function ForecastDetailsPage() {
       router.replace("/forecasts");
       router.refresh();
     } catch (err) {
-      setMessage({ type: "error", text: apiErrorMessage(err, "حذف پیش‌بینی انجام نشد.") });
+      setMessage({
+        type: "error",
+        text: apiErrorMessage(err, "حذف پیش‌بینی انجام نشد."),
+      });
       setBusy("");
     }
   }
@@ -166,113 +169,187 @@ export default function ForecastDetailsPage() {
             <div>
               <h1 className="page-title">{data.mainTopic}</h1>
               <p className="page-description">
-                طرح #{data.planId} — قسمت {data.episodeNumber} — {forecastStatusLabel(data.status)}
+                طرح #{data.planId} — قسمت {data.episodeNumber}
               </p>
             </div>
-            <span className="admin-badge">{forecastStatusLabel(data.status)}</span>
+            <span className="admin-badge">
+              {forecastStatusLabel(data.status)}
+            </span>
           </div>
 
-          <section className="card" style={{ marginBottom: 18 }}>
-            <div className="grid grid-3">
-              <div><div className="stat-label">ثبت‌کننده</div><div style={{fontWeight:750,marginTop:5}}>{data.userCreatorName || "—"}</div></div>
-              <div><div className="stat-label">شبکه / گروه</div><div style={{fontWeight:750,marginTop:5}}>{data.networkId} / {data.networkGroupId}</div></div>
-              <div><div className="stat-label">تاریخ ایجاد</div><div style={{fontWeight:750,marginTop:5}}>{new Date(data.createdDate).toLocaleString("fa-IR")}</div></div>
-            </div>
-          </section>
+          <form className="grid" style={{ gap: 18 }} onSubmit={save}>
+            <section className="form-section">
+              <div className="form-section-head">
+                <div>
+                  <strong>اطلاعات پیش‌بینی</strong>
+                  <div className="section-kicker">
+                    در پیش‌بینی فقط تاریخ پخش ثبت می‌شود.
+                  </div>
+                </div>
+              </div>
+              <div className="form-section-body">
+                <div className="form-grid">
+                  <div className="field">
+                    <span className="label">تاریخ پخش</span>
+                    <PersianDatePicker
+                      value={broadcastDate}
+                      onChange={setBroadcastDate}
+                      disabled={!editable}
+                    />
+                  </div>
+                  <label className="field">
+                    <span className="label">موضوع اصلی</span>
+                    <input
+                      className="input"
+                      value={mainTopic}
+                      onChange={(e) => setMainTopic(e.target.value)}
+                      disabled={!editable}
+                    />
+                  </label>
+                </div>
+              </div>
+            </section>
 
-          <form className="card" onSubmit={save}>
-            <div className="form-grid">
-              <label className="field">
-                <span className="label">تاریخ و ساعت پخش</span>
-                <input className="input" type="datetime-local" value={broadcastDate} onChange={(e)=>setBroadcastDate(e.target.value)} disabled={!editable} />
-              </label>
-              <label className="field">
-                <span className="label">موضوع اصلی</span>
-                <input className="input" value={mainTopic} onChange={(e)=>setMainTopic(e.target.value)} disabled={!editable} />
-              </label>
-              <label className="field full">
-                <span className="label">محورهای موضوعی</span>
-                <textarea className="input" style={{height:110,paddingTop:10}} value={topicAxes} onChange={(e)=>setTopicAxes(e.target.value)} disabled={!editable}/>
-              </label>
-              <label className="check-card">
-                <input
-                  type="checkbox"
+            <section className="form-section">
+              <div className="form-section-head">
+                <div>
+                  <strong>محورهای موضوعی</strong>
+                  <div className="section-kicker">
+                    محورهای مرتبط با این پیش‌بینی
+                  </div>
+                </div>
+              </div>
+              <div className="form-section-body">
+                <TopicAxesEditor
+                  value={topicAxes}
+                  onChange={setTopicAxes}
+                  disabled={!editable}
+                />
+              </div>
+            </section>
+
+            <section className="form-section">
+              <div className="form-section-head">
+                <div>
+                  <strong>کارشناسان برنامه</strong>
+                  <div className="section-kicker">
+                    انتخاب کارشناسان فعال شبکه
+                  </div>
+                </div>
+              </div>
+              <div className="form-section-body">
+                <Switch
                   checked={hasExpert}
                   disabled={!editable}
-                  onChange={(e)=>{setHasExpert(e.target.checked);if(!e.target.checked)setExpertIds([]);}}
+                  onCheckedChange={(checked) => {
+                    setHasExpert(checked);
+                    if (!checked) setExpertIds([]);
+                  }}
+                  label="برنامه دارای کارشناس است"
                 />
-                <span>دارای کارشناس</span>
-              </label>
-              {hasExpert ? (
-                <div className="field full">
-                  <span className="label">کارشناسان</span>
-                  {editable ? (
-                    <div className="checkbox-row">
-                      {(experts ?? []).map((expert)=>(
-                        <label className="check-card" key={expert.id}>
-                          <input
-                            type="checkbox"
-                            checked={expertIds.includes(expert.id)}
-                            onChange={()=>setExpertIds((current)=>current.includes(expert.id)?current.filter((value)=>value!==expert.id):[...current,expert.id])}
-                          />
-                          <span>{expert.firstName} {expert.lastName}</span>
-                          <small className="muted">{expert.specialty}</small>
-                        </label>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="muted">{selectedExpertNames || "—"}</div>
-                  )}
-                </div>
-              ) : null}
-            </div>
+
+                {hasExpert ? (
+                  <div style={{ marginTop: 16 }}>
+                    <ExpertSelector
+                      experts={experts ?? []}
+                      selectedIds={expertIds}
+                      onChange={setExpertIds}
+                      disabled={!editable}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </section>
 
             {editable ? (
-              <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button className="btn btn-primary" disabled={Boolean(busy)}>
-                  {busy==="save"?<Loader2 size={17}/>:<Save size={17}/>}ذخیره تغییرات
+                  {busy === "save" ? <Loader2 size={17} /> : <Save size={17} />}
+                  ذخیره تغییرات
                 </button>
               </div>
             ) : null}
           </form>
 
-          <section className="card" style={{marginTop:18}}>
+          <section className="card" style={{ marginTop: 18 }}>
             <strong>عملیات گردش‌کار</strong>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
               {editable ? (
-                <button type="button" className="btn btn-primary" onClick={()=>action("submit")} disabled={Boolean(busy)}>
-                  {busy==="submit"?<Loader2 size={16}/>:<Send size={16}/>}ارسال برای بررسی
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => action("submit")}
+                  disabled={Boolean(busy)}
+                >
+                  {busy === "submit" ? <Loader2 size={16} /> : <Send size={16} />}
+                  ارسال برای بررسی
                 </button>
               ) : null}
 
               {canReview ? (
                 <>
-                  <button type="button" className="btn btn-primary" onClick={()=>action("approve")} disabled={Boolean(busy)}>
-                    {busy==="approve"?<Loader2 size={16}/>:<CheckCircle2 size={16}/>}تایید
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => action("approve")}
+                    disabled={Boolean(busy)}
+                  >
+                    {busy === "approve" ? (
+                      <Loader2 size={16} />
+                    ) : (
+                      <CheckCircle2 size={16} />
+                    )}
+                    تایید
                   </button>
-                  <button type="button" className="btn btn-outline" onClick={()=>action("return-for-edit")} disabled={Boolean(busy)}>
-                    {busy==="return-for-edit"?<Loader2 size={16}/>:<Undo2 size={16}/>}بازگشت برای اصلاح
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => action("return-for-edit")}
+                    disabled={Boolean(busy)}
+                  >
+                    {busy === "return-for-edit" ? (
+                      <Loader2 size={16} />
+                    ) : (
+                      <Undo2 size={16} />
+                    )}
+                    بازگشت برای اصلاح
                   </button>
-                  <button type="button" className="btn btn-outline" onClick={()=>action("reject")} disabled={Boolean(busy)}>
-                    {busy==="reject"?<Loader2 size={16}/>:<XCircle size={16}/>}رد
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => action("reject")}
+                    disabled={Boolean(busy)}
+                  >
+                    {busy === "reject" ? (
+                      <Loader2 size={16} />
+                    ) : (
+                      <XCircle size={16} />
+                    )}
+                    رد
                   </button>
                 </>
               ) : null}
 
-              <button type="button" className="btn btn-outline" onClick={removeForecast} disabled={Boolean(busy)}>
-                {busy==="delete"?<Loader2 size={16}/>:<Trash2 size={16}/>}حذف
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={removeForecast}
+                disabled={Boolean(busy)}
+              >
+                {busy === "delete" ? <Loader2 size={16} /> : <Trash2 size={16} />}
+                حذف
               </button>
             </div>
-
-            {!editable && !canReview ? (
-              <p className="muted" style={{marginBottom:0}}>
-                در وضعیت فعلی عملیاتی متناسب با نقش شما در رابط کاربری فعال نیست.
-              </p>
-            ) : null}
           </section>
 
           {message ? (
-            <div className={"alert " + (message.type === "error" ? "alert-error" : "alert-success")} style={{marginTop:18}}>
+            <div
+              className={
+                "alert " +
+                (message.type === "error" ? "alert-error" : "alert-success")
+              }
+              style={{ marginTop: 18 }}
+            >
               {message.text}
             </div>
           ) : null}

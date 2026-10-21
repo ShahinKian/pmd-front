@@ -2,20 +2,20 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import useSWR from "swr";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, CalendarDays, Layers3, UserRoundSearch } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import { useSession } from "@/hooks/use-session";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import type { PlanProviderLink } from "@/lib/plan-providers/types";
-
-interface ExpertItem {
-  id: string;
-  firstName: string;
-  lastName: string;
-  specialty: string;
-}
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import { Switch } from "@/components/ui/switch";
+import { TopicAxesEditor } from "@/components/forecasts/topic-axes-editor";
+import {
+  ExpertSelector,
+  type ExpertOption,
+} from "@/components/forecasts/expert-selector";
 
 function toPositiveInt(value: string): number | null {
   const parsed = Number(value);
@@ -28,7 +28,6 @@ export default function NewForecastPage() {
   const isProvider = session?.user.roles.includes("Providers") ?? false;
 
   const { data: networks } = useSWR<BaseInfoListResponse>("/base-info/networks");
-  const { data: experts } = useSWR<ExpertItem[]>("/experts?pageNumber=1&pageSize=100&isActive=true");
   const { data: myPlanLinks } = useSWR<PlanProviderLink[]>(
     isProvider ? "/plan-providers/my/plans" : null,
   );
@@ -36,20 +35,26 @@ export default function NewForecastPage() {
   const [networkId, setNetworkId] = useState<number | null>(null);
   const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
   const [planId, setPlanId] = useState<number | null>(null);
+  const [broadcastDate, setBroadcastDate] = useState("");
   const [hasExpert, setHasExpert] = useState(false);
   const [selectedExpertIds, setSelectedExpertIds] = useState<string[]>([]);
-  const [topicAxes, setTopicAxes] = useState("");
+  const [topicAxes, setTopicAxes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   const { data: groups } = useSWR<BaseInfoListResponse>(
-    networkId ? "/base-info/network-groups/" + networkId : null,
+    networkId ? `/base-info/network-groups/${networkId}` : null,
   );
   const { data: plans } = useSWR<BaseInfoListResponse>(
-    networkId ? "/base-info/plans/" + networkId : null,
+    networkId ? `/base-info/plans/${networkId}` : null,
   );
   const { data: episode } = useSWR<{ episodeNumber: number }>(
-    planId ? "/forecasts/next-episode-number/" + planId : null,
+    planId ? `/forecasts/next-episode-number/${planId}` : null,
+  );
+  const { data: experts } = useSWR<ExpertOption[]>(
+    hasExpert && networkId
+      ? `/experts?pageNumber=1&pageSize=100&isActive=true&networkId=${networkId}`
+      : null,
   );
 
   const networkOptions = useMemo(() => {
@@ -78,6 +83,7 @@ export default function NewForecastPage() {
     setNetworkId(toPositiveInt(value));
     setNetworkGroupId(null);
     setPlanId(null);
+    setSelectedExpertIds([]);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -90,7 +96,6 @@ export default function NewForecastPage() {
     }
 
     const form = new FormData(event.currentTarget);
-    const broadcastDate = String(form.get("broadcastDate") ?? "");
     const mainTopic = String(form.get("mainTopic") ?? "").trim();
 
     if (!broadcastDate || !mainTopic) {
@@ -105,13 +110,10 @@ export default function NewForecastPage() {
         episodeNumber: episode?.episodeNumber ?? 1,
         networkId,
         networkGroupId,
-        broadcastDate: new Date(broadcastDate).toISOString(),
+        broadcastDate: `${broadcastDate}T00:00:00`,
         mainTopic,
         hasExpert,
-        topicAxes: topicAxes
-          .split(/\r?\n/)
-          .map((item) => item.trim())
-          .filter(Boolean),
+        topicAxes,
         expertIds: hasExpert ? selectedExpertIds : [],
       });
 
@@ -138,126 +140,151 @@ export default function NewForecastPage() {
         <div>
           <h1 className="page-title">ثبت پیش‌بینی جدید</h1>
           <p className="page-description">
-            اطلاعات پایه از سرویس مرجع و گردش‌کار از pmd-api دریافت می‌شود.
+            اطلاعات برنامه را مرحله‌به‌مرحله و بر اساس طرح انتخابی ثبت کنید.
           </p>
         </div>
       </div>
 
-      <form className="card" onSubmit={submit}>
-        <div className="form-grid">
-          <label className="field">
-            <span className="label">شبکه *</span>
-            <select className="select" value={networkId ?? ""} onChange={(e) => changeNetwork(e.target.value)} required>
-              <option value="">انتخاب شبکه</option>
-              {networkOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-          </label>
-
-          <label className="field">
-            <span className="label">گروه برنامه‌ساز *</span>
-            <select
-              className="select"
-              value={networkGroupId ?? ""}
-              onChange={(e) => setNetworkGroupId(toPositiveInt(e.target.value))}
-              disabled={!networkId}
-              required
-            >
-              <option value="">انتخاب گروه</option>
-              {(groups?.Data ?? []).map((item) => {
-                const id = toPositiveInt(item.Value);
-                return id ? <option key={id} value={id}>{item.Text}</option> : null;
-              })}
-            </select>
-          </label>
-
-          <label className="field">
-            <span className="label">طرح *</span>
-            <select
-              className="select"
-              value={planId ?? ""}
-              onChange={(e) => setPlanId(toPositiveInt(e.target.value))}
-              disabled={!networkId}
-              required
-            >
-              <option value="">انتخاب طرح</option>
-              {planOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-            {isProvider ? (
-              <small className="muted">فقط طرح‌های متصل به providerId کاربر در PlanProvider قابل انتخاب هستند.</small>
-            ) : null}
-          </label>
-
-          <label className="field">
-            <span className="label">شماره قسمت بعدی</span>
-            <input className="input" readOnly value={episode?.episodeNumber ?? ""} />
-            <small className="muted">پیش‌نمایش است؛ شماره نهایی را بک‌اند هنگام ثبت محاسبه می‌کند.</small>
-          </label>
-
-          <label className="field">
-            <span className="label">تاریخ و ساعت پخش *</span>
-            <input className="input" name="broadcastDate" type="datetime-local" required />
-          </label>
-
-          <label className="field">
-            <span className="label">موضوع اصلی *</span>
-            <input className="input" name="mainTopic" required />
-          </label>
-
-          <label className="field full">
-            <span className="label">محورهای موضوعی</span>
-            <textarea
-              className="input"
-              style={{ height: 110, paddingTop: 10 }}
-              value={topicAxes}
-              onChange={(e) => setTopicAxes(e.target.value)}
-              placeholder="هر محور در یک خط"
-            />
-          </label>
-
-          <label className="check-card">
-            <input
-              type="checkbox"
-              checked={hasExpert}
-              onChange={(e) => {
-                setHasExpert(e.target.checked);
-                if (!e.target.checked) setSelectedExpertIds([]);
-              }}
-            />
-            <span>برنامه دارای کارشناس است</span>
-          </label>
-
-          {hasExpert ? (
-            <div className="field full">
-              <span className="label">کارشناسان</span>
-              <div className="checkbox-row">
-                {(experts ?? []).map((expert) => (
-                  <label className="check-card" key={expert.id}>
-                    <input
-                      type="checkbox"
-                      checked={selectedExpertIds.includes(expert.id)}
-                      onChange={() =>
-                        setSelectedExpertIds((current) =>
-                          current.includes(expert.id)
-                            ? current.filter((id) => id !== expert.id)
-                            : [...current, expert.id],
-                        )
-                      }
-                    />
-                    <span>{expert.firstName} {expert.lastName}</span>
-                    <small className="muted">{expert.specialty}</small>
-                  </label>
-                ))}
-              </div>
+      <form className="grid" style={{ gap: 18 }} onSubmit={submit}>
+        <section className="form-section">
+          <div className="form-section-head">
+            <div>
+              <strong>اطلاعات برنامه</strong>
+              <div className="section-kicker">شبکه، گروه، طرح و تاریخ پخش</div>
             </div>
-          ) : null}
-        </div>
+            <div className="stat-icon"><CalendarDays size={20} /></div>
+          </div>
+          <div className="form-section-body">
+            <div className="form-grid">
+              <label className="field">
+                <span className="label">شبکه *</span>
+                <select
+                  className="select"
+                  value={networkId ?? ""}
+                  onChange={(e) => changeNetwork(e.target.value)}
+                  required
+                >
+                  <option value="">انتخاب شبکه</option>
+                  {networkOptions.map((item) => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
+                  ))}
+                </select>
+              </label>
 
-        {message ? <div className="alert alert-error" style={{ marginTop: 16 }}>{message}</div> : null}
+              <label className="field">
+                <span className="label">گروه برنامه‌ساز *</span>
+                <select
+                  className="select"
+                  value={networkGroupId ?? ""}
+                  onChange={(e) => setNetworkGroupId(toPositiveInt(e.target.value))}
+                  disabled={!networkId}
+                  required
+                >
+                  <option value="">انتخاب گروه</option>
+                  {(groups?.Data ?? []).map((item) => {
+                    const id = toPositiveInt(item.Value);
+                    return id ? <option key={id} value={id}>{item.Text}</option> : null;
+                  })}
+                </select>
+              </label>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+              <label className="field">
+                <span className="label">طرح *</span>
+                <select
+                  className="select"
+                  value={planId ?? ""}
+                  onChange={(e) => setPlanId(toPositiveInt(e.target.value))}
+                  disabled={!networkId}
+                  required
+                >
+                  <option value="">انتخاب طرح</option>
+                  {planOptions.map((item) => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
+                  ))}
+                </select>
+                {isProvider ? (
+                  <small className="muted">
+                    فقط طرح‌هایی نمایش داده می‌شوند که در PlanProvider به شما تخصیص داده شده‌اند.
+                  </small>
+                ) : null}
+              </label>
+
+              <label className="field">
+                <span className="label">شماره قسمت بعدی</span>
+                <input className="input" readOnly value={episode?.episodeNumber ?? ""} />
+                <small className="muted">شماره نهایی هنگام ثبت توسط بک‌اند تعیین می‌شود.</small>
+              </label>
+
+              <div className="field">
+                <span className="label">تاریخ پخش *</span>
+                <PersianDatePicker value={broadcastDate} onChange={setBroadcastDate} />
+                <small className="muted">فقط تاریخ انتخاب می‌شود؛ ساعت در پیش‌بینی ثبت نمی‌شود.</small>
+              </div>
+
+              <label className="field">
+                <span className="label">موضوع اصلی *</span>
+                <input className="input" name="mainTopic" required />
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section className="form-section">
+          <div className="form-section-head">
+            <div>
+              <strong>محورهای موضوعی</strong>
+              <div className="section-kicker">رابط یک‌به‌چند پیش‌بینی و محورهای موضوعی</div>
+            </div>
+            <div className="stat-icon"><Layers3 size={20} /></div>
+          </div>
+          <div className="form-section-body">
+            <TopicAxesEditor value={topicAxes} onChange={setTopicAxes} />
+          </div>
+        </section>
+
+        <section className="form-section">
+          <div className="form-section-head">
+            <div>
+              <strong>کارشناس برنامه</strong>
+              <div className="section-kicker">در صورت نیاز کارشناسان فعال همان شبکه را انتخاب کنید.</div>
+            </div>
+            <div className="stat-icon"><UserRoundSearch size={20} /></div>
+          </div>
+          <div className="form-section-body">
+            <Switch
+              checked={hasExpert}
+              onCheckedChange={(checked) => {
+                setHasExpert(checked);
+                if (!checked) setSelectedExpertIds([]);
+              }}
+              label="برنامه دارای کارشناس است"
+              description="با فعال‌کردن این گزینه، فهرست کارشناسان برای انتخاب نمایش داده می‌شود."
+            />
+
+            {hasExpert ? (
+              <div style={{ marginTop: 16 }}>
+                {networkId ? (
+                  <ExpertSelector
+                    experts={experts ?? []}
+                    selectedIds={selectedExpertIds}
+                    onChange={setSelectedExpertIds}
+                  />
+                ) : (
+                  <div className="alert" style={{ background: "#f8fafc", border: "1px solid var(--border)" }}>
+                    ابتدا شبکه برنامه را انتخاب کنید تا کارشناسان همان شبکه نمایش داده شوند.
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        {message ? <div className="alert alert-error">{message}</div> : null}
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button className="btn btn-primary" disabled={saving}>
             {saving ? <Loader2 size={17} /> : <Save size={17} />}
-            ثبت پیش‌بینی
+            {saving ? "در حال ثبت..." : "ثبت پیش‌بینی"}
           </button>
         </div>
       </form>

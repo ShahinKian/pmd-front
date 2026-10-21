@@ -8,6 +8,7 @@ import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import type { PlanProviderLink } from "@/lib/plan-providers/types";
+import { Switch } from "@/components/ui/switch";
 
 function toPositiveInt(value: string): number | null {
   const parsed = Number(value);
@@ -252,24 +253,24 @@ export default function PlanProvidersPage() {
                   <div className="muted">در حال دریافت تهیه‌کننده‌ها...</div>
                 ) : null}
 
-                <div className="checkbox-row">
+                <div className="role-grid">
                   {providerOptions.map((provider) => {
                     const alreadyAssigned = assignedIds.has(provider.id);
+                    const active =
+                      alreadyAssigned || selectedProviderIds.includes(provider.id);
+
                     return (
-                      <label className="check-card" key={provider.id}>
-                        <input
-                          type="checkbox"
+                      <div className={`role-card ${active ? "active" : ""}`} key={provider.id}>
+                        <div className="role-title">
+                          <strong>{provider.label}</strong>
+                          <small>{alreadyAssigned ? "قبلاً به طرح متصل شده" : `ProviderId: ${provider.id}`}</small>
+                        </div>
+                        <Switch
+                          checked={active}
                           disabled={provider.disabled || alreadyAssigned}
-                          checked={
-                            alreadyAssigned || selectedProviderIds.includes(provider.id)
-                          }
-                          onChange={() => toggleProvider(provider.id)}
+                          onCheckedChange={() => toggleProvider(provider.id)}
                         />
-                        <span>{provider.label}</span>
-                        {alreadyAssigned ? (
-                          <small className="muted">ثبت‌شده</small>
-                        ) : null}
-                      </label>
+                      </div>
                     );
                   })}
                 </div>
