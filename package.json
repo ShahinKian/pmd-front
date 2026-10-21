@@ -18,12 +18,19 @@
     "@fontsource/vazirmatn": "^5.2.6",
     "@radix-ui/react-switch": "^1.2.6",
     "react-multi-date-picker": "^4.5.2",
-    "react-date-object": "^2.1.9"
+    "react-date-object": "^2.1.9",
+    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-slot": "^1.2.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@tailwindcss/postcss": "^4",
+    "tailwindcss": "^4"
   }
 }
