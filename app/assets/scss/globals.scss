@@ -1,7 +1,4 @@
 @use "sass:meta";
-@import "tailwindcss";
-
-
 @include meta.load-css("partials/calendar.scss");
 @include meta.load-css("partials/react-slect");
 @include meta.load-css("partials/map");
