@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import {
@@ -160,7 +161,15 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
         </div>
       ) : null}
 
-      {error ? <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">{error}</div> : null}
+      {error ? (
+        <StatusAlert
+          type="error"
+          title="اطلاعات فرم نیاز به اصلاح دارد"
+          message={error}
+          dismissible
+          onDismiss={() => setError("")}
+        />
+      ) : null}
 
       <div className="flex justify-end">
         <Button type="submit" disabled={saving}>

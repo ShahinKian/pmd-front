@@ -7,6 +7,7 @@ import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell"
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import StatusAlert from "@/components/ui/status-alert";
 import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
@@ -98,9 +99,11 @@ export default function WorkflowAssignmentsPage() {
       </div>
 
       {session && !session.isSystemAdmin ? (
-        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-destructive">
-          این بخش فقط برای مدیر سیستم مجاز است.
-        </div>
+        <StatusAlert
+          type="warning"
+          title="دسترسی محدود"
+          message="تخصیص Workflow به فرم و شبکه فقط برای مدیر سیستم مجاز است."
+        />
       ) : null}
 
       {session?.isSystemAdmin ? (
@@ -170,11 +173,13 @@ export default function WorkflowAssignmentsPage() {
             </div>
 
             {message ? (
-              <div className={message.type === "error"
-                ? "mt-4 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
-                : "mt-4 rounded-md border border-success/20 bg-success/10 p-3 text-sm text-success"}>
-                {message.text}
-              </div>
+              <StatusAlert
+                type={message.type}
+                message={message.text}
+                dismissible
+                onDismiss={() => setMessage(null)}
+                className="mt-4"
+              />
             ) : null}
           </form>
 

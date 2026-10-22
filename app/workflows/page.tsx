@@ -9,6 +9,7 @@ import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import StatusAlert from "@/components/ui/status-alert";
 import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import {
@@ -186,9 +187,12 @@ export default function WorkflowsPage() {
       </div>
 
       {session && !session.isSystemAdmin ? (
-        <div className="mb-5 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-destructive">
-          مدیریت تعریف Workflow فقط برای مدیر سیستم مجاز است.
-        </div>
+        <StatusAlert
+          type="warning"
+          title="دسترسی محدود"
+          message="تعریف و ویرایش Workflow فقط برای مدیر سیستم مجاز است."
+          className="mb-5"
+        />
       ) : null}
 
       {session?.isSystemAdmin ? (
@@ -211,7 +215,16 @@ export default function WorkflowsPage() {
               ایجاد
             </Button>
           </div>
-          {message ? <div className="mt-3 text-sm text-destructive">{message}</div> : null}
+          {message ? (
+            <StatusAlert
+              type="error"
+              title="ایجاد فرآیند انجام نشد"
+              message={message}
+              dismissible
+              onDismiss={() => setMessage("")}
+              className="mt-4"
+            />
+          ) : null}
         </form>
       ) : null}
 
@@ -247,7 +260,13 @@ export default function WorkflowsPage() {
       </div>
 
       {isLoading ? <div className="rounded-xl border bg-card p-10 text-center text-default-500">در حال دریافت Workflowها...</div> : null}
-      {error ? <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-destructive">دریافت Workflowها انجام نشد.</div> : null}
+      {error ? (
+        <StatusAlert
+          type="error"
+          title="خطا در دریافت فرآیندها"
+          message="لیست Workflowها از سرور دریافت نشد. لطفاً اتصال API را بررسی کنید."
+        />
+      ) : null}
     </DashboardShell>
   );
 }
