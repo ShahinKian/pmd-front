@@ -3,17 +3,21 @@
 import type { ReactNode } from "react";
 import { SWRConfig } from "swr";
 import { ThemeProvider } from "next-themes";
+import { cn } from "@/lib/utils";
 import { apiFetcher } from "@/lib/http/client";
 import DirectionProvider from "@/provider/direction.provider";
+import { useThemeStore } from "@/store";
 
 export default function AppProviders({ children }: { children: ReactNode }) {
+  const { theme, radius } = useThemeStore();
+
   return (
     <ThemeProvider attribute="class" enableSystem={false} defaultTheme="light">
-      <DirectionProvider lang="fa">
-        <div
-          className="dash-tail-app theme-violet min-h-screen"
-          style={{ "--radius": "0.5rem" } as React.CSSProperties}
-        >
+      <div
+        className={cn("dash-tail-app", "theme-" + theme)}
+        style={{ "--radius": `${radius}rem` } as React.CSSProperties}
+      >
+        <DirectionProvider>
           <SWRConfig
             value={{
               fetcher: apiFetcher,
@@ -24,8 +28,8 @@ export default function AppProviders({ children }: { children: ReactNode }) {
           >
             {children}
           </SWRConfig>
-        </div>
-      </DirectionProvider>
+        </DirectionProvider>
+      </div>
     </ThemeProvider>
   );
 }

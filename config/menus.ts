@@ -1,20 +1,22 @@
 import {
-  BarChart3,
-  ClipboardList,
-  FileText,
-  FolderKanban,
-  Link2,
+  DashBoard,
+  Files,
+  ClipBoard,
+  Graph,
+  Settings,
   Users,
-  UserPlus,
-  UserCog,
-} from "lucide-react";
+  Building,
+  Building2,
+} from "@/components/svg";
 import type { SessionPayload } from "@/hooks/use-session";
 
 export interface PmdMenuItem {
   title: string;
-  icon: any;
   href?: string;
+  icon: any;
   child?: PmdMenuItem[];
+  nested?: PmdMenuItem[];
+  badge?: string;
 }
 
 export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
@@ -24,40 +26,42 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
 
   return [
     {
-      title: "اصلی",
-      icon: BarChart3,
-      child: [{ title: "داشبورد", href: "/dashboard", icon: BarChart3 }],
+      title: "صفحه اصلی",
+      icon: DashBoard,
+      child: [
+        { title: "داشبورد", href: "/dashboard", icon: Graph },
+      ],
     },
     {
       title: "ثبت عملکرد",
-      icon: ClipboardList,
+      icon: Files,
       child: [
-        { title: "پیش‌بینی برنامه", href: "/forecasts", icon: ClipboardList },
-        { title: "شناسنامه عملکرد", href: "/program-profiles", icon: FileText },
+        { title: "پیش‌بینی برنامه", href: "/forecasts", icon: ClipBoard },
+        { title: "شناسنامه عملکرد", href: "/program-profiles", icon: Files },
       ],
     },
     ...(session?.user.roles.includes("Providers") || canManagePlanProviders
       ? [{
           title: "طرح و تهیه‌کننده",
-          icon: Link2,
+          icon: Building2,
           child: [
             ...(session?.user.roles.includes("Providers")
-              ? [{ title: "طرح‌های من", href: "/my-plans", icon: FolderKanban }]
+              ? [{ title: "طرح‌های من", href: "/my-plans", icon: Files }]
               : []),
             ...(canManagePlanProviders
-              ? [{ title: "تخصیص طرح به تهیه‌کننده", href: "/plan-providers", icon: Link2 }]
+              ? [{ title: "تخصیص طرح به تهیه‌کننده", href: "/plan-providers", icon: Building }]
               : []),
           ],
         }]
       : []),
     ...(session?.isSystemAdmin
       ? [{
-          title: "مدیریت کاربران",
-          icon: Users,
+          title: "مدیریت سیستم",
+          icon: Settings,
           child: [
             { title: "کاربران", href: "/users", icon: Users },
-            { title: "تعریف کاربر", href: "/users/new", icon: UserPlus },
-            { title: "ویرایش دسترسی", href: "/users/manage", icon: UserCog },
+            { title: "تعریف کاربر", href: "/users/new", icon: Users },
+            { title: "ویرایش دسترسی", href: "/users/manage", icon: Settings },
           ],
         }]
       : []),

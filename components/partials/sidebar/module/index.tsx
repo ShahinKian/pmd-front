@@ -1,60 +1,30 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { ChevronLeft, RadioTower } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { cn, getDynamicPath, isLocationMatch } from "@/lib/utils";
-import { useSidebar, useThemeStore } from "@/store";
-import { useSession } from "@/hooks/use-session";
-import { getPmdMenus } from "@/config/menus";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn, isLocationMatch, getDynamicPath, translate } from "@/lib/utils";
 import SingleIconMenu from "./single-icon-menu";
+import { usePathname } from "next/navigation";
+import { useSidebar, useThemeStore } from "@/store";
 import MenuItem from "./menu-item";
+import { SiteLogo } from "@/components/svg";
+import Link from "next/link";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import LogoutFooter from "./logout-footer";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import MenuOverlayPortal from "./MenuOverlayPortal";
-import { apiClient } from "@/lib/http/client";
-import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
-
-function initials(value?: string | null) {
-  const words = (value ?? "").trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return "ک";
-  return words.slice(0, 2).map((word) => word[0]).join("");
-}
+import { ChevronLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { usePmdMenu } from "@/hooks/use-pmd-menu";
 
 const ModuleSidebar = ({ trans }: { trans: any }) => {
-  const { data: session } = useSession();
-  const menus = getPmdMenus(session);
-  const { subMenu, setSubmenu, collapsed, setCollapsed } = useSidebar();
+  const menus = usePmdMenu();
+  const { subMenu, setSubmenu, collapsed, setCollapsed, sidebarBg } = useSidebar();
   const { isRtl } = useThemeStore();
-  const [activeIndex, setActiveIndex] = useState<number | null>(0);
-  const [currentSubMenu, setCurrentSubMenu] = useState<any[]>(menus[0]?.child ?? []);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [currentSubMenu, setCurrentSubMenu] = useState<any[]>([]);
   const [menuOverlay, setMenuOverlay] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 1280px)");
   const pathname = usePathname();
   const locationName = getDynamicPath(pathname);
-  const router = useRouter();
-
-  useEffect(() => {
-    let matched = false;
-    menus.forEach((item, i) => {
-      item.child?.forEach((child) => {
-        if (child.href && isLocationMatch(child.href, locationName)) {
-          setActiveIndex(i);
-          setCurrentSubMenu(item.child ?? []);
-          setSubmenu(false);
-          setCollapsed(false);
-          matched = true;
-        }
-      });
-    });
-    if (!matched && menus[0]) {
-      setActiveIndex(0);
-      setCurrentSubMenu(menus[0].child ?? []);
-    }
-  }, [locationName, menus.length, setCollapsed, setSubmenu]);
 
   const toggleSubMenu = (index: number) => {
     setActiveIndex(index);
@@ -64,10 +34,28 @@ const ModuleSidebar = ({ trans }: { trans: any }) => {
     if (!isDesktop) setMenuOverlay(true);
   };
 
-  async function logout() {
-    await apiClient.post("/auth/logout");
-    router.replace("/login");
-  }
+  useEffect(() => {
+    let matched = false;
+    menus.forEach((item: any, i: number) => {
+      item?.child?.forEach((childItem: any) => {
+        if (childItem.href && isLocationMatch(childItem.href, locationName)) {
+          setActiveIndex(i);
+          setCurrentSubMenu(item.child ?? []);
+          setSubmenu(false);
+          setCollapsed(false);
+          setMenuOverlay(false);
+          matched = true;
+        }
+      });
+    });
+    if (!matched && menus.length) {
+      setActiveIndex(0);
+      setCurrentSubMenu(menus[0].child ?? []);
+    }
+    if (!isDesktop) setSubmenu(true);
+  }, [locationName, isDesktop, menus.length, setCollapsed, setSubmenu]);
+
+  const getMenuTitle = () => activeIndex !== null ? menus[activeIndex]?.title ?? "" : "";
 
   return (
     <>
@@ -83,14 +71,14 @@ const ModuleSidebar = ({ trans }: { trans: any }) => {
           )}
         >
           <div className="pt-4">
-            <Link href="/dashboard" prefetch className="mx-auto flex h-8 w-8 items-center justify-center text-primary">
-              <RadioTower className="h-8 w-8" />
+            <Link href="/dashboard" prefetch>
+              <SiteLogo className="mx-auto text-primary h-8 w-8" />
             </Link>
           </div>
 
           <ScrollArea className="pt-6 grow">
             {menus.map((item, i) => (
-              <div key={item.title} onClick={() => toggleSubMenu(i)} className="mb-3 last:mb-0">
+              <div key={i} onClick={() => toggleSubMenu(i)} className="mb-3 last:mb-0">
                 <SingleIconMenu
                   index={i}
                   activeIndex={activeIndex}
@@ -101,28 +89,28 @@ const ModuleSidebar = ({ trans }: { trans: any }) => {
               </div>
             ))}
           </ScrollArea>
-
-          <div className="space-y-5 flex flex-col items-center justify-center pb-6">
-            <Avatar className="h-9 w-9">
-              {session?.user.profilePictureUrl ? (
-                <AvatarImage src="/api/auth/profile/picture/view" alt={session.user.fullName || session.user.userName} />
-              ) : null}
-              <AvatarFallback>{initials(session?.user.fullName || session?.user.userName)}</AvatarFallback>
-            </Avatar>
-          </div>
+          <LogoutFooter />
         </div>
 
         <div
           className={cn(
             "border-default-200 pointer-events-auto relative z-10 flex flex-col h-full w-[228px] border-r bg-card transition-all duration-300",
             {
-              "rtl:translate-x-[calc(100%_+_72px)] translate-x-[calc(-100%_-_72px)]": collapsed || subMenu,
+              "rtl:translate-x-[calc(100%_+_72px)] translate-x-[calc(-100%_-_72px)]":
+                collapsed || subMenu,
             },
           )}
         >
+          {sidebarBg !== "none" && (
+            <div
+              className="absolute left-0 top-0 z-[-1] w-full h-full bg-cover bg-center opacity-[0.07]"
+              style={{ backgroundImage: `url(${sidebarBg})` }}
+            />
+          )}
+
           <h2 className="text-lg bg-transparent z-50 font-semibold flex gap-4 items-center text-default-700 sticky top-0 py-4 px-4 capitalize">
-            <span className="block flex-1">{menus[activeIndex ?? 0]?.title ?? ""}</span>
-            {!isDesktop ? (
+            <span className="block">{translate(getMenuTitle(), trans)}</span>
+            {!isDesktop && (
               <Button
                 size="icon"
                 variant="ghost"
@@ -135,41 +123,33 @@ const ModuleSidebar = ({ trans }: { trans: any }) => {
               >
                 <ChevronLeft className="w-5 h-5" />
               </Button>
-            ) : null}
+            )}
           </h2>
 
           <ScrollArea className="h-[calc(100%-40px)] grow">
             <div className="px-4" dir={isRtl ? "rtl" : "ltr"}>
               <ul>
-                {currentSubMenu.map((childItem, j) => (
-                  <li key={childItem.href ?? j} className="mb-1.5 last:mb-0">
-                    <MenuItem childItem={childItem} locationName={locationName} trans={trans} />
+                {currentSubMenu?.map((childItem, j) => (
+                  <li key={j} className="mb-1.5 last:mb-0">
+                    <MenuItem
+                      trans={trans}
+                      childItem={childItem}
+                      toggleNested={() => {}}
+                      index={j}
+                      nestedIndex={null}
+                      locationName={locationName}
+                    />
                   </li>
                 ))}
               </ul>
             </div>
           </ScrollArea>
 
-          <div className="bg-default-50 dark:bg-default-200 items-center flex gap-3 px-4 py-2 mt-5">
-            <div className="flex-1 min-w-0">
-              <div className="text-default-700 font-semibold text-sm capitalize mb-0.5 truncate">
-                {session?.user.fullName || session?.user.userName || "کاربر سامانه"}
-              </div>
-              <div className="text-xs text-default-600 truncate">{session?.roleLabels?.join("، ") ?? ""}</div>
-            </div>
-            <button
-              type="button"
-              onClick={logout}
-              className="text-default-500 inline-flex h-9 w-9 rounded items-center dark:bg-default-300 justify-center dark:text-default-900"
-              title="خروج"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
-          </div>
+          <LogoutFooter />
         </div>
       </div>
 
-      {!isDesktop ? (
+      {!isDesktop && (
         <MenuOverlayPortal
           isOpen={menuOverlay || collapsed}
           onClose={() => {
@@ -178,7 +158,7 @@ const ModuleSidebar = ({ trans }: { trans: any }) => {
             setCollapsed(false);
           }}
         />
-      ) : null}
+      )}
     </>
   );
 };
