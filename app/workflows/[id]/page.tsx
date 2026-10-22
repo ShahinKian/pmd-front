@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
-import { ArrowLeftRight, CheckCircle2, GitBranch, Layers3, Loader2, Plus, RefreshCcw } from "lucide-react";
+import { ArrowLeftRight, CheckCircle2, GitBranch, Layers3, Loader2, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import MermaidDiagram from "@/components/workflows/mermaid-diagram";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ export default function WorkflowDesignerPage() {
   const [nodeBusy, setNodeBusy] = useState(false);
   const [transitionBusy, setTransitionBusy] = useState(false);
   const [actionBusy, setActionBusy] = useState<"activate" | "revision" | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [diagramRevision, setDiagramRevision] = useState(0);
 
@@ -114,6 +115,40 @@ export default function WorkflowDesignerPage() {
       setMessage({ type: "error", text: apiErrorMessage(e, "ثبت ارتباط انجام نشد.") });
     } finally {
       setTransitionBusy(false);
+    }
+  }
+
+  async function deleteNode(nodeId: string, nodeName: string) {
+    if (!draft) return;
+    if (!window.confirm("مرحله «" + nodeName + "» حذف شود؟ اتصال‌های وابسته به این مرحله نیز حذف خواهند شد.")) return;
+
+    setDeletingId(nodeId);
+    setMessage(null);
+    try {
+      await apiClient.delete("/workflows/" + id + "/nodes/" + nodeId);
+      await refreshDesigner();
+      setMessage({ type: "success", text: "مرحله و اتصال‌های وابسته با موفقیت حذف شدند." });
+    } catch (e) {
+      setMessage({ type: "error", text: apiErrorMessage(e, "حذف مرحله انجام نشد.") });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function deleteTransition(transitionId: string) {
+    if (!draft) return;
+    if (!window.confirm("این اتصال از فرآیند حذف شود؟")) return;
+
+    setDeletingId(transitionId);
+    setMessage(null);
+    try {
+      await apiClient.delete("/workflows/" + id + "/transitions/" + transitionId);
+      await refreshDesigner();
+      setMessage({ type: "success", text: "اتصال با موفقیت حذف شد." });
+    } catch (e) {
+      setMessage({ type: "error", text: apiErrorMessage(e, "حذف اتصال انجام نشد.") });
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -221,9 +256,23 @@ export default function WorkflowDesignerPage() {
                           {node.key} · {workflowNodeTypeLabels[node.type]}{node.assignedRole ? " · " + node.assignedRole : ""}
                         </div>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex items-center gap-1">
                         {node.isStart ? <span className="rounded bg-success/10 px-2 py-1 text-xs text-success">شروع</span> : null}
                         {node.allowBacktrack ? <span className="rounded bg-info/10 px-2 py-1 text-xs text-info">بازگشت مجاز</span> : null}
+                        {draft ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            color="destructive"
+                            className="h-8 w-8"
+                            disabled={deletingId === node.id}
+                            onClick={() => deleteNode(node.id, node.name)}
+                            title="حذف مرحله"
+                          >
+                            {deletingId === node.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -251,10 +300,26 @@ export default function WorkflowDesignerPage() {
                         <span className="text-primary">←</span>
                         <span>{to?.name ?? "?"}</span>
                       </div>
-                      <div className="mt-1 text-xs text-default-500">
-                        {transition.name || "بدون عنوان"}
-                        {transition.outcome ? " · Outcome: " + transition.outcome : ""}
-                        {" · اولویت " + transition.priority}
+                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-default-500">
+                        <span>
+                          {transition.name || "بدون عنوان"}
+                          {transition.outcome ? " · Outcome: " + transition.outcome : ""}
+                          {" · اولویت " + transition.priority}
+                        </span>
+                        {draft ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            color="destructive"
+                            className="h-8 w-8"
+                            disabled={deletingId === transition.id}
+                            onClick={() => deleteTransition(transition.id)}
+                            title="حذف اتصال"
+                          >
+                            {deletingId === transition.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                   );
