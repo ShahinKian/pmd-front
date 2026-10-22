@@ -28,9 +28,7 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
     {
       title: "صفحه اصلی",
       icon: DashBoard,
-      child: [
-        { title: "داشبورد", href: "/dashboard", icon: Graph },
-      ],
+      child: [{ title: "داشبورد", href: "/dashboard", icon: Graph }],
     },
     {
       title: "ثبت عملکرد",
@@ -38,6 +36,7 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       child: [
         { title: "پیش‌بینی برنامه", href: "/forecasts", icon: ClipBoard },
         { title: "شناسنامه عملکرد", href: "/program-profiles", icon: Files },
+        { title: "کارشناسان", href: "/experts", icon: Users },
       ],
     },
     ...(session?.user.roles.includes("Providers") || canManagePlanProviders
@@ -62,6 +61,8 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
             { title: "کاربران", href: "/users", icon: Users },
             { title: "تعریف کاربر", href: "/users/new", icon: Users },
             { title: "ویرایش دسترسی", href: "/users/manage", icon: Settings },
+            { title: "مدیریت Workflow", href: "/workflows", icon: Graph },
+            { title: "تخصیص Workflow", href: "/workflows/assignments", icon: Settings },
           ],
         }]
       : []),
