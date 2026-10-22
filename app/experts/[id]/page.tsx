@@ -6,6 +6,7 @@ import { Loader2, Trash2 } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import ExpertForm from "@/components/experts/expert-form";
 import { Button } from "@/components/ui/button";
+import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { ExpertResponse } from "@/lib/experts/types";
 import { useState } from "react";
@@ -44,8 +45,23 @@ export default function ExpertDetailPage() {
         </Button>
       </div>
       {isLoading ? <div className="rounded-xl border bg-card p-6 text-default-500">در حال دریافت اطلاعات...</div> : null}
-      {error ? <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-destructive">دریافت اطلاعات کارشناس انجام نشد.</div> : null}
-      {message ? <div className="mb-4 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-destructive">{message}</div> : null}
+      {error ? (
+        <StatusAlert
+          type="error"
+          title="دریافت اطلاعات کارشناس ناموفق بود"
+          message="اطلاعات این کارشناس از سرور دریافت نشد."
+        />
+      ) : null}
+      {message ? (
+        <StatusAlert
+          type="error"
+          title="حذف کارشناس انجام نشد"
+          message={message}
+          dismissible
+          onDismiss={() => setMessage("")}
+          className="mb-4"
+        />
+      ) : null}
       {data ? (
         <div className="rounded-xl border bg-card p-6">
           <ExpertForm expert={data} onSaved={(saved) => mutate(saved, false)} />

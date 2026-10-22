@@ -7,6 +7,7 @@ import { Plus, Search, UsersRound } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import StatusAlert from "@/components/ui/status-alert";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { educationLevelLabels, type ExpertResponse } from "@/lib/experts/types";
 
@@ -135,7 +136,15 @@ export default function ExpertsPage() {
         </table>
 
         {isLoading ? <div className="p-10 text-center text-default-500">در حال دریافت کارشناسان...</div> : null}
-        {error ? <div className="p-10 text-center text-destructive">دریافت لیست کارشناسان انجام نشد.</div> : null}
+        {error ? (
+          <div className="p-4">
+            <StatusAlert
+              type="error"
+              title="دریافت کارشناسان ناموفق بود"
+              message="لیست کارشناسان از سرور دریافت نشد. فیلترها یا اتصال API را بررسی کنید."
+            />
+          </div>
+        ) : null}
         {!isLoading && !error && (data?.length ?? 0) === 0 ? (
           <div className="p-10 text-center text-default-500">
             <UsersRound className="mx-auto mb-3 h-8 w-8" />

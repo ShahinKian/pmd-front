@@ -15,6 +15,7 @@ import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell"
 import MermaidDiagram from "@/components/workflows/mermaid-diagram";
 import WorkflowCanvas from "@/components/workflows/workflow-canvas";
 import { Button } from "@/components/ui/button";
+import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { RoleResponse } from "@/lib/auth/types";
 import {
@@ -91,9 +92,11 @@ export default function WorkflowDesignerPage() {
       ) : null}
 
       {error ? (
-        <div className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-destructive">
-          دریافت Workflow انجام نشد.
-        </div>
+        <StatusAlert
+          type="error"
+          title="دریافت فرآیند ناموفق بود"
+          message="اطلاعات Workflow از سرور دریافت نشد. اتصال به API یا سطح دسترسی را بررسی کنید."
+        />
       ) : null}
 
       {data ? (
@@ -153,15 +156,12 @@ export default function WorkflowDesignerPage() {
           </div>
 
           {message ? (
-            <div
-              className={
-                message.type === "error"
-                  ? "rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
-                  : "rounded-md border border-success/20 bg-success/10 p-3 text-sm text-success"
-              }
-            >
-              {message.text}
-            </div>
+            <StatusAlert
+              type={message.type}
+              message={message.text}
+              dismissible
+              onDismiss={() => setMessage(null)}
+            />
           ) : null}
 
           <div className="flex w-fit gap-1 rounded-xl border bg-card p-1">
@@ -207,11 +207,15 @@ export default function WorkflowDesignerPage() {
             <MermaidDiagram workflowId={id} revisionKey={diagramRevision} />
           )}
 
-          <div className="rounded-xl border bg-card p-4 text-xs leading-6 text-default-500">
-            {draft
-              ? "در نسخه Draft می‌توانی مرحله‌ها را Drag کنی، اتصال جدید بسازی، Properties را ویرایش کنی و مرحله/اتصال را حذف کنی. موقعیت مرحله پس از پایان Drag ذخیره می‌شود."
-              : "نسخه Active قفل است. برای تغییر ساختار، ابتدا «ساخت نسخه قابل ویرایش» را بزن؛ نسخه جاری برای اجرای فرآیند بدون تغییر باقی می‌ماند."}
-          </div>
+          <StatusAlert
+            type={draft ? "info" : "warning"}
+            title={draft ? "راهنمای طراح فرآیند" : "نسخه فعال قفل است"}
+            message={
+              draft
+                ? "مرحله‌ها را Drag کن، اتصال جدید بساز، ویژگی‌ها را ویرایش کن و در صورت نیاز مرحله یا مسیر را حذف کن. موقعیت هر مرحله بعد از Drag ذخیره می‌شود."
+                : "برای تغییر ساختار این Workflow، ابتدا یک نسخه قابل ویرایش بساز. نسخه فعال فعلی برای اجرای فرآیند بدون تغییر باقی می‌ماند."
+            }
+          />
         </div>
       ) : null}
     </DashboardShell>

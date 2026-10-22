@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { RoleResponse } from "@/lib/auth/types";
 import {
@@ -548,16 +549,13 @@ export default function WorkflowCanvas({
 
         <div className="max-h-[660px] overflow-y-auto p-4">
           {message ? (
-            <div
-              className={
-                "mb-4 rounded-lg border p-3 text-xs leading-5 " +
-                (message.type === "error"
-                  ? "border-destructive/20 bg-destructive/10 text-destructive"
-                  : "border-success/20 bg-success/10 text-success")
-              }
-            >
-              {message.text}
-            </div>
+            <StatusAlert
+              type={message.type}
+              message={message.text}
+              dismissible
+              onDismiss={() => setMessage(null)}
+              className="mb-4"
+            />
           ) : null}
 
           {!selectedNode && !selectedTransition && !pendingNode && !pendingConnection ? (

@@ -1,9 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { Home } from "lucide-react";
 import DashBoardLayoutProvider from "@/provider/dashboard.layout.provider";
+import { Breadcrumbs, BreadcrumbItem } from "@/components/ui/breadcrumbs";
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
   return <DashBoardLayoutProvider>{children}</DashBoardLayoutProvider>;
@@ -15,19 +15,26 @@ export function Breadcrumb({
   items: Array<{ label: string; href?: string }>;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-sm text-default-500 mb-4">
-      {items.map((item, index) => (
-        <span key={item.label} className="flex items-center gap-1.5">
-          {index > 0 ? <ChevronLeft className="h-3.5 w-3.5" /> : null}
-          {item.href ? (
-            <Link href={item.href} prefetch className="hover:text-primary">
-              {item.label}
-            </Link>
-          ) : (
-            <span className="text-default-700">{item.label}</span>
-          )}
-        </span>
-      ))}
+    <div className="mb-5 rounded-xl border bg-card px-4 py-3 shadow-sm">
+      <Breadcrumbs
+        variant="default"
+        color="default"
+        size="sm"
+        maxItems={5}
+        itemsBeforeCollapse={1}
+        itemsAfterCollapse={2}
+      >
+        {items.map((item, index) => (
+          <BreadcrumbItem
+            key={item.label + index}
+            href={item.href}
+            startContent={index === 0 ? <Home className="h-4 w-4" /> : undefined}
+            className={index === items.length - 1 ? "font-semibold" : undefined}
+          >
+            {item.label}
+          </BreadcrumbItem>
+        ))}
+      </Breadcrumbs>
     </div>
   );
 }
