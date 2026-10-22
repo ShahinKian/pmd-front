@@ -140,7 +140,6 @@ export default function ForecastDetailsPage() {
     try {
       await apiClient.delete("/forecasts/" + id);
       router.replace("/forecasts");
-      router.refresh();
     } catch (err) {
       setMessage({
         type: "error",

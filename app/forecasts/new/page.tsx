@@ -118,7 +118,6 @@ export default function NewForecastPage() {
       });
 
       router.replace("/forecasts/" + response.data.id);
-      router.refresh();
     } catch (error) {
       setMessage(apiErrorMessage(error, "ثبت پیش‌بینی انجام نشد."));
     } finally {

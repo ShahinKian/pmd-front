@@ -65,7 +65,7 @@ export default function IssueProfilePage(){
         crewMembers,
         items:parseItems(),
       });
-      router.replace("/program-profiles/"+response.data.id);router.refresh();
+      router.replace("/program-profiles/"+response.data.id);
     }catch(error){setMessage(apiErrorMessage(error,"صدور شناسنامه انجام نشد."));}
     finally{setSaving(false);}
   }

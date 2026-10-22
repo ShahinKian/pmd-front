@@ -31,7 +31,6 @@ export default function LoginPage() {
           : "/dashboard";
 
       router.replace(returnTo);
-      router.refresh();
     } catch (error) {
       setMessage(apiErrorMessage(error, "نام کاربری یا رمز عبور صحیح نیست."));
       setLoading(false);
