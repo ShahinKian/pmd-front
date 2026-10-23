@@ -2,11 +2,12 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { SiteLogo } from "@/components/svg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+  const [captchaVersion, setCaptchaVersion] = useState(1);
+
+  function refreshCaptcha() {
+    setCaptchaVersion((value) => value + 1);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,6 +33,7 @@ export default function LoginPage() {
       await apiClient.post("/auth/login", {
         userName: String(form.get("userName") ?? ""),
         password: String(form.get("password") ?? ""),
+        captcha: String(form.get("captcha") ?? ""),
       });
 
       const candidate = new URLSearchParams(window.location.search).get("returnTo");
@@ -37,7 +44,10 @@ export default function LoginPage() {
 
       router.replace(returnTo);
     } catch (error) {
-      setMessage(apiErrorMessage(error, "نام کاربری یا رمز عبور صحیح نیست."));
+      setMessage(apiErrorMessage(error, "ورود به سامانه انجام نشد."));
+      refreshCaptcha();
+      const captchaInput = event.currentTarget.elements.namedItem("captcha");
+      if (captchaInput instanceof HTMLInputElement) captchaInput.value = "";
       setLoading(false);
     }
   }
@@ -53,6 +63,16 @@ export default function LoginPage() {
             <div className="mt-5 2xl:mt-8 text-default-900 dark:text-default-200 text-2xl font-medium leading-10">
               سامانه مدیریت پیش‌بینی، شناسنامه عملکرد و فرآیندهای برنامه
             </div>
+
+            <div className="mt-10 flex items-center gap-3 rounded-xl border border-white/20 bg-white/10 p-4 text-default-900 dark:text-default-100">
+              <ShieldCheck className="h-6 w-6" />
+              <div>
+                <div className="font-semibold">ورود امن به سامانه</div>
+                <div className="mt-1 text-sm opacity-80">
+                  اعتبارسنجی CAPTCHA قبل از ارسال اطلاعات ورود به سرویس انجام می‌شود.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -64,7 +84,7 @@ export default function LoginPage() {
                 ورود به سامانه ثبت عملکرد
               </div>
               <div className="2xl:text-lg text-base text-default-600 2xl:mt-2 leading-6">
-                نام کاربری و رمز عبور خود را وارد کنید.
+                نام کاربری، رمز عبور و کد امنیتی را وارد کنید.
               </div>
 
               <form onSubmit={submit} className="mt-5 2xl:mt-7">
@@ -111,13 +131,69 @@ export default function LoginPage() {
                   </div>
                 </div>
 
+                <div className="mt-3.5">
+                  <Label htmlFor="captcha" className="mb-2 font-medium text-default-600">
+                    کد امنیتی
+                  </Label>
+
+                  <div className="rounded-xl border bg-default-50 p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-0 flex-1 overflow-hidden rounded-lg border bg-white">
+                        <img
+                          key={captchaVersion}
+                          src={"/api/auth/captcha?v=" + captchaVersion}
+                          alt="کد امنیتی"
+                          className="h-[66px] w-full object-cover"
+                          draggable={false}
+                        />
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="h-[66px] w-12 shrink-0"
+                        onClick={refreshCaptcha}
+                        disabled={loading}
+                        title="تغییر کد امنیتی"
+                      >
+                        <RefreshCw className="h-5 w-5" />
+                      </Button>
+                    </div>
+
+                    <Input
+                      disabled={loading}
+                      id="captcha"
+                      name="captcha"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      dir="ltr"
+                      className="mt-3 text-center text-lg font-semibold tracking-[0.25em]"
+                      placeholder="پاسخ عبارت بالا"
+                      size="lg"
+                      required
+                    />
+
+                    <p className="mt-2 text-xs leading-5 text-default-500">
+                      پاسخ عبارت داخل تصویر را وارد کنید. کد امنیتی پس از هر تلاش ورود تغییر می‌کند.
+                    </p>
+                  </div>
+                </div>
+
                 {message ? (
-                  <div className="text-destructive mt-3 text-sm">{message}</div>
+                  <StatusAlert
+                    type="error"
+                    title="ورود ناموفق بود"
+                    message={message}
+                    dismissible
+                    onDismiss={() => setMessage("")}
+                    className="mt-4"
+                  />
                 ) : null}
 
                 <Button className="w-full mt-6" disabled={loading} size="lg">
                   {loading && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
-                  {loading ? "در حال ورود..." : "ورود"}
+                  {loading ? "در حال بررسی و ورود..." : "ورود"}
                 </Button>
               </form>
             </div>

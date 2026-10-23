@@ -5,6 +5,7 @@ import { isSameOriginRequest } from "@/lib/auth/security";
 import type { AuthResponse } from "@/lib/auth/types";
 import { readUpstreamBody } from "@/lib/auth/upstream";
 import { pmdFetch } from "@/lib/pmd-api/client";
+import { clearCaptchaCookie, verifyCaptcha } from "@/lib/auth/captcha";
 
 export async function POST(request: NextRequest) {
   if (!isSameOriginRequest(request)) {
@@ -18,14 +19,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "بدنه درخواست معتبر نیست." }, { status: 400 });
   }
 
+  const data = body as Record<string, unknown>;
+  const captcha = typeof data.captcha === "string" ? data.captcha : "";
+
+  if (!verifyCaptcha(request, captcha)) {
+    const response = NextResponse.json(
+      { message: "کد امنیتی صحیح نیست یا منقضی شده است." },
+      { status: 400 },
+    );
+    clearCaptchaCookie(response);
+    return response;
+  }
+
   const upstream = await pmdFetch("/api/auth/login", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      userName: data.userName,
+      password: data.password,
+    }),
   });
 
   const payload = await readUpstreamBody(upstream);
   if (!upstream.ok) {
-    return NextResponse.json(payload, { status: upstream.status });
+    const response = NextResponse.json(payload, { status: upstream.status });
+    clearCaptchaCookie(response);
+    return response;
   }
 
   const auth = payload as AuthResponse;
@@ -46,5 +64,6 @@ export async function POST(request: NextRequest) {
   });
 
   applyAuthCookies(response, auth);
+  clearCaptchaCookie(response);
   return response;
 }

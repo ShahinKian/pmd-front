@@ -2,9 +2,10 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import useSWR from "swr";
-import { Loader2, Save, Settings2 } from "lucide-react";
+import { Edit3, Loader2, Plus, Save, Settings2 } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import StatusAlert from "@/components/ui/status-alert";
@@ -13,10 +14,9 @@ import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import {
   WorkflowDefinitionStatus,
-  WorkflowFormKind,
-  workflowFormKindLabels,
   type WorkflowAssignment,
   type WorkflowDefinition,
+  type WorkflowFormType,
 } from "@/lib/workflows/types";
 
 function toPositiveInt(value: string): number | null {
@@ -28,18 +28,34 @@ export default function WorkflowAssignmentsPage() {
   const { data: session } = useSession();
   const { data: workflows } = useSWR<WorkflowDefinition[]>("/workflows");
   const { data: networks } = useSWR<BaseInfoListResponse>("/base-info/networks");
-  const { data: assignments, mutate } = useSWR<WorkflowAssignment[]>("/workflows/assignments");
+  const {
+    data: formTypes,
+    mutate: mutateFormTypes,
+  } = useSWR<WorkflowFormType[]>("/workflows/form-types?includeInactive=true");
+  const {
+    data: assignments,
+    mutate: mutateAssignments,
+  } = useSWR<WorkflowAssignment[]>("/workflows/assignments");
 
-  const [formKind, setFormKind] = useState<WorkflowFormKind>(WorkflowFormKind.Forecast);
+  const [formTypeId, setFormTypeId] = useState("");
   const [networkId, setNetworkId] = useState<number | null>(null);
   const [workflowDefinitionId, setWorkflowDefinitionId] = useState("");
   const [isEnabled, setIsEnabled] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingAssignment, setSavingAssignment] = useState(false);
+
+  const [editingFormType, setEditingFormType] = useState<WorkflowFormType | null>(null);
+  const [formTypeActive, setFormTypeActive] = useState(true);
+  const [savingFormType, setSavingFormType] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const activeWorkflows = useMemo(
     () => (workflows ?? []).filter((item) => item.status === WorkflowDefinitionStatus.Active),
     [workflows],
+  );
+
+  const activeFormTypes = useMemo(
+    () => (formTypes ?? []).filter((item) => item.isActive),
+    [formTypes],
   );
 
   const networkOptions = useMemo(
@@ -56,45 +72,112 @@ export default function WorkflowAssignmentsPage() {
   };
 
   const networkName = (id: number | null) =>
-    id === null ? "همه شبکه‌ها (پیش‌فرض سراسری)" : networkOptions.find((item) => item.id === id)?.label ?? "شبکه " + id;
+    id === null
+      ? "همه شبکه‌ها (پیش‌فرض سراسری)"
+      : networkOptions.find((item) => item.id === id)?.label ?? "شبکه " + id;
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  async function saveAssignment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!formTypeId) {
+      setMessage({ type: "error", text: "نوع فرم را انتخاب کنید." });
+      return;
+    }
     if (!workflowDefinitionId) {
       setMessage({ type: "error", text: "Workflow فعال را انتخاب کنید." });
       return;
     }
 
-    setSaving(true);
+    setSavingAssignment(true);
     setMessage(null);
     try {
       await apiClient.put("/workflows/assignments", {
-        formKind,
+        formTypeId,
         networkId,
         workflowDefinitionId,
         isEnabled,
       });
-      await mutate();
+      await mutateAssignments();
       setMessage({ type: "success", text: "تخصیص Workflow با موفقیت ذخیره شد." });
     } catch (e) {
-      setMessage({ type: "error", text: apiErrorMessage(e, "ثبت تخصیص Workflow انجام نشد.") });
+      setMessage({
+        type: "error",
+        text: apiErrorMessage(e, "ثبت تخصیص Workflow انجام نشد."),
+      });
     } finally {
-      setSaving(false);
+      setSavingAssignment(false);
     }
+  }
+
+  async function saveFormType(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      key: String(form.get("key") ?? "").trim(),
+      name: String(form.get("name") ?? "").trim(),
+      sortOrder: Number(form.get("sortOrder") ?? 0),
+      isActive: formTypeActive,
+    };
+
+    if (!payload.key || !payload.name) {
+      setMessage({ type: "error", text: "کلید و عنوان نوع فرم الزامی است." });
+      return;
+    }
+
+    setSavingFormType(true);
+    setMessage(null);
+    try {
+      if (editingFormType) {
+        await apiClient.put("/workflows/form-types/" + editingFormType.id, payload);
+      } else {
+        await apiClient.post("/workflows/form-types", payload);
+      }
+
+      await mutateFormTypes();
+      setEditingFormType(null);
+      setFormTypeActive(true);
+      event.currentTarget.reset();
+
+      setMessage({
+        type: "success",
+        text: editingFormType
+          ? "نوع فرم با موفقیت ویرایش شد."
+          : "نوع فرم جدید با موفقیت تعریف شد.",
+      });
+    } catch (e) {
+      setMessage({
+        type: "error",
+        text: apiErrorMessage(e, "ذخیره نوع فرم انجام نشد."),
+      });
+    } finally {
+      setSavingFormType(false);
+    }
+  }
+
+  function editFormType(item: WorkflowFormType) {
+    setEditingFormType(item);
+    setFormTypeActive(item.isActive);
+    setMessage(null);
+    document.getElementById("workflow-form-type-editor")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   }
 
   return (
     <DashboardShell>
-      <Breadcrumb items={[
-        { label: "داشبورد", href: "/dashboard" },
-        { label: "مدیریت فرآیندها", href: "/workflows" },
-        { label: "تخصیص Workflow" },
-      ]} />
+      <Breadcrumb
+        items={[
+          { label: "داشبورد", href: "/dashboard" },
+          { label: "مدیریت فرآیندها", href: "/workflows" },
+          { label: "تخصیص Workflow" },
+        ]}
+      />
 
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-default-900">تخصیص Workflow به فرم و شبکه</h1>
         <p className="mt-1 text-sm text-default-500">
-          تخصیص اختصاصی شبکه نسبت به Workflow سراسری اولویت دارد.
+          نوع فرم‌ها قابل تعریف هستند و تخصیص اختصاصی شبکه نسبت به Workflow سراسری اولویت دارد.
         </p>
       </div>
 
@@ -102,28 +185,170 @@ export default function WorkflowAssignmentsPage() {
         <StatusAlert
           type="warning"
           title="دسترسی محدود"
-          message="تخصیص Workflow به فرم و شبکه فقط برای مدیر سیستم مجاز است."
+          message="مدیریت نوع فرم و تخصیص Workflow فقط برای مدیر سیستم مجاز است."
         />
       ) : null}
 
       {session?.isSystemAdmin ? (
-        <>
-          <form onSubmit={submit} className="mb-6 rounded-xl border bg-card p-5">
+        <div className="space-y-6">
+          {message ? (
+            <StatusAlert
+              type={message.type}
+              message={message.text}
+              dismissible
+              onDismiss={() => setMessage(null)}
+            />
+          ) : null}
+
+          <section id="workflow-form-type-editor" className="rounded-xl border bg-card p-5">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-primary" />
+                <div>
+                  <h2 className="font-semibold text-default-800">
+                    {editingFormType ? "ویرایش نوع فرم" : "تعریف نوع فرم"}
+                  </h2>
+                  <p className="mt-1 text-xs text-default-500">
+                    Key برای اتصال نرم‌افزاری ثابت است؛ عنوان فارسی چیزی است که کاربران می‌بینند.
+                  </p>
+                </div>
+              </div>
+
+              {editingFormType ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingFormType(null);
+                    setFormTypeActive(true);
+                  }}
+                >
+                  انصراف از ویرایش
+                </Button>
+              ) : null}
+            </div>
+
+            <form
+              key={editingFormType?.id ?? "new"}
+              onSubmit={saveFormType}
+              className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1.4fr_160px_170px_auto]"
+            >
+              <div>
+                <Label className="mb-2 text-default-600">Key *</Label>
+                <Input
+                  name="key"
+                  dir="ltr"
+                  defaultValue={editingFormType?.key ?? ""}
+                  placeholder="program-profile"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label className="mb-2 text-default-600">عنوان فارسی *</Label>
+                <Input
+                  name="name"
+                  defaultValue={editingFormType?.name ?? ""}
+                  placeholder="شناسنامه برنامه"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label className="mb-2 text-default-600">ترتیب</Label>
+                <Input
+                  name="sortOrder"
+                  type="number"
+                  min="0"
+                  defaultValue={editingFormType?.sortOrder ?? (formTypes?.length ?? 0) * 10 + 10}
+                />
+              </div>
+
+              <div className="flex items-end">
+                <label className="flex h-10 w-full items-center justify-between rounded-md border px-3">
+                  <span className="text-sm text-default-700">فعال</span>
+                  <Switch checked={formTypeActive} onCheckedChange={setFormTypeActive} />
+                </label>
+              </div>
+
+              <div className="flex items-end">
+                <Button className="w-full" disabled={savingFormType}>
+                  {savingFormType ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {editingFormType ? "ذخیره تغییرات" : "تعریف نوع فرم"}
+                </Button>
+              </div>
+            </form>
+          </section>
+
+          <section className="overflow-hidden rounded-xl border bg-card">
+            <div className="border-b px-5 py-4">
+              <h2 className="font-semibold text-default-800">نوع فرم‌های تعریف‌شده</h2>
+              <p className="mt-1 text-xs text-default-500">
+                نوع فرم غیرفعال برای تخصیص جدید قابل انتخاب نیست، ولی سوابق قبلی حفظ می‌شوند.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] text-sm">
+                <thead className="bg-default-50">
+                  <tr>
+                    <th className="px-4 py-3 text-right">عنوان</th>
+                    <th className="px-4 py-3 text-right">Key</th>
+                    <th className="px-4 py-3 text-right">ترتیب</th>
+                    <th className="px-4 py-3 text-right">وضعیت</th>
+                    <th className="px-4 py-3 text-right">عملیات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(formTypes ?? []).map((item) => (
+                    <tr key={item.id} className="border-t hover:bg-default-50">
+                      <td className="px-4 py-3 font-medium text-default-700">{item.name}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-default-600" dir="ltr">{item.key}</td>
+                      <td className="px-4 py-3 text-default-600">{item.sortOrder}</td>
+                      <td className="px-4 py-3">
+                        <span className={item.isActive ? "text-success" : "text-default-400"}>
+                          {item.isActive ? "فعال" : "غیرفعال"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Button variant="ghost" size="sm" onClick={() => editFormType(item)}>
+                          <Edit3 className="h-4 w-4" />
+                          ویرایش
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <form onSubmit={saveAssignment} className="rounded-xl border bg-card p-5">
             <div className="mb-5 flex items-center gap-2">
               <Settings2 className="h-5 w-5 text-primary" />
-              <h2 className="font-semibold text-default-800">تعریف سیاست Workflow</h2>
+              <div>
+                <h2 className="font-semibold text-default-800">تعریف سیاست Workflow</h2>
+                <p className="mt-1 text-xs text-default-500">
+                  یک Workflow فعال را برای نوع فرم و در صورت نیاز برای یک شبکه خاص انتخاب کنید.
+                </p>
+              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
                 <Label className="mb-2 text-default-600">نوع فرم *</Label>
                 <select
-                  value={formKind}
-                  onChange={(event) => setFormKind(Number(event.target.value) as WorkflowFormKind)}
+                  value={formTypeId}
+                  onChange={(event) => setFormTypeId(event.target.value)}
+                  required
                   className="h-10 w-full rounded-md border border-default-300 bg-background px-3 text-sm"
                 >
-                  {Object.entries(workflowFormKindLabels).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
+                  <option value="">انتخاب نوع فرم</option>
+                  {activeFormTypes.map((item) => (
+                    <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </select>
               </div>
@@ -152,7 +377,9 @@ export default function WorkflowAssignmentsPage() {
                 >
                   <option value="">انتخاب Workflow</option>
                   {activeWorkflows.map((workflow) => (
-                    <option key={workflow.id} value={workflow.id}>{workflow.name} - v{workflow.version}</option>
+                    <option key={workflow.id} value={workflow.id}>
+                      {workflow.name} - v{workflow.version}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -166,51 +393,61 @@ export default function WorkflowAssignmentsPage() {
             </div>
 
             <div className="mt-5 flex justify-end">
-              <Button disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              <Button disabled={savingAssignment}>
+                {savingAssignment ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
                 ذخیره تخصیص
               </Button>
             </div>
-
-            {message ? (
-              <StatusAlert
-                type={message.type}
-                message={message.text}
-                dismissible
-                onDismiss={() => setMessage(null)}
-                className="mt-4"
-              />
-            ) : null}
           </form>
 
-          <div className="overflow-hidden rounded-xl border bg-card">
-            <table className="w-full text-sm">
-              <thead className="bg-default-50">
-                <tr>
-                  <th className="px-4 py-3 text-right">فرم</th>
-                  <th className="px-4 py-3 text-right">دامنه شبکه</th>
-                  <th className="px-4 py-3 text-right">Workflow</th>
-                  <th className="px-4 py-3 text-right">وضعیت</th>
-                  <th className="px-4 py-3 text-right">آخرین تغییر</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(assignments ?? []).map((item) => (
-                  <tr key={item.id} className="border-t hover:bg-default-50">
-                    <td className="px-4 py-3 font-medium text-default-700">{workflowFormKindLabels[item.formKind] ?? item.formKind}</td>
-                    <td className="px-4 py-3 text-default-600">{networkName(item.networkId)}</td>
-                    <td className="px-4 py-3 text-primary">{workflowName(item.workflowDefinitionId)}</td>
-                    <td className="px-4 py-3">
-                      <span className={item.isEnabled ? "text-success" : "text-destructive"}>{item.isEnabled ? "فعال" : "غیرفعال"}</span>
-                    </td>
-                    <td className="px-4 py-3 text-default-500">{new Date(item.updatedAt).toLocaleString("fa-IR")}</td>
+          <section className="overflow-hidden rounded-xl border bg-card">
+            <div className="border-b px-5 py-4">
+              <h2 className="font-semibold text-default-800">تخصیص‌های ثبت‌شده</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[850px] text-sm">
+                <thead className="bg-default-50">
+                  <tr>
+                    <th className="px-4 py-3 text-right">فرم</th>
+                    <th className="px-4 py-3 text-right">دامنه شبکه</th>
+                    <th className="px-4 py-3 text-right">Workflow</th>
+                    <th className="px-4 py-3 text-right">وضعیت</th>
+                    <th className="px-4 py-3 text-right">آخرین تغییر</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {(assignments?.length ?? 0) === 0 ? <div className="p-10 text-center text-default-500">هنوز تخصیصی ثبت نشده است.</div> : null}
-          </div>
-        </>
+                </thead>
+                <tbody>
+                  {(assignments ?? []).map((item) => (
+                    <tr key={item.id} className="border-t hover:bg-default-50">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-default-700">{item.formTypeName}</div>
+                        <div className="mt-1 font-mono text-[11px] text-default-400" dir="ltr">
+                          {item.formTypeKey}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-default-600">{networkName(item.networkId)}</td>
+                      <td className="px-4 py-3 text-primary">{workflowName(item.workflowDefinitionId)}</td>
+                      <td className="px-4 py-3">
+                        <span className={item.isEnabled ? "text-success" : "text-destructive"}>
+                          {item.isEnabled ? "فعال" : "غیرفعال"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-default-500">
+                        {new Date(item.updatedAt).toLocaleString("fa-IR")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {(assignments?.length ?? 0) === 0 ? (
+              <div className="p-10 text-center text-default-500">هنوز تخصیصی ثبت نشده است.</div>
+            ) : null}
+          </section>
+        </div>
       ) : null}
     </DashboardShell>
   );

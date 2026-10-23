@@ -24,14 +24,6 @@ export enum WorkflowStepStatus {
   Cancelled = 3,
 }
 
-export enum WorkflowFormKind {
-  Forecast = 1,
-  ProgramProfile = 2,
-  FinalPermit = 3,
-  PaymentPermit = 4,
-  Finance = 5,
-}
-
 export interface WorkflowNode {
   id: string;
   key: string;
@@ -68,9 +60,20 @@ export interface WorkflowDefinition {
   transitions: WorkflowTransition[];
 }
 
+export interface WorkflowFormType {
+  id: string;
+  key: string;
+  name: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
+
 export interface WorkflowAssignment {
   id: string;
-  formKind: WorkflowFormKind;
+  formTypeId: string;
+  formTypeKey: string;
+  formTypeName: string;
   networkId: number | null;
   workflowDefinitionId: string;
   isEnabled: boolean;
@@ -115,12 +118,4 @@ export const workflowStatusLabels: Record<number, string> = {
   0: "پیش‌نویس",
   1: "فعال",
   2: "بایگانی",
-};
-
-export const workflowFormKindLabels: Record<number, string> = {
-  1: "پیش‌بینی",
-  2: "شناسنامه برنامه",
-  3: "مجوز نهایی",
-  4: "مجوز پرداخت",
-  5: "مالی",
 };
