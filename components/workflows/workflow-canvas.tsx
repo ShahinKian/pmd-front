@@ -32,6 +32,7 @@ import { Switch } from "@/components/ui/switch";
 import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { RoleResponse } from "@/lib/auth/types";
+import { roleLabel } from "@/lib/auth/role-labels";
 import {
   WorkflowNodeType,
   workflowNodeTypeLabels,
@@ -673,7 +674,7 @@ function NodeForm({
           className="h-10 w-full rounded-md border border-default-300 bg-background px-3 text-sm"
         >
           <option value="">بدون نقش مشخص</option>
-          {roles.map((role) => <option key={role.id} value={role.name}>{role.name}</option>)}
+          {roles.map((role) => <option key={role.id} value={role.name}>{roleLabel(role.name)}</option>)}
         </select>
       </div>
       <div>

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WorkflowNodeType, workflowNodeTypeLabels, type WorkflowNode } from "@/lib/workflows/types";
+import { roleLabel } from "@/lib/auth/role-labels";
 
 export interface WorkflowFlowNodeData extends Record<string, unknown> {
   workflowNode: WorkflowNode;
@@ -63,7 +64,7 @@ export default function WorkflowFlowNode({ data, selected }: NodeProps) {
           </div>
           {node.assignedRole ? (
             <div className="mt-2 inline-flex rounded-md bg-default-100 px-2 py-1 text-[11px] text-default-600">
-              {node.assignedRole}
+              {roleLabel(node.assignedRole)}
             </div>
           ) : null}
         </div>

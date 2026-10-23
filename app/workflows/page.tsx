@@ -17,13 +17,19 @@ import {
   WorkflowDefinitionStatus,
   type WorkflowDefinition,
 } from "@/lib/workflows/types";
+import {
+  createForecastWorkflowSample,
+  createProgramProfileWorkflowSample,
+  forecastWorkflowSampleName,
+  programProfileWorkflowSampleName,
+} from "@/lib/workflows/samples";
 
 export default function WorkflowsPage() {
   const router = useRouter();
   const { data: session } = useSession();
   const { data, error, isLoading, mutate } = useSWR<WorkflowDefinition[]>("/workflows");
   const [creating, setCreating] = useState(false);
-  const [creatingSample, setCreatingSample] = useState(false);
+  const [creatingSample, setCreatingSample] = useState<"forecast" | "program-profile" | null>(null);
   const [message, setMessage] = useState("");
 
   async function createWorkflow(event: FormEvent<HTMLFormElement>) {
@@ -45,119 +51,36 @@ export default function WorkflowsPage() {
     }
   }
 
-  async function createForecastSample() {
-    const existing = (data ?? []).find((item) => item.name === "فرآیند پیش‌بینی - نمونه");
+  async function openOrCreateSample(
+    kind: "forecast" | "program-profile",
+    sampleName: string,
+    factory: () => Promise<WorkflowDefinition>,
+  ) {
+    const existing = (data ?? []).find((item) => item.name === sampleName);
     if (existing) {
       router.push("/workflows/" + existing.id);
       return;
     }
 
-    setCreatingSample(true);
+    setCreatingSample(kind);
     setMessage("");
 
     try {
-      const definition = await apiClient.post<WorkflowDefinition>("/workflows", {
-        name: "فرآیند پیش‌بینی - نمونه",
-        description: "تهیه‌کننده شروع می‌کند؛ مدیر گروه می‌تواند تأیید، برگشت برای ویرایش یا رد کند.",
-      });
-
-      const workflowId = definition.data.id;
-
-      const producer = await apiClient.post("/workflows/" + workflowId + "/nodes", {
-        key: "producer-submit",
-        name: "ثبت و ارسال پیش‌بینی توسط تهیه‌کننده",
-        type: 1,
-        description: "تهیه‌کننده پیش‌بینی را تکمیل و برای مدیر گروه ارسال می‌کند.",
-        assignedRole: "Providers",
-        isStart: true,
-        allowBacktrack: false,
-        sortOrder: 1,
-        decisionKey: null,
-        subWorkflowDefinitionId: null,
-        metadataJson: null,
-      });
-
-      const manager = await apiClient.post("/workflows/" + workflowId + "/nodes", {
-        key: "group-manager-review",
-        name: "بررسی مدیر گروه",
-        type: 2,
-        description: "مدیر گروه می‌تواند پیش‌بینی را تأیید، برای ویرایش برگرداند یا رد کند.",
-        assignedRole: "NetworkGroupManager",
-        isStart: false,
-        allowBacktrack: true,
-        sortOrder: 2,
-        decisionKey: null,
-        subWorkflowDefinitionId: null,
-        metadataJson: null,
-      });
-
-      const approved = await apiClient.post("/workflows/" + workflowId + "/nodes", {
-        key: "forecast-approved",
-        name: "تأیید نهایی پیش‌بینی",
-        type: 1,
-        description: "پیش‌بینی توسط مدیر گروه تأیید شده است.",
-        assignedRole: null,
-        isStart: false,
-        allowBacktrack: false,
-        sortOrder: 3,
-        decisionKey: null,
-        subWorkflowDefinitionId: null,
-        metadataJson: null,
-      });
-
-      const rejected = await apiClient.post("/workflows/" + workflowId + "/nodes", {
-        key: "forecast-rejected",
-        name: "رد نهایی پیش‌بینی",
-        type: 1,
-        description: "پیش‌بینی توسط مدیر گروه رد شده است.",
-        assignedRole: null,
-        isStart: false,
-        allowBacktrack: false,
-        sortOrder: 4,
-        decisionKey: null,
-        subWorkflowDefinitionId: null,
-        metadataJson: null,
-      });
-
-      await apiClient.post("/workflows/" + workflowId + "/transitions", {
-        fromNodeId: producer.data.id,
-        toNodeId: manager.data.id,
-        name: "ارسال به مدیر گروه",
-        outcome: "Submitted",
-        priority: 0,
-      });
-
-      await apiClient.post("/workflows/" + workflowId + "/transitions", {
-        fromNodeId: manager.data.id,
-        toNodeId: approved.data.id,
-        name: "تأیید",
-        outcome: "Approved",
-        priority: 0,
-      });
-
-      await apiClient.post("/workflows/" + workflowId + "/transitions", {
-        fromNodeId: manager.data.id,
-        toNodeId: producer.data.id,
-        name: "برگشت برای ویرایش",
-        outcome: "ReturnForEdit",
-        priority: 1,
-      });
-
-      await apiClient.post("/workflows/" + workflowId + "/transitions", {
-        fromNodeId: manager.data.id,
-        toNodeId: rejected.data.id,
-        name: "رد",
-        outcome: "Rejected",
-        priority: 2,
-      });
-
+      const definition = await factory();
       await mutate();
-      router.push("/workflows/" + workflowId);
+      router.push("/workflows/" + definition.id);
     } catch (e) {
-      setMessage(apiErrorMessage(e, "ساخت نمونه فرآیند پیش‌بینی انجام نشد."));
+      setMessage(
+        apiErrorMessage(
+          e,
+          kind === "forecast"
+            ? "ساخت نمونه فرآیند پیش‌بینی انجام نشد."
+            : "ساخت نمونه فرآیند شناسنامه برنامه انجام نشد.",
+        ),
+      );
       await mutate();
     } finally {
-      setCreatingSample(false);
+      setCreatingSample(null);
     }
   }
 
@@ -172,9 +95,41 @@ export default function WorkflowsPage() {
         </div>
         {session?.isSystemAdmin ? (
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={createForecastSample} disabled={creatingSample}>
-              {creatingSample ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+            <Button
+              variant="outline"
+              onClick={() =>
+                openOrCreateSample(
+                  "forecast",
+                  forecastWorkflowSampleName,
+                  createForecastWorkflowSample,
+                )
+              }
+              disabled={creatingSample !== null}
+            >
+              {creatingSample === "forecast" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <WandSparkles className="h-4 w-4" />
+              )}
               نمونه فرآیند پیش‌بینی
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                openOrCreateSample(
+                  "program-profile",
+                  programProfileWorkflowSampleName,
+                  createProgramProfileWorkflowSample,
+                )
+              }
+              disabled={creatingSample !== null}
+            >
+              {creatingSample === "program-profile" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <WandSparkles className="h-4 w-4" />
+              )}
+              نمونه فرآیند شناسنامه برنامه
             </Button>
             <Button asChild variant="outline">
               <Link href="/workflows/assignments">
