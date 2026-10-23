@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { Maximize2, Minus, Plus, RefreshCw } from "lucide-react";
+import { AlertCircle, Maximize2, Minus, Plus, RefreshCw } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 
@@ -16,6 +16,7 @@ export default function MermaidDiagram({
   const { resolvedTheme } = useTheme();
   const [svg, setSvg] = useState("");
   const [error, setError] = useState("");
+  const [source, setSource] = useState("");
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState(1);
 
@@ -29,8 +30,11 @@ export default function MermaidDiagram({
         signal,
       });
       if (!response.ok) throw new Error("DIAGRAM_FETCH");
-      const code = await response.text();
-      if (!code.trim()) {
+      const raw = await response.text();
+      const code = raw.replace(/^\uFEFF/, "").trim();
+      setSource(code);
+
+      if (!code) {
         setSvg("");
         return;
       }
@@ -38,17 +42,28 @@ export default function MermaidDiagram({
       const mermaid = (await import("mermaid")).default;
       mermaid.initialize({
         startOnLoad: false,
-        securityLevel: "strict",
+        securityLevel: "loose",
         theme: resolvedTheme === "dark" ? "dark" : "default",
-        flowchart: { htmlLabels: true, curve: "basis" },
+        flowchart: {
+          htmlLabels: false,
+          curve: "basis",
+          useMaxWidth: false,
+        },
       });
+
+      await mermaid.parse(code);
 
       const id = `workflow_mermaid_${rawId.replace(/[^a-zA-Z0-9_]/g, "")}_${Date.now()}`;
       const rendered = await mermaid.render(id, code);
       setSvg(rendered.svg);
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
-        setError("رندر نمودار فرآیند انجام نشد.");
+        const message = e instanceof Error ? e.message : "خطای نامشخص";
+        setError(
+          message.includes("Parse error")
+            ? "ساختار Mermaid تولیدشده معتبر نیست. خروجی backend نیاز به اصلاح دارد."
+            : "رندر نمودار فرآیند انجام نشد. جزئیات خطا در بخش زیر نمایش داده شده است.",
+        );
       }
     } finally {
       setLoading(false);
@@ -95,7 +110,25 @@ export default function MermaidDiagram({
 
       <div className="min-h-[360px] overflow-auto p-6">
         {loading ? <div className="flex min-h-[300px] items-center justify-center text-default-500">در حال ساخت نمودار...</div> : null}
-        {error ? <div className="flex min-h-[300px] items-center justify-center text-destructive">{error}</div> : null}
+        {error ? (
+          <div className="mx-auto max-w-3xl rounded-xl border border-destructive/20 bg-destructive/5 p-5 text-destructive">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <div className="min-w-0">
+                <div className="font-semibold">نمایش نمودار با خطا مواجه شد</div>
+                <div className="mt-1 text-sm leading-6">{error}</div>
+                {source ? (
+                  <details className="mt-4">
+                    <summary className="cursor-pointer text-xs font-medium">نمایش متن Mermaid تولیدشده</summary>
+                    <pre dir="ltr" className="mt-2 max-h-64 overflow-auto rounded-lg bg-background p-3 text-[11px] leading-5 text-default-700">
+                      {source}
+                    </pre>
+                  </details>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
         {!loading && !error && !svg ? (
           <div className="flex min-h-[300px] items-center justify-center text-default-500">برای نمایش نمودار ابتدا گره‌های فرآیند را تعریف کنید.</div>
         ) : null}
