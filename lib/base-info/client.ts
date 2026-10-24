@@ -27,6 +27,7 @@ function isBaseInfoResponse<T>(value: unknown): value is BaseInfoResponse<T> {
 export async function baseInfoGet<T>(
   relativePath: string,
   query?: URLSearchParams,
+  validateData?: (data: unknown) => data is T,
 ): Promise<BaseInfoResponse<T>> {
   const { baseUrl, apiKey, timeoutMs } = getBaseInfoConfig();
 
@@ -76,6 +77,10 @@ export async function baseInfoGet<T>(
 
   if (!payload.IsSuccess) {
     throw new BaseInfoError("UPSTREAM", payload.Message?.trim() || "Base Info operation failed.", 502);
+  }
+
+  if (validateData && !validateData(payload.Data)) {
+    throw new BaseInfoError("INVALID_RESPONSE", "Base Info Data shape is invalid.", 502);
   }
 
   return payload;

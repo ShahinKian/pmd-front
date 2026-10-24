@@ -381,7 +381,7 @@ GET /api/base-info/program-makers?jobId={jobId}&networkId={networkId}
 External:
 
 ```text
-GET /plans/{networkId}
+GET /plans?networkId={networkId}&networkGroupId={networkGroupId}
 ```
 
 Suggested internal route:
@@ -575,7 +575,7 @@ Does the user have Providers role?
         │
         └─ Yes
             ↓
-        Select relevant network
+        Load all providers from the external personnel service across networks (deduplicate by Value)
             ↓
         Resolve Provider jobId
             ↓
@@ -1047,7 +1047,7 @@ getProgramDegrees(structureId)
 getBusinessTypes()
 getActivityTypes(jobId)
 getProgramMakers(jobId, networkId)
-getPlans(networkId)
+getPlans(networkId, networkGroupId)
 getPlanDetail(planId)
 getPlanItems(planId)
 getEstimateDetail(planId)
@@ -1147,7 +1147,7 @@ At minimum, protect:
 6. changing network clears provider selection.
 7. stale personnel request cannot overwrite latest network selection.
 8. current provider plan page uses `/my/plans`.
-9. plan display resolves external details by `planId`.
+9. plan details are resolved separately from backend-owned PlanProvider links.
 10. failed Base Info request does not submit stale form data.
 
 ---
@@ -1230,3 +1230,10 @@ When the UI conflicts with the backend, fix the UI.
 When Base Info spelling looks incorrect but matches the external contract, keep the external spelling at the integration boundary.
 
 When a new requirement changes an existing rule, update both implementation and this file so future work does not reintroduce the old behavior.
+
+
+## Base Info plan selector contract clarification (2026-10)
+
+The documented plans lookup uses `GET /plans?networkId={networkId}&networkGroupId={networkGroupId}` and returns `Data` as a `Text`/`Value` option list. The plan-management UI must choose network, then network group, then plan; changing a parent selection clears its descendants. Current-user plan ownership and PlanProvider assignments remain backend-owned and must not be altered by this lookup integration.
+
+The user registration screen may show the complete provider roster by querying `personelProgramMaker` for each active network with the resolved provider job ID, deduplicating on the numeric external `Value`. A failed upstream request must not be disguised as an empty or complete roster.

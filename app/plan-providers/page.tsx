@@ -26,19 +26,22 @@ export default function PlanProvidersPage() {
     useSWR<BaseInfoListResponse>(canManage ? "/base-info/networks" : null);
 
   const [networkId, setNetworkId] = useState<number | null>(null);
+  const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
   const [planId, setPlanId] = useState<number | null>(null);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [deletingProviderId, setDeletingProviderId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
-  const plansUrl = networkId ? `/base-info/plans/${networkId}` : null;
+  const groupsUrl = networkId ? `/base-info/network-groups/${networkId}` : null;
+  const plansUrl = networkId && networkGroupId ? `/base-info/plans/${networkId}?networkGroupId=${networkGroupId}` : null;
+  const { data: groups, isLoading: groupsLoading, error: groupsError } = useSWR<BaseInfoListResponse>(groupsUrl);
   const providersUrl = networkId ? `/base-info/providers/${networkId}` : null;
   const assignmentsUrl = planId ? `/plan-providers/plans/${planId}/providers` : null;
 
-  const { data: plans, isLoading: plansLoading } =
+  const { data: plans, isLoading: plansLoading, error: plansError } =
     useSWR<BaseInfoListResponse>(plansUrl);
-  const { data: providers, isLoading: providersLoading } =
+  const { data: providers, isLoading: providersLoading, error: providersError } =
     useSWR<BaseInfoListResponse>(providersUrl);
   const {
     data: assignments,
@@ -92,6 +95,14 @@ export default function PlanProvidersPage() {
 
   function changeNetwork(value: string) {
     setNetworkId(toPositiveInt(value));
+    setNetworkGroupId(null);
+    setPlanId(null);
+    setSelectedProviderIds([]);
+    setMessage(null);
+  }
+
+  function changeGroup(value: string) {
+    setNetworkGroupId(toPositiveInt(value));
     setPlanId(null);
     setSelectedProviderIds([]);
     setMessage(null);
@@ -216,12 +227,22 @@ export default function PlanProvidersPage() {
               </label>
 
               <label className="field">
+                <span className="label">گروه شبکه *</span>
+                <select className="select" value={networkGroupId ?? ""} onChange={(event) => changeGroup(event.target.value)} disabled={!networkId || groupsLoading}>
+                  <option value="">{groupsLoading ? "در حال دریافت گروه‌ها..." : "انتخاب گروه"}</option>
+                  {(groups?.Data ?? []).map((group) => {
+                    const id = toPositiveInt(group.Value);
+                    return id ? <option key={id} value={id} disabled={group.Disabled}>{group.Text}</option> : null;
+                  })}
+                </select>
+              </label>
+              <label className="field">
                 <span className="label">طرح *</span>
                 <select
                   className="select"
                   value={planId ?? ""}
                   onChange={(event) => changePlan(event.target.value)}
-                  disabled={!networkId || plansLoading}
+                  disabled={!networkGroupId || plansLoading}
                 >
                   <option value="">
                     {plansLoading ? "در حال دریافت طرح‌ها..." : "انتخاب طرح"}
@@ -235,6 +256,8 @@ export default function PlanProvidersPage() {
               </label>
             </div>
           </section>
+
+          {groupsError || plansError || providersError ? <div className="alert alert-error">دریافت اطلاعات پایه ناموفق بود؛ لطفاً اتصال سرویس و دسترسی‌های خود را بررسی کنید.</div> : null}
 
           {planId ? (
             <div className="grid grid-2">
@@ -358,7 +381,7 @@ export default function PlanProvidersPage() {
             </div>
           ) : (
             <section className="card" style={{textAlign:"center",padding:32}}>
-              ابتدا شبکه و سپس طرح را انتخاب کنید.
+              ابتدا شبکه، گروه و سپس طرح را انتخاب کنید.
             </section>
           )}
 
