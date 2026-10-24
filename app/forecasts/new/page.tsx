@@ -45,8 +45,10 @@ export default function NewForecastPage() {
   const { data: groups } = useSWR<BaseInfoListResponse>(
     networkId ? `/base-info/network-groups/${networkId}` : null,
   );
-  const { data: plans } = useSWR<BaseInfoListResponse>(
-    networkId ? `/base-info/plans/${networkId}` : null,
+  const { data: plans, isLoading: plansLoading, error: plansError } = useSWR<BaseInfoListResponse>(
+    networkId && networkGroupId
+      ? `/base-info/plans/${networkId}?networkGroupId=${networkGroupId}`
+      : null,
   );
   const { data: episode } = useSWR<{ episodeNumber: number }>(
     planId ? `/forecasts/next-episode-number/${planId}` : null,
@@ -78,6 +80,11 @@ export default function NewForecastPage() {
     const allowed = new Set((myPlanLinks ?? []).map((item) => item.planId));
     return all.filter((item) => allowed.has(item.id));
   }, [plans, isProvider, myPlanLinks]);
+
+  function changeGroup(value: string) {
+    setNetworkGroupId(toPositiveInt(value));
+    setPlanId(null);
+  }
 
   function changeNetwork(value: string) {
     setNetworkId(toPositiveInt(value));
@@ -175,7 +182,7 @@ export default function NewForecastPage() {
                 <select
                   className="select"
                   value={networkGroupId ?? ""}
-                  onChange={(e) => setNetworkGroupId(toPositiveInt(e.target.value))}
+                  onChange={(e) => changeGroup(e.target.value)}
                   disabled={!networkId}
                   required
                 >
@@ -193,14 +200,16 @@ export default function NewForecastPage() {
                   className="select"
                   value={planId ?? ""}
                   onChange={(e) => setPlanId(toPositiveInt(e.target.value))}
-                  disabled={!networkId}
+                  disabled={!networkId || !networkGroupId || plansLoading || Boolean(plansError)}
                   required
                 >
-                  <option value="">انتخاب طرح</option>
+                  <option value="">{plansLoading ? "در حال دریافت طرح‌ها..." : "انتخاب طرح"}</option>
                   {planOptions.map((item) => (
                     <option key={item.id} value={item.id}>{item.label}</option>
                   ))}
                 </select>
+                {plansError ? <small className="text-destructive">دریافت طرح‌ها ناموفق بود. اتصال وب‌سرویس را بررسی کنید.</small> : null}
+                {networkGroupId && !plansLoading && !plansError && planOptions.length === 0 ? <small className="muted">طرح قابل انتخابی برای این گروه یافت نشد.</small> : null}
                 {isProvider ? (
                   <small className="muted">
                     فقط طرح‌هایی نمایش داده می‌شوند که در PlanProvider به شما تخصیص داده شده‌اند.
