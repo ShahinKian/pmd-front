@@ -29,19 +29,10 @@ interface TolTipProps extends React.ComponentPropsWithoutRef<typeof TooltipPrimi
 }
 
 
-const TooltipProvider = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Provider>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Provider>
->(
-  ({ delayDuration = 0, ...props }, ref) => (
-    <TooltipPrimitive.Provider
-
-      {...props}
-      delayDuration={delayDuration}
-    />
-  )
+const TooltipProvider = ({ delayDuration = 0, ...props }: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Provider>) => (
+  <TooltipPrimitive.Provider {...props} delayDuration={delayDuration} />
 );
-TooltipProvider.displayName = TooltipPrimitive.Provider.displayName;
+TooltipProvider.displayName = "TooltipProvider";
 
 const Tooltip = TooltipPrimitive.Root;
 

@@ -44,7 +44,7 @@ const alertVariants = cva(
 );
 
 interface AlertProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends Omit<React.HTMLAttributes<HTMLDivElement>, "color">,
     VariantProps<typeof alertVariants> {
   dismissible?: boolean;
   onDismiss?: () => void;
