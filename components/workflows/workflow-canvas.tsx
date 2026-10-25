@@ -799,7 +799,7 @@ function TransitionForm({
               <option value="">یک اقدام انتخاب کنید</option>
               {actions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
               {!custom && selectedAction && !actions.some((item) => item.key === selectedAction)
-                ? <option value={selectedAction}>{selectedAction} (اقدام قبلی)</option> : null}
+                ? <option value={selectedAction}>{transition?.name || "اقدام اختصاصی"}</option> : null}
               <option value="__custom">اقدام اختصاصی / تعریف جدید</option>
             </select>
             {custom ? (
