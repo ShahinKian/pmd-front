@@ -28,6 +28,7 @@ export default function ForecastDetailsPage() {
   const { data: session } = useSession();
   const { data, error, isLoading, mutate } = useSWR<ForecastResponse>("/forecasts/" + id);
 
+  const { data: permittedActions, mutate: refreshActions } = useSWR<Array<{ key: string; label: string; transitionId: string }>>(data ? `/forecasts/${id}/actions` : null);
   const [broadcastDate, setBroadcastDate] = useState("");
   const [mainTopic, setMainTopic] = useState("");
   const [hasExpert, setHasExpert] = useState(false);
@@ -120,6 +121,7 @@ export default function ForecastDetailsPage() {
     try {
       await apiClient.post("/forecasts/" + id + "/" + name, payload);
       await mutate();
+      await refreshActions();
       setMessage({
         type: "success",
         text: "عملیات گردش‌کار با موفقیت انجام شد.",
@@ -273,7 +275,7 @@ export default function ForecastDetailsPage() {
           <section className="card" style={{ marginTop: 18 }}>
             <strong>عملیات گردش‌کار</strong>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-              {editable ? (
+              {editable && permittedActions?.some((item) => item.key === "submit") ? (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -287,7 +289,7 @@ export default function ForecastDetailsPage() {
 
               {canReview ? (
                 <>
-                  <button
+                  {permittedActions?.some((item) => item.key === "approve") ? <button
                     type="button"
                     className="btn btn-primary"
                     onClick={() => action("approve")}
@@ -300,7 +302,7 @@ export default function ForecastDetailsPage() {
                     )}
                     تایید
                   </button>
-                  <button
+                  {permittedActions?.some((item) => item.key === "return-for-edit") ? <button
                     type="button"
                     className="btn btn-outline"
                     onClick={() => action("return-for-edit")}
@@ -312,8 +314,8 @@ export default function ForecastDetailsPage() {
                       <Undo2 size={16} />
                     )}
                     بازگشت برای اصلاح
-                  </button>
-                  <button
+                  </button> : null}
+                  {permittedActions?.some((item) => item.key === "reject") ? <button
                     type="button"
                     className="btn btn-outline"
                     onClick={() => action("reject")}
@@ -325,7 +327,7 @@ export default function ForecastDetailsPage() {
                       <XCircle size={16} />
                     )}
                     رد
-                  </button>
+                  </button> : null}
                 </>
               ) : null}
 
