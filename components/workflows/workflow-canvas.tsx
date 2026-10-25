@@ -14,6 +14,7 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import {
   GitBranch,
   GripVertical,
@@ -67,6 +68,15 @@ interface PendingConnection {
 }
 
 const nodeTypes = { workflowNode: WorkflowFlowNode };
+
+type ActionDefinition = { key: string; label: string };
+const legacyActions: Record<string, string> = {
+  Submitted: "submit", Approved: "approve", Rejected: "reject", ReturnForEdit: "return-for-edit",
+};
+function normalizedAction(value: string | null): string {
+  return value ? (legacyActions[value] ?? value) : "";
+}
+
 
 const palette = [
   { type: WorkflowNodeType.Process, label: "فرآیند", icon: Workflow, hint: "مرحله اجرایی توسط یک نقش" },
@@ -133,6 +143,7 @@ export default function WorkflowCanvas({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [pendingNode, setPendingNode] = useState<PendingNode | null>(null);
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
+  const { data: availableActions } = useSWR<ActionDefinition[]>("/workflows/actions");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
@@ -744,15 +755,22 @@ function NodeForm({
 
 function TransitionForm({
   transition,
+  actions,
+  sourceNode,
   busy,
   onSubmit,
   onDelete,
 }: {
   transition: WorkflowTransition | null;
+  actions: ActionDefinition[];
+  sourceNode?: WorkflowNode;
   busy: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onDelete: (() => void) | null;
 }) {
+  const isSystemDecision = sourceNode?.type === WorkflowNodeType.Decision;
+  const [custom, setCustom] = useState(false);
+  const [selectedAction, setSelectedAction] = useState(normalizedAction(transition?.outcome ?? ""));
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
@@ -760,11 +778,40 @@ function TransitionForm({
         <Input name="name" defaultValue={transition?.name ?? ""} placeholder="مثلاً تأیید" />
       </div>
       <div>
-        <Label className="mb-2 text-default-600">Outcome</Label>
-        <Input name="outcome" dir="ltr" defaultValue={transition?.outcome ?? ""} placeholder="Approved" />
-        <p className="mt-1 text-[11px] leading-5 text-default-500">
-          برای مراحل شرطی، Outcome مسیرها باید یکتا و مشخص باشد.
-        </p>
+        {isSystemDecision ? (
+          <>
+            <Label className="mb-2 text-default-600">نتیجه تصمیم سیستمی</Label>
+            <Input name="outcome" dir="ltr" defaultValue={transition?.outcome ?? ""} placeholder="10" required />
+            <p className="mt-1 text-xs text-default-500">مقدار نتیجه باید با خروجی تصمیم سیستمی برابر باشد.</p>
+          </>
+        ) : (
+          <>
+            <Label className="mb-2 text-default-600">اقدام این مسیر</Label>
+            <select
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={custom ? "__custom" : selectedAction}
+              onChange={(event) => {
+                setCustom(event.target.value === "__custom");
+                if (event.target.value !== "__custom") setSelectedAction(event.target.value);
+              }}
+              required
+            >
+              <option value="">یک اقدام انتخاب کنید</option>
+              {actions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+              {!custom && selectedAction && !actions.some((item) => item.key === selectedAction)
+                ? <option value={selectedAction}>{selectedAction} (اقدام قبلی)</option> : null}
+              <option value="__custom">اقدام اختصاصی / تعریف جدید</option>
+            </select>
+            {custom ? (
+              <Input name="outcome" dir="ltr" placeholder="custom-action-key" required />
+            ) : (
+              <input type="hidden" name="outcome" value={selectedAction} />
+            )}
+            <p className="mt-1 text-xs text-default-500">
+              کلید فنی اقدام به‌صورت خودکار ذخیره می‌شود و نیازی به وارد کردن Outcome نیست.
+            </p>
+          </>
+        )}
       </div>
       <div>
         <Label className="mb-2 text-default-600">اولویت</Label>
