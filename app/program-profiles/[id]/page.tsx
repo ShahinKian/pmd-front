@@ -23,6 +23,7 @@ export default function ProfileDetailsPage(){
   const {id}=useParams<{id:string}>();
   const {data:session}=useSession();
   const {data,error,isLoading,mutate}=useSWR<ProgramProfileResponse>("/program-profiles/"+id);
+  const {data:permittedActions,mutate:refreshActions}=useSWR<Array<{key:string;label:string;transitionId:string}>>(data?"/program-profiles/"+id+"/actions":null);
   const {data:comments,mutate:mutateComments}=useSWR<SupervisorComment[]>("/program-profiles/"+id+"/supervisor-comments");
   const [busy,setBusy]=useState("");
   const [comment,setComment]=useState("");
@@ -47,7 +48,7 @@ export default function ProfileDetailsPage(){
       await apiClient.post("/program-profiles/"+id+"/"+name,payload,{
         headers: activeStageRole ? {"X-Active-Role": session?.isSystemAdmin ? "Admin" : activeStageRole} : undefined
       });
-      await mutate();
+      await mutate();await refreshActions();
       setMessage({type:"success",text:"عملیات با موفقیت انجام شد."});
     }catch(e){setMessage({type:"error",text:apiErrorMessage(e,"عملیات انجام نشد.")});}
     finally{setBusy("");}
@@ -78,9 +79,9 @@ export default function ProfileDetailsPage(){
         <section className="card"><h2 style={{fontSize:16}}>گردش‌کار</h2>
           <p className="muted">مرحله فعلی: {profileStatusLabel(data.status,data.statusDisplayName)}</p>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
-            {canSubmit?<button className="btn btn-primary" onClick={()=>action("submit")} disabled={Boolean(busy)}>{busy==="submit"?<Loader2 size={16}/>:<Send size={16}/>}ارسال</button>:null}
-            {canAct?<button className="btn btn-primary" onClick={()=>action("approve")} disabled={Boolean(busy)}>{busy==="approve"?<Loader2 size={16}/>:<CheckCircle2 size={16}/>}تایید مرحله</button>:null}
-            {canReturn?<button className="btn btn-outline" onClick={()=>action("return")} disabled={Boolean(busy)}>{busy==="return"?<Loader2 size={16}/>:<Undo2 size={16}/>}بازگشت</button>:null}
+            {canSubmit&&permittedActions?.some(x=>x.key==="submit")?<button className="btn btn-primary" onClick={()=>action("submit")} disabled={Boolean(busy)}>{busy==="submit"?<Loader2 size={16}/>:<Send size={16}/>}ارسال</button>:null}
+            {canAct&&permittedActions?.some(x=>x.key==="approve")?<button className="btn btn-primary" onClick={()=>action("approve")} disabled={Boolean(busy)}>{busy==="approve"?<Loader2 size={16}/>:<CheckCircle2 size={16}/>}تایید مرحله</button>:null}
+            {canReturn&&permittedActions?.some(x=>x.key==="return-for-edit")?<button className="btn btn-outline" onClick={()=>action("return")} disabled={Boolean(busy)}>{busy==="return"?<Loader2 size={16}/>:<Undo2 size={16}/>}بازگشت</button>:null}
           </div>
         </section>
       </div>
