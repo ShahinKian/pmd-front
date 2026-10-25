@@ -803,7 +803,7 @@ function TransitionForm({
               <option value="__custom">اقدام اختصاصی / تعریف جدید</option>
             </select>
             {custom ? (
-              <Input name="outcome" dir="ltr" placeholder="custom-action-key" required />
+              <><p className="text-xs text-default-500">عنوان مسیر بالا، نام اقدام اختصاصی خواهد بود. شناسه فنی به‌صورت خودکار ساخته می‌شود.</p><input type="hidden" name="outcome" value="" /></>
             ) : (
               <input type="hidden" name="outcome" value={selectedAction} />
             )}
