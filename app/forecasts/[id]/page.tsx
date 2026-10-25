@@ -319,7 +319,7 @@ export default function ForecastDetailsPage() {
                       <CheckCircle2 size={16} />
                     )}
                     تایید
-                  </button>
+                  </button> : null}
                   {permittedActions?.some((item) => item.key === "return-for-edit") ? <button
                     type="button"
                     className="btn btn-outline"
