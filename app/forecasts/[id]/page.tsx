@@ -136,6 +136,24 @@ export default function ForecastDetailsPage() {
     }
   }
 
+  async function executeCustomAction(actionKey: string, label: string) {
+    if (!/^[a-z0-9-]{1,100}$/.test(actionKey)) return;
+    const reason = window.prompt(`توضیحات اقدام «${label}» (اختیاری):`) ?? null;
+    if (reason === null) return;
+    setBusy(actionKey);
+    setMessage(null);
+    try {
+      await apiClient.post(`/forecasts/${id}/actions/${actionKey}`, { reason });
+      await mutate();
+      await refreshActions();
+      setMessage({ type: "success", text: "اقدام با موفقیت انجام شد." });
+    } catch (error) {
+      setMessage({ type: "error", text: apiErrorMessage(error, "اجرای اقدام انجام نشد.") });
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function removeForecast() {
     if (!window.confirm("از حذف این پیش‌بینی مطمئن هستید؟")) return;
     setBusy("delete");
@@ -330,6 +348,20 @@ export default function ForecastDetailsPage() {
                   </button> : null}
                 </>
               ) : null}
+
+              {(permittedActions ?? []).filter((item) =>
+                !["submit", "approve", "reject", "return-for-edit"].includes(item.key)
+              ).map((item) => (
+                <button
+                  key={item.transitionId}
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => executeCustomAction(item.key, item.label)}
+                  disabled={Boolean(busy)}
+                >
+                  {item.label}
+                </button>
+              ))}
 
               <button
                 type="button"
