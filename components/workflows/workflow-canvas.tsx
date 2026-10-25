@@ -606,6 +606,8 @@ export default function WorkflowCanvas({
             <TransitionForm
               key={pendingConnection.source + pendingConnection.target}
               transition={null}
+              actions={availableActions ?? []}
+              sourceNode={definition.nodes.find((node) => node.id === pendingConnection.source)}
               busy={busy}
               onSubmit={saveConnection}
               onDelete={null}
@@ -616,6 +618,8 @@ export default function WorkflowCanvas({
             <TransitionForm
               key={selectedTransition.id}
               transition={selectedTransition}
+              actions={availableActions ?? []}
+              sourceNode={definition.nodes.find((node) => node.id === selectedTransition.fromNodeId)}
               busy={busy}
               onSubmit={saveTransition}
               onDelete={draft ? () => void deleteTransition(selectedTransition) : null}
