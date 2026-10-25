@@ -54,6 +54,19 @@ export default function ProfileDetailsPage(){
     finally{setBusy("");}
   }
 
+  async function executeCustomAction(actionKey:string,label:string){
+    if(!/^[a-z0-9-]{1,100}$/.test(actionKey))return;
+    const reason=window.prompt(`توضیحات اقدام «${label}» (اختیاری):`);
+    if(reason===null)return;
+    setBusy(actionKey);setMessage(null);
+    try{
+      await apiClient.post("/program-profiles/"+id+"/actions/"+actionKey,{reason});
+      await mutate();await refreshActions();
+      setMessage({type:"success",text:"اقدام با موفقیت انجام شد."});
+    }catch(error){setMessage({type:"error",text:apiErrorMessage(error,"اجرای اقدام انجام نشد.")});}
+    finally{setBusy("");}
+  }
+
   async function saveComment(){
     if(!comment.trim())return;
     setBusy("comment");setMessage(null);
@@ -82,6 +95,9 @@ export default function ProfileDetailsPage(){
             {canSubmit&&permittedActions?.some(x=>x.key==="submit")?<button className="btn btn-primary" onClick={()=>action("submit")} disabled={Boolean(busy)}>{busy==="submit"?<Loader2 size={16}/>:<Send size={16}/>}ارسال</button>:null}
             {canAct&&permittedActions?.some(x=>x.key==="approve")?<button className="btn btn-primary" onClick={()=>action("approve")} disabled={Boolean(busy)}>{busy==="approve"?<Loader2 size={16}/>:<CheckCircle2 size={16}/>}تایید مرحله</button>:null}
             {canReturn&&permittedActions?.some(x=>x.key==="return-for-edit")?<button className="btn btn-outline" onClick={()=>action("return")} disabled={Boolean(busy)}>{busy==="return"?<Loader2 size={16}/>:<Undo2 size={16}/>}بازگشت</button>:null}
+            {(permittedActions??[]).filter(x=>!["submit","approve","return-for-edit"].includes(x.key)).map(x=>
+              <button key={x.transitionId} className="btn btn-outline" onClick={()=>executeCustomAction(x.key,x.label)} disabled={Boolean(busy)}>{x.label}</button>
+            )}
           </div>
         </section>
       </div>
