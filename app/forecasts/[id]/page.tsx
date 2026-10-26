@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { CheckCircle2, Loader2, Save, Send, Trash2, Undo2, XCircle } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
+import { roleLabel } from "@/lib/auth/role-labels";
 import { FORECAST_STATUS, forecastStatusLabel, type ForecastResponse } from "@/lib/forecasts/types";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Switch } from "@/components/ui/switch";
@@ -195,7 +196,7 @@ export default function ForecastDetailsPage() {
             </span>
           </div>
 
-          {data.workflow ? <section className="card" style={{ marginBottom: 18 }}><strong>وضعیت گردش‌کار</strong><p>فرآیند: {data.workflow.workflowName || "—"}</p><p>مرحله جاری: {data.workflow.currentNodeName || (data.status === FORECAST_STATUS.Approved ? "پایان فرآیند" : "—")}</p><p>مسئول مرحله: {data.workflow.currentNodeRole || "—"}</p></section> : null}
+          {data.workflow ? <section className="card" style={{ marginBottom: 18 }}><strong>وضعیت گردش‌کار</strong><p>فرآیند: {data.workflow.workflowName || "—"}</p><p>مرحله جاری: {data.workflow.currentNodeName || (data.status === FORECAST_STATUS.Approved ? "پایان فرآیند" : "—")}</p><p>مسئول مرحله: {data.workflow.currentNodeRole ? roleLabel(data.workflow.currentNodeRole) : "—"}</p></section> : null}
           <form className="grid" style={{ gap: 18 }} onSubmit={save}>
             <section className="form-section">
               <div className="form-section-head">
