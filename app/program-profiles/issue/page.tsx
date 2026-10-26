@@ -87,7 +87,8 @@ export default function IssueProfilePage(){
     if(!planData){setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
     if(!externalCrew||!externalItems){setMessage("دریافت عوامل و آیتم‌های طرح کامل نشده است.");return;}
     const crewMembers:Crew[]=crewValid.map(({personnelId,personnelName,activityTypeId,activityTypeName,isPresent})=>({personnelId,personnelName,activityTypeId,activityTypeName,isPresent}));
-    if(!crewMembers.length){setMessage("عامل معتبر در اطلاعات طرح یافت نشد.");return;}
+    if(crewDraft.some(person=>!person.personnelId||!person.personnelName.trim()||!person.activityTypeId||!person.activityTypeName.trim())){setMessage("برای تمام ردیف‌های عوامل، شخص و فعالیت معتبر انتخاب کنید یا ردیف ناقص را حذف کنید.");return;}
+    if(!crewMembers.length){setMessage("حداقل یک عامل معتبر برای صدور لازم است.");return;}
     const items:Item[]=itemsDraft.map(({itemName,duration,productionType})=>({itemName:itemName.trim(),duration:normalizeDuration(duration),productionType:productionType.trim()||String(form.get("productionMethod")??"").trim()}));
     if(items.some(item=>!item.itemName||!item.duration||!item.productionType)){setMessage("مدت زمان یک یا چند آیتم نامعتبر است.");return;}
     setSaving(true);
@@ -151,7 +152,7 @@ export default function IssueProfilePage(){
         <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><th>شغل</th><th>عامل برنامه</th><th>نوع فعالیت</th><th>حضور</th><th>حذف</th></tr></thead><tbody>
           {crewDraft.map(person=><tr key={person.rowId}><td>{person.jobName}</td><td><PersonnelPicker networkId={selected?.networkId??0} jobId={person.jobId} value={person.personnelId} onChange={(id,name)=>editCrew(person.rowId,{personnelId:id,personnelName:name})}/></td><td><input className="input" value={person.activityTypeName} placeholder="نوع فعالیت" onChange={e=>editCrew(person.rowId,{activityTypeName:e.target.value})}/><input className="input" type="number" min="1" aria-label="شناسه فعالیت" value={person.activityTypeId||""} onChange={e=>editCrew(person.rowId,{activityTypeId:Number(e.target.value)})}/></td><td><input type="checkbox" checked={person.isPresent} onChange={e=>editCrew(person.rowId,{isPresent:e.target.checked})}/></td><td><button type="button" className="btn btn-outline" onClick={()=>setCrewDraft(rows=>rows.filter(x=>x.rowId!==person.rowId))}>حذف</button></td></tr>)}
         </tbody></table></div>
-        {crewDraft.some(x=>!x.personnelId||!x.activityTypeId)?<p className="alert">ردیف‌های ناقص در زمان صدور ثبت نمی‌شوند؛ برای ثبت همه عوامل، شخص و نوع فعالیت را انتخاب کنید.</p>:null}
+        {crewDraft.some(x=>!x.personnelId||!x.activityTypeId)?<p className="alert">ردیف‌های ناقص مانع صدور شناسنامه هستند؛ شخص و فعالیت را تکمیل کنید یا ردیف را حذف کنید.</p>:null}
       </section>
       {selected?<section className="card" style={{marginTop:16}}>
         <strong>وضعیت دریافت اطلاعات از وب‌سرویس خارجی</strong>
@@ -161,7 +162,7 @@ export default function IssueProfilePage(){
         <p className="muted">اطلاعات پایه از سرویس مرجع دریافت می‌شود؛ لیست عوامل و آیتم‌ها در شناسنامه قابل تنظیم است.</p>
       </section>:null}
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
-      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving||!planData||!externalCrew||!externalItems||crewValid.length===0}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving||!planData||!externalCrew||!externalItems||crewValid.length===0||crewDraft.length!==crewValid.length}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
     </form>
   </DashboardShell>;
 }
