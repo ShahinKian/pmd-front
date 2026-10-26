@@ -105,9 +105,16 @@ export default function IssueProfilePage(){
   const overDuration=durationLimitSeconds>0&&itemTotalSeconds>durationLimitSeconds;
   const [saving,setSaving]=useState(false);
   const [message,setMessage]=useState("");
+  const [fieldErrors,setFieldErrors]=useState<{duration?:string;startTime?:string;crew?:string;items?:string}>({});
 
   async function submit(e:FormEvent<HTMLFormElement>){
-    e.preventDefault();setMessage("");
+    e.preventDefault();setMessage("");setFieldErrors({});
+    const errors:{duration?:string;startTime?:string;crew?:string;items?:string}={};
+    if(durationSeconds(programDuration)<=0)errors.duration="مدت معتبر برنامه الزامی است.";
+    if(!/^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/.test(startTime))errors.startTime="ساعت شروع معتبر الزامی است.";
+    if(crewDraft.some(x=>!x.personnelName.trim()||!x.personnelId||!x.activityTypeId))errors.crew="تمام عوامل باید نام و فعالیت معتبر داشته باشند.";
+    if(durationSeconds(programDuration)>0&&itemTotalSeconds>durationSeconds(programDuration))errors.items="مجموع مدت آیتم‌ها از مدت برنامه بیشتر است.";
+    if(Object.keys(errors).length){setFieldErrors(errors);setMessage("موارد مشخص‌شده را اصلاح کنید.");return;}
     if(!selected){setMessage("پیش‌بینی تاییدشده را انتخاب کنید.");return;}
     const form=new FormData(e.currentTarget);
     if(!programDuration.trim()||!startTime.trim()){setMessage("مدت برنامه و ساعت شروع الزامی هستند.");return;}
@@ -161,14 +168,14 @@ export default function IssueProfilePage(){
             {(forecasts??[]).map(x=><ForecastOption key={x.id} forecast={x}/>)}
           </select>
         </label>
-        <label className="field"><span className="label">مدت برنامه *</span><input className="input" name="duration" dir="ltr" value={programDuration} onChange={e=>setProgramDuration(e.target.value)} placeholder="01:00:00" required/></label>
+        <label className="field"><span className="label">مدت برنامه *</span><input className={"input "+(fieldErrors.duration?"border-red-500 ring-1 ring-red-500":"")} name="duration" dir="ltr" value={programDuration} onChange={e=>setProgramDuration(e.target.value)} placeholder="01:00:00" required/>{fieldErrors.duration?<span className="text-xs text-red-600">{fieldErrors.duration}</span>:null}</label>
         <label className="field"><span className="label">نحوه تولید</span><input className="input" value={productionMethod} onChange={e=>setProductionMethod(e.target.value)} placeholder={planData?.ProgramTypeName||"اختیاری"}/></label>
         <label className="field"><span className="label">مناسبت</span><input className="input" value={occasion} onChange={e=>setOccasion(e.target.value)} placeholder={planData?.ApplicationTypeName||"اختیاری"}/></label>
         <label className="field"><span className="label">طبقه</span><input className="input bg-default-50" readOnly value={planData?.FloorPlanName??""}/></label>
         <label className="field"><span className="label">درجه برنامه</span><input className="input bg-default-50" readOnly value={planData?.ProgramDegreeName??""}/></label>
         <label className="field"><span className="label">ساختار برنامه</span><input className="input bg-default-50" readOnly value={planData?.StructureProgramName??""}/></label>
         <label className="field"><span className="label">نوع کاربرد</span><input className="input bg-default-50" readOnly value={planData?.ApplicationTypeName??""}/></label>
-        <label className="field"><span className="label">ساعت شروع *</span><input className="input" name="startTime" type="time" step="60" value={startTime} onChange={e=>setStartTime(e.target.value)} required/></label>
+        <label className="field"><span className="label">ساعت شروع *</span><input className={"input "+(fieldErrors.startTime?"border-red-500 ring-1 ring-red-500":"")} name="startTime" type="time" step="60" value={startTime} onChange={e=>setStartTime(e.target.value)} required/>{fieldErrors.startTime?<span className="text-xs text-red-600">{fieldErrors.startTime}</span>:null}</label>
         <label className="field"><span className="label">نوع برنامه</span><input className="input bg-default-50" readOnly value={planData?.ProgramTypeName??""}/></label>
       </div>
       <section className="rounded-xl border border-default-200 bg-background p-5" style={{marginTop:20}}>
@@ -178,6 +185,7 @@ export default function IssueProfilePage(){
         </div>
         {addItemOpen?<div className="mb-5 grid gap-3 rounded-xl border border-default-200 bg-background p-4 dark:border-default-700 md:grid-cols-[1fr_1.4fr_160px_auto]"><input className="input" aria-label="عنوان آیتم جدید" placeholder="عنوان آیتم" value={newItemName} onChange={e=>setNewItemName(e.target.value)}/><input className="input" aria-label="موضوع آیتم جدید" placeholder="موضوع آیتم" value={newItemSubject} onChange={e=>setNewItemSubject(e.target.value)}/><input className="input" dir="ltr" aria-label="مدت آیتم جدید" value={newItemDuration} onChange={e=>setNewItemDuration(e.target.value)}/><div className="flex gap-2"><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={addItem}><Check size={16}/> ثبت</button><button type="button" className="btn btn-outline" onClick={()=>setAddItemOpen(false)}><X size={16}/></button></div></div>:null}
         {itemsError?<p className="alert alert-error">دریافت آیتم‌های طرح ناموفق بود.</p>:null}
+        {fieldErrors.items?<p className="text-sm text-red-600">{fieldErrors.items}</p>:null}
         {overDuration?<p className="alert alert-error mb-4">مجموع مدت آیتم‌ها از مدت برنامه بیشتر است. برای صدور شناسنامه، آیتم‌های اضافی را حذف کنید یا مدت برنامه را اصلاح کنید.</p>:null}
         <div className="overflow-x-auto rounded-xl border border-default-200">
           <table className="w-full text-right text-sm"><thead className="bg-default-50 text-default-600 dark:bg-default-100"><tr><th className="p-3">عنوان آیتم</th><th className="p-3">موضوع</th><th className="p-3">مدت</th><th className="w-16 p-3" aria-label="عملیات"></th></tr></thead>
@@ -199,6 +207,7 @@ export default function IssueProfilePage(){
           </table>
           {crewDraft.length===0?<p className="p-5 text-center text-default-500">عاملی انتخاب نشده است.</p>:null}
         </div>
+        {fieldErrors.crew?<p className="text-sm text-red-600">{fieldErrors.crew}</p>:null}
         {crewDraft.some(x=>!x.personnelId||!x.activityTypeId)?<p className="mt-3 text-sm text-danger">ردیف‌های ناقص را حذف کنید یا اطلاعات آن‌ها را از وب‌سرویس تکمیل کنید.</p>:null}
       </section>
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
