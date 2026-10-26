@@ -4,7 +4,7 @@ import Link from "next/link";
 import useSWR from "swr";
 import { Plus } from "lucide-react";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
-import type { ProgramProfileResponse } from "@/lib/program-profiles/types";
+import {profileStatusLabel,type ProgramProfileResponse} from "@/lib/program-profiles/types";
 
 export default function ProfilesPage(){
   const {data,error,isLoading}=useSWR<ProgramProfileResponse[]>("/program-profiles?pageNumber=1&pageSize=50");
@@ -25,7 +25,7 @@ export default function ProfilesPage(){
           <td style={{padding:12,fontWeight:700}}>{p.mainTopic}</td>
           <td style={{padding:12}}>#{p.planId}</td>
           <td style={{padding:12}}>{new Date(p.broadcastDate).toLocaleString("fa-IR")}</td>
-          <td style={{padding:12}}><span className="admin-badge">{p.statusDisplayName}</span></td>
+          <td style={{padding:12}}><span className="admin-badge">{profileStatusLabel(p.status,p.statusDisplayName)}</span></td>
           <td style={{padding:12}}><Link href={"/program-profiles/"+p.id} className="btn btn-outline">مشاهده</Link></td>
         </tr>)}</tbody>
       </table>
