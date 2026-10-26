@@ -68,7 +68,7 @@ export default function ProfileDetailsPage(){
         headers: activeStageRole ? {"X-Active-Role": session?.isSystemAdmin ? "Admin" : activeStageRole} : undefined
       });
       await mutate();await refreshActions();
-      setMessage({type:"success",text:"عملیات با موفقیت انجام شد."});
+      setMessage({type:"success",text:name==="submit"?"شناسنامه به گردش‌کار ارسال شد.":"عملیات با موفقیت انجام شد."});
     }catch(e){setMessage({type:"error",text:apiErrorMessage(e,"عملیات انجام نشد.")});}
     finally{setBusy("");}
   }
@@ -109,9 +109,10 @@ export default function ProfileDetailsPage(){
           <p>ساختار: {data.programStructureName}</p><p>درجه: {data.programDegreeName}</p><p>طبقه: {data.floorName}</p>
         </section>
         <section className="card"><h2 style={{fontSize:16}}>گردش‌کار</h2>
+          {canSubmit?<p className="muted">شناسنامه نزد تهیه‌کننده است. برای ورود به گردش‌کار، دکمه «ارسال به گردش‌کار» را بزنید.</p>:null}
           <p className="muted">مرحله فعلی: {profileStatusLabel(data.status,data.statusDisplayName)}</p>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
-            {canSubmit&&permittedActions?.some(x=>x.key==="submit")?<button className="btn btn-primary" onClick={()=>action("submit")} disabled={Boolean(busy)}>{busy==="submit"?<Loader2 size={16}/>:<Send size={16}/>}ارسال</button>:null}
+            {canSubmit?<button className="btn btn-primary" onClick={()=>action("submit")} disabled={Boolean(busy)}>{busy==="submit"?<Loader2 size={16}/>:<Send size={16}/>}ارسال به گردش‌کار</button>:null}
             {canAct&&permittedActions?.some(x=>x.key==="approve")?<button className="btn btn-primary" onClick={()=>action("approve")} disabled={Boolean(busy)}>{busy==="approve"?<Loader2 size={16}/>:<CheckCircle2 size={16}/>}تایید مرحله</button>:null}
             {canReturn&&permittedActions?.some(x=>x.key==="return-for-edit")?<button className="btn btn-outline" onClick={()=>action("return")} disabled={Boolean(busy)}>{busy==="return"?<Loader2 size={16}/>:<Undo2 size={16}/>}بازگشت</button>:null}
             {(permittedActions??[]).filter(x=>!["submit","approve","return-for-edit"].includes(x.key)).map(x=>
