@@ -14,6 +14,13 @@ type ExternalItem={Id:number;PlanId:number;ItemTitle:string;ItemSubject:string;I
 type ExternalCrew={Id:number;PersonnelId:number|null;PersonnelName:string|null;ActivityTypeId:number;ActivityTypeName:string;BussinessTypeId:number;BussinessTypeName:string;ProgramActivityTypeName:string|null};
 type EditableItem=Item&{rowId:string;subject:string};
 type EditableCrew=Crew&{rowId:string;jobId:number;jobName:string};
+function ForecastOption({forecast}:{forecast:ForecastResponse}){
+  const {data}=useSWR<{IsSuccess:boolean;Data:{Value:string;Text:string}[]}>(
+    forecast.planName?null:`/base-info/plans/${forecast.networkId}?networkGroupId=${forecast.networkGroupId}`
+  );
+  const name=forecast.planName?.trim()||data?.Data?.find(x=>Number(x.Value)===forecast.planId)?.Text;
+  return <option value={forecast.id} disabled={!name}>{name||"در حال دریافت نام برنامه..."} | {forecast.mainTopic} | قسمت {forecast.episodeNumber}</option>;
+}
 type PersonnelResponse={IsSuccess:boolean;Data:{Value:string;Text:string;Disabled:boolean}[];Message:string|null};
 function PersonnelPicker({networkId,jobId,value,onChange}:{networkId:number;jobId:number;value:number;onChange:(id:number,name:string)=>void}){
   const {data,error,isLoading}=useSWR<PersonnelResponse>(jobId>0&&networkId>0?`/base-info/program-makers?jobId=${jobId}&networkId=${networkId}`:null);
@@ -65,9 +72,6 @@ export default function IssueProfilePage(){
   const [newItemName,setNewItemName]=useState("");
   const [newItemSubject,setNewItemSubject]=useState("");
   const [newItemDuration,setNewItemDuration]=useState("00:05:00");
-  const [addJobId,setAddJobId]=useState("");
-  const [addJobName,setAddJobName]=useState("");
-  const {data:jobs}=useSWR<{IsSuccess:boolean;Data:{Value:string;Text:string}[]}>("/base-info/business-types");
   useEffect(()=>{
     setItemsDraft((externalItems??[]).map(item=>({
       rowId:String(item.Id),itemName:item.ItemTitle,subject:item.ItemSubject,
@@ -85,12 +89,15 @@ export default function IssueProfilePage(){
   },[estimateDetail,selected?.planId]);
   function addItem(){
     if(!newItemName.trim()||durationSeconds(newItemDuration)<=0){setMessage("عنوان و مدت معتبر برای آیتم جدید الزامی است.");return;}
+    if(!durationSeconds(programDuration)){setMessage("ابتدا مدت معتبر برنامه را وارد کنید.");return;}
+    if(itemTotalSeconds+durationSeconds(newItemDuration)>durationSeconds(programDuration)){setMessage("با افزودن این آیتم، مجموع زمان آیتم‌ها از مدت برنامه بیشتر می‌شود.");return;}
     setItemsDraft(rows=>[...rows,{rowId:crypto.randomUUID(),itemName:newItemName.trim(),subject:newItemSubject.trim(),duration:normalizeDuration(newItemDuration),productionType:""}]);
     setNewItemName("");setNewItemSubject("");setNewItemDuration("00:05:00");setAddItemOpen(false);setMessage("");
   }
   function editCrew(id:string,patch:Partial<EditableCrew>){setCrewDraft(rows=>rows.map(row=>row.rowId===id?{...row,...patch}:row));}
   const crewValid=crewDraft.filter(x=>x.personnelId>0&&x.personnelName.trim()&&x.activityTypeId>0);
   const [programDuration,setProgramDuration]=useState("");
+  const [startTime,setStartTime]=useState("");
   const [productionMethod,setProductionMethod]=useState("");
   const [occasion,setOccasion]=useState("");
   const itemTotalSeconds=itemsDraft.reduce((sum,item)=>sum+durationSeconds(item.duration),0);
@@ -103,6 +110,8 @@ export default function IssueProfilePage(){
     e.preventDefault();setMessage("");
     if(!selected){setMessage("پیش‌بینی تاییدشده را انتخاب کنید.");return;}
     const form=new FormData(e.currentTarget);
+    if(!programDuration.trim()||!startTime.trim()){setMessage("مدت برنامه و ساعت شروع الزامی هستند.");return;}
+    if(!/^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/.test(startTime)){setMessage("ساعت شروع معتبر نیست.");return;}
     if(!planData){setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
     if(!externalCrew||!externalItems){setMessage("دریافت عوامل و آیتم‌های طرح کامل نشده است.");return;}
     const crewMembers:Crew[]=crewValid.map(({personnelId,personnelName,activityTypeId,activityTypeName,isPresent})=>({personnelId,personnelName,activityTypeId,activityTypeName,isPresent}));
@@ -110,6 +119,7 @@ export default function IssueProfilePage(){
     if(!crewMembers.length){setMessage("حداقل یک عامل معتبر برای صدور لازم است.");return;}
     const items:Item[]=itemsDraft.map(({itemName,duration,productionType})=>({itemName:itemName.trim(),duration:normalizeDuration(duration),productionType:productionType.trim()||productionMethod.trim()||planData.ProgramTypeName}));
     if(items.some(item=>!item.itemName||!item.duration||!item.productionType)){setMessage("مدت زمان یک یا چند آیتم نامعتبر است.");return;}
+    if(itemsDraft.some(item=>durationSeconds(item.duration)<=0)){setMessage("مدت همه آیتم‌ها باید معتبر و بیشتر از صفر باشد.");return;}
     if(!durationLimitSeconds){setMessage("مدت برنامه را به شکل ساعت:دقیقه:ثانیه وارد کنید.");return;}
     if(overDuration){setMessage("مجموع زمان آیتم‌ها نباید از مدت برنامه بیشتر باشد.");return;}
     setSaving(true);
@@ -129,7 +139,7 @@ export default function IssueProfilePage(){
         programDegreeName:planData.ProgramDegreeName,
         programStructureId:planData.StructureProgramId,
         programStructureName:planData.StructureProgramName,
-        startTime:String(form.get("startTime")??""),
+        startTime:startTime.length===5?startTime+":00":startTime,
         programType:planData.ProgramType,
         programTypeName:planData.ProgramTypeName,
         crewMembers,
@@ -148,7 +158,7 @@ export default function IssueProfilePage(){
         <label className="field md:col-span-3"><span className="label">پیش‌بینی تأییدشده *</span>
           <select className="select" value={forecastId} onChange={e=>setForecastId(e.target.value)} required>
             <option value="">انتخاب نام برنامه، موضوع و شماره قسمت</option>
-            {(forecasts??[]).map(x=><option key={x.id} value={x.id}>{x.planName||`طرح ${x.planId}`} | {x.mainTopic} | قسمت {x.episodeNumber}</option>)}
+            {(forecasts??[]).map(x=><ForecastOption key={x.id} forecast={x}/>)}
           </select>
         </label>
         <label className="field"><span className="label">مدت برنامه *</span><input className="input" name="duration" dir="ltr" value={programDuration} onChange={e=>setProgramDuration(e.target.value)} placeholder="01:00:00" required/></label>
@@ -158,7 +168,7 @@ export default function IssueProfilePage(){
         <label className="field"><span className="label">درجه برنامه</span><input className="input bg-default-50" readOnly value={planData?.ProgramDegreeName??""}/></label>
         <label className="field"><span className="label">ساختار برنامه</span><input className="input bg-default-50" readOnly value={planData?.StructureProgramName??""}/></label>
         <label className="field"><span className="label">نوع کاربرد</span><input className="input bg-default-50" readOnly value={planData?.ApplicationTypeName??""}/></label>
-        <label className="field"><span className="label">ساعت شروع *</span><input className="input" name="startTime" type="time" step="1" required/></label>
+        <label className="field"><span className="label">ساعت شروع *</span><input className="input" name="startTime" type="time" step="60" value={startTime} onChange={e=>setStartTime(e.target.value)} required/></label>
         <label className="field"><span className="label">نوع برنامه</span><input className="input bg-default-50" readOnly value={planData?.ProgramTypeName??""}/></label>
       </div>
       <section className="rounded-xl border border-default-200 bg-background p-5" style={{marginTop:20}}>
@@ -179,7 +189,6 @@ export default function IssueProfilePage(){
       <section className="rounded-xl border border-default-200 bg-background p-5" style={{marginTop:20}}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3"><span className="rounded-lg border border-default-200 p-2 text-default-600"><Users size={22}/></span><div><h2 className="font-semibold">عوامل شناسنامه</h2><p className="mt-1 text-xs text-default-500">نام عامل از وب‌سرویس پرسنل قابل تغییر است؛ نوع فعالیت از اطلاعات پایه خوانده می‌شود.</p></div></div>
-          <div className="flex flex-wrap gap-2"><select className="select" aria-label="شغل عامل جدید" value={addJobId} onChange={e=>{setAddJobId(e.target.value);setAddJobName(jobs?.Data.find(x=>x.Value===e.target.value)?.Text??"");}}><option value="">انتخاب شغل برای افزودن</option>{(jobs?.Data??[]).map(x=><option key={x.Value} value={x.Value}>{x.Text}</option>)}</select><button className="btn bg-green-600 text-white hover:bg-green-700 disabled:opacity-50" type="button" disabled={!addJobId} onClick={()=>setCrewDraft(rows=>[...rows,{rowId:crypto.randomUUID(),personnelId:0,personnelName:"",activityTypeId:0,activityTypeName:"",jobId:Number(addJobId),jobName:addJobName,isPresent:true}])}>افزودن عامل</button></div>
         </div>
         {estimateError?<p className="alert alert-error">دریافت عوامل ناموفق بود.</p>:null}
         <div className="overflow-x-auto rounded-xl border border-default-200">
