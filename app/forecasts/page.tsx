@@ -43,6 +43,14 @@ function formatPersianDate(value: string): string {
   }).format(new Date(value));
 }
 
+function PlanNameCell({ forecast }: { forecast: ForecastResponse }) {
+  const { data } = useSWR<{ Data?: Array<{ Value: string; Text: string }> }>(
+    forecast.planName ? null : `/base-info/plans/${forecast.networkId}?networkGroupId=${forecast.networkGroupId}`
+  );
+  const name = forecast.planName || data?.Data?.find((plan) => Number(plan.Value) === forecast.planId)?.Text;
+  return <>{name || `#${forecast.planId}`}</>;
+}
+
 export default function ForecastsPage() {
   const [status, setStatus] = useState("");
   const [planId, setPlanId] = useState("");
@@ -189,6 +197,7 @@ export default function ForecastsPage() {
               <th style={{ padding: 12, textAlign: "right" }}>تاریخ پخش</th>
               <th style={{ padding: 12, textAlign: "right" }}>ثبت‌کننده</th>
               <th style={{ padding: 12, textAlign: "right" }}>وضعیت</th>
+              <th style={{ padding: 12, textAlign: "right" }}>مرحله گردش‌کار</th>
               <th style={{ padding: 12, textAlign: "right" }}>عملیات</th>
             </tr>
           </thead>
@@ -196,7 +205,7 @@ export default function ForecastsPage() {
             {(data?.items ?? []).map((item) => (
               <tr key={item.id} style={{ borderTop: "1px solid var(--border)" }}>
                 <td style={{ padding: 12, fontWeight: 700 }}>{item.mainTopic}</td>
-                <td style={{ padding: 12 }}>#{item.planId}</td>
+                <td style={{ padding: 12 }}><PlanNameCell forecast={item} /></td>
                 <td style={{ padding: 12 }}>{item.episodeNumber}</td>
                 <td style={{ padding: 12 }}>{formatPersianDate(item.broadcastDate)}</td>
                 <td style={{ padding: 12 }}>{item.userCreatorName || "—"}</td>
@@ -205,6 +214,7 @@ export default function ForecastsPage() {
                     {forecastStatusLabel(item.status)}
                   </span>
                 </td>
+                <td style={{ padding: 12 }}>{item.workflow ? <><strong>{item.workflow.workflowName}</strong><div className="muted">{item.workflow.currentNodeName || "پایان فرآیند"}</div></> : "—"}</td>
                 <td style={{ padding: 12 }}>
                   <Link className="btn btn-outline" href={"/forecasts/" + item.id}>
                     مشاهده
