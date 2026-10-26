@@ -51,7 +51,6 @@ export default function IssueProfilePage(){
     const form=new FormData(e.currentTarget);
     if(!planData){setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
     if(!externalCrew||!externalItems){setMessage("دریافت عوامل و آیتم‌های طرح کامل نشده است.");return;}
-    if(missingPersonnel.length){setMessage("برخی ردیف‌های عوامل فاقد شناسه یا نام شخص هستند؛ ابتدا در سامانه مرجع تکمیل شوند.");return;}
     const crewMembers:Crew[]=validCrew.map(person=>({
       personnelId:person.PersonnelId!,personnelName:person.PersonnelName!,
       activityTypeId:person.ActivityTypeId,activityTypeName:person.ActivityTypeName,isPresent:true
@@ -121,7 +120,7 @@ export default function IssueProfilePage(){
         {externalCrew?<div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><th>نام</th><th>حرفه</th><th>نوع فعالیت</th><th>وضعیت</th></tr></thead><tbody>
           {externalCrew.map(person=><tr key={person.Id}><td>{person.PersonnelName||"تعیین نشده"}</td><td>{person.BussinessTypeName}</td><td>{person.ProgramActivityTypeName?.trim()||person.ActivityTypeName}</td><td>{person.PersonnelId?"معتبر":"نیازمند تعیین عامل"}</td></tr>)}
         </tbody></table></div>:<p>در حال دریافت عوامل...</p>}
-        {missingPersonnel.length>0?<p className="alert alert-error">{missingPersonnel.length} ردیف فاقد اطلاعات شخص است؛ برای جلوگیری از ثبت نادرست، صدور تا تکمیل در سامانه مرجع غیرفعال است.</p>:null}
+        {missingPersonnel.length>0?<p className="alert">{missingPersonnel.length} ردیف فاقد اطلاعات شخص است؛ این ردیف‌ها نمایش داده می‌شوند اما در فهرست عوامل ثبت‌شده شناسنامه قرار نمی‌گیرند.</p>:null}
       </section>
       {selected?<section className="card" style={{marginTop:16}}>
         <strong>وضعیت دریافت اطلاعات از وب‌سرویس خارجی</strong>
@@ -131,7 +130,7 @@ export default function IssueProfilePage(){
         <p className="muted">عوامل و آیتم‌ها از سرویس مرجع بارگذاری شده و قابل تغییر در این فرم نیستند.</p>
       </section>:null}
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
-      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving||!planData||!externalCrew||!externalItems||missingPersonnel.length>0}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving||!planData||!externalCrew||!externalItems||validCrew.length===0}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
     </form>
   </DashboardShell>;
 }
