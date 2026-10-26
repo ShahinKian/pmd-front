@@ -27,6 +27,10 @@ export default function ForecastDetailsPage() {
   const { data, error, isLoading, mutate } = useSWR<ForecastResponse>("/forecasts/" + id);
 
   const { data: permittedActions, mutate: refreshActions } = useSWR<Array<{ key: string; label: string; transitionId: string }>>(data ? `/forecasts/${id}/actions` : null);
+  const { data: planList } = useSWR<{ Data?: Array<{ Value: string; Text: string }> }>(
+    data && !data.planName ? `/base-info/plans/${data.networkId}?networkGroupId=${data.networkGroupId}` : null
+  );
+  const planTitle = data?.planName || planList?.Data?.find((item) => Number(item.Value) === data?.planId)?.Text;
   const [broadcastDate, setBroadcastDate] = useState("");
   const [mainTopic, setMainTopic] = useState("");
   const [hasExpert, setHasExpert] = useState(false);
@@ -183,7 +187,7 @@ export default function ForecastDetailsPage() {
             <div>
               <h1 className="page-title">{data.mainTopic}</h1>
               <p className="page-description">
-                طرح {data.planName || `#${data.planId}`} — قسمت {data.episodeNumber}
+                طرح {planTitle || `#${data.planId}`} — قسمت {data.episodeNumber}
               </p>
             </div>
             <span className="admin-badge">
