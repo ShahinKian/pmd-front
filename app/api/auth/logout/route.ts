@@ -5,6 +5,7 @@ import {
   REFRESH_TOKEN_COOKIE,
   clearAuthCookies,
 } from "@/lib/auth/cookies";
+import { clearCaptchaCookie } from "@/lib/auth/captcha";
 import { isSameOriginRequest } from "@/lib/auth/security";
 import { pmdFetch } from "@/lib/pmd-api/client";
 
@@ -33,5 +34,6 @@ export async function POST(request: NextRequest) {
 
   const response = new NextResponse(null, { status: 204 });
   clearAuthCookies(response);
+  clearCaptchaCookie(response);
   return response;
 }
