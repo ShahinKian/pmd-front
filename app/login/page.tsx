@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { SiteLogo } from "@/components/svg";
@@ -17,6 +17,8 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [captchaVersion, setCaptchaVersion] = useState(1);
+
+  useEffect(() => { refreshCaptcha(); }, []);
 
   function refreshCaptcha() {
     setCaptchaVersion((value) => value + 1);
