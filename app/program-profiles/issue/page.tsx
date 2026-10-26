@@ -291,7 +291,7 @@ export default function IssueProfilePage(){
           <div className="flex items-center justify-between md:col-span-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={x.hasPayment} onChange={e=>editExpert(i,{hasPayment:e.target.checked})}/> شامل پرداخت</label><button type="button" className="btn border border-red-200 text-red-600 hover:bg-red-50" onClick={()=>setExpertRows(rows=>rows.filter((_,j)=>i!==j))}><Trash2 size={15}/> حذف</button></div>
         </div>)}{!expertRows.length?<p className="py-6 text-center text-default-500">کارشناسی اضافه نشده است. در صورت نیاز از «افزودن کارشناس» استفاده کنید.</p>:null}</div>
       </section>
-      <section className={step===4?"rounded-xl border border-default-200 p-5":"hidden"}>
+      <section className={step===5?"rounded-xl border border-default-200 p-5":"hidden"}>
         <h2 className="mb-4 font-semibold">بازبینی و صدور شناسنامه</h2>
         <div className="grid gap-3 text-sm md:grid-cols-2"><p>برنامه: {selected?.planName||selected?.mainTopic||"انتخاب نشده"}</p><p>مدت: {programDuration||"وارد نشده"}</p><p>آیتم‌ها: {itemsDraft.length} مورد</p><p>عوامل: {crewDraft.length} نفر</p><p>کارشناسان: {expertRows.length} ارتباط</p><p>ساعت شروع: {startTime||"وارد نشده"}</p></div>
       </section>
