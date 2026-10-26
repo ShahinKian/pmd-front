@@ -11,6 +11,8 @@ import type {BaseInfoListResponse} from "@/lib/base-info/browser-types";
 
 type Crew={personnelId:number;personnelName:string;activityTypeId:number;activityTypeName:string;isPresent:boolean};
 type Item={itemName:string;productionType:string;duration:string};
+type PlanDetail={PlanId:number;ApplicationType:number;ApplicationTypeName:string;ProgramType:number;ProgramTypeName:string;ProgramDegreeId:number;ProgramDegreeName:string;FloorPlanId:number;FloorPlanName:string;StructureProgramId:number;StructureProgramName:string};
+type PlanDetailResponse={IsSuccess:boolean;Data:PlanDetail|null;Message:string|null};
 
 export default function IssueProfilePage(){
   const router=useRouter();
@@ -18,9 +20,8 @@ export default function IssueProfilePage(){
   const [forecastId,setForecastId]=useState("");
   const selected=useMemo(()=>forecasts?.find(x=>x.id===forecastId)??null,[forecasts,forecastId]);
   const {data:structures}=useSWR<BaseInfoListResponse>("/base-info/structure-programs");
-  const [structureId,setStructureId]=useState("");
-  const {data:degrees,isLoading:degreesLoading,error:degreesError}=useSWR<BaseInfoListResponse>(structureId?`/base-info/program-degrees/${structureId}`:null);
-  const {data:planDetail,error:planDetailError}=useSWR<unknown>(selected?`/base-info/plan-detail/${selected.planId}`:null);
+  const {data:planDetail,error:planDetailError}=useSWR<PlanDetailResponse>(selected?`/base-info/plan-detail/${selected.planId}`:null);
+  const planData=planDetail?.IsSuccess&&planDetail.Data?.PlanId===selected?.planId?planDetail.Data:null;
   const {data:estimateDetail,error:estimateError}=useSWR<unknown>(selected?`/base-info/estimate-detail/${selected.planId}`:null);
   const {data:planItems,error:itemsError}=useSWR<unknown>(selected?`/base-info/plan-items/${selected.planId}`:null);
   const [crewText,setCrewText]=useState("");
@@ -45,8 +46,7 @@ export default function IssueProfilePage(){
     e.preventDefault();setMessage("");
     if(!selected){setMessage("پیش‌بینی تاییدشده را انتخاب کنید.");return;}
     const form=new FormData(e.currentTarget);
-    const structureName=(structures?.Data??[]).find(x=>x.Value===String(form.get("programStructureId")))?.Text??"";
-    const degreeName=(degrees?.Data??[]).find(x=>x.Value===String(form.get("programDegreeId")))?.Text??"";
+    if(!planData){setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
     const crewMembers=parseCrew();
     if(!crewMembers.length){setMessage("حداقل یک عامل معتبر وارد کنید.");return;}
     setSaving(true);
@@ -60,15 +60,15 @@ export default function IssueProfilePage(){
         broadcastDate:selected.broadcastDate,
         productionMethod:String(form.get("productionMethod")??""),
         occasion:String(form.get("occasion")??""),
-        floorId:Number(form.get("floorId")),
-        floorName:String(form.get("floorName")??""),
-        programDegreeId:Number(form.get("programDegreeId")),
-        programDegreeName:degreeName,
-        programStructureId:Number(form.get("programStructureId")),
-        programStructureName:structureName,
+        floorId:planData.FloorPlanId,
+        floorName:planData.FloorPlanName,
+        programDegreeId:planData.ProgramDegreeId,
+        programDegreeName:planData.ProgramDegreeName,
+        programStructureId:planData.StructureProgramId,
+        programStructureName:planData.StructureProgramName,
         startTime:String(form.get("startTime")??""),
-        programType:Number(form.get("programType")),
-        programTypeName:String(form.get("programTypeName")??""),
+        programType:planData.ProgramType,
+        programTypeName:planData.ProgramTypeName,
         crewMembers,
         items:parseItems(),
       });
@@ -86,13 +86,12 @@ export default function IssueProfilePage(){
         <label className="field"><span className="label">مدت برنامه *</span><input className="input" name="duration" placeholder="01:00:00" required/></label>
         <label className="field"><span className="label">نحوه تولید *</span><input className="input" name="productionMethod" required/></label>
         <label className="field"><span className="label">مناسبت *</span><input className="input" name="occasion" required/></label>
-        <label className="field"><span className="label">شناسه طبقه *</span><input className="input" name="floorId" type="number" min="1" required/></label>
-        <label className="field"><span className="label">نام طبقه *</span><input className="input" name="floorName" required/></label>
-        <label className="field"><span className="label">ساختار برنامه *</span><select className="select" name="programStructureId" value={structureId} onChange={e=>setStructureId(e.target.value)} required><option value="">انتخاب کنید</option>{(structures?.Data??[]).map(x=><option key={x.Value} value={x.Value}>{x.Text}</option>)}</select></label>
-        <label className="field"><span className="label">درجه برنامه *</span><select className="select" name="programDegreeId" key={structureId} disabled={!structureId||degreesLoading} required><option value="">{degreesLoading?"در حال دریافت...":"انتخاب درجه"}</option>{(degrees?.Data??[]).map(x=><option key={x.Value} value={x.Value}>{x.Text}</option>)}</select>{degreesError?<small className="text-destructive">دریافت درجه برنامه از وب‌سرویس ناموفق بود.</small>:null}</label>
+        <label className="field"><span className="label">طبقه</span><input className="input" readOnly value={planData?.FloorPlanName??""}/></label>
+        <label className="field"><span className="label">درجه برنامه</span><input className="input" readOnly value={planData?.ProgramDegreeName??""}/></label>
+        <label className="field"><span className="label">ساختار برنامه</span><input className="input" readOnly value={planData?.StructureProgramName??""}/></label>
+        <label className="field"><span className="label">نوع کاربرد</span><input className="input" readOnly value={planData?.ApplicationTypeName??""}/></label>
         <label className="field"><span className="label">ساعت شروع *</span><input className="input" name="startTime" placeholder="20:00:00" required/></label>
-        <label className="field"><span className="label">نوع برنامه *</span><select className="select" name="programType" required><option value="10">زنده</option><option value="20">ضبطی</option></select></label>
-        <label className="field"><span className="label">نام نوع برنامه *</span><input className="input" name="programTypeName" defaultValue="زنده" required/></label>
+        <label className="field"><span className="label">نوع برنامه</span><input className="input" readOnly value={planData?.ProgramTypeName??""}/></label>
         <label className="field full"><span className="label">عوامل *</span><textarea className="input" style={{height:140,paddingTop:10}} value={crewText} onChange={e=>setCrewText(e.target.value)} placeholder="personnelId | نام | activityTypeId | عنوان فعالیت | true — هر عامل در یک خط"/></label>
         <label className="field full"><span className="label">آیتم‌ها</span><textarea className="input" style={{height:120,paddingTop:10}} value={itemsText} onChange={e=>setItemsText(e.target.value)} placeholder="نام آیتم | نوع تولید | 00:10:00 — هر آیتم در یک خط"/></label>
       </div>
@@ -104,7 +103,7 @@ export default function IssueProfilePage(){
         <p className="muted">برای اتصال خودکار عوامل و آیتم‌ها باید قالب واقعی پاسخ‌های این سرویس‌ها مشخص شود.</p>
       </section>:null}
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
-      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving||!planData}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
     </form>
   </DashboardShell>;
 }
