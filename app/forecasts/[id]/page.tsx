@@ -39,6 +39,8 @@ export default function ForecastDetailsPage() {
   const [expertIds, setExpertIds] = useState<string[]>([]);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [reasonAction, setReasonAction] = useState<"reject" | "return-for-edit" | null>(null);
+  const [reasonText, setReasonText] = useState("");
 
   const { data: experts } = useSWR<ExpertOption[]>(
     data?.networkId
@@ -100,20 +102,11 @@ export default function ForecastDetailsPage() {
     let payload: Record<string, string> | undefined;
 
     if (name === "reject" || name === "return-for-edit") {
-      const reason = window.prompt(
-        name === "reject"
-          ? "دلیل رد را وارد کنید:"
-          : "دلیل بازگشت برای اصلاح را وارد کنید:",
-      );
-      if (reason === null) return;
-      if (!reason.trim()) {
-        setMessage({
-          type: "error",
-          text: "ثبت دلیل برای این عملیات الزامی است.",
-        });
+      if (!reasonText.trim()) {
+        setMessage({ type: "error", text: "ثبت دلیل برای این عملیات الزامی است." });
         return;
       }
-      payload = { reason: reason.trim() };
+      payload = { reason: reasonText.trim() };
     }
 
     setBusy(name);
@@ -122,6 +115,8 @@ export default function ForecastDetailsPage() {
       await apiClient.post("/forecasts/" + id + "/actions/" + name, payload ?? { reason: null });
       await mutate();
       await refreshActions();
+      setReasonAction(null);
+      setReasonText("");
       setMessage({
         type: "success",
         text: "عملیات گردش‌کار با موفقیت انجام شد.",
@@ -196,6 +191,7 @@ export default function ForecastDetailsPage() {
             </span>
           </div>
 
+          {data.lastActionReason ? <div className="alert" style={{ marginBottom: 16 }}><strong>دلیل آخرین بازگشت یا رد:</strong> {data.lastActionReason}</div> : null}
           {data.workflow ? <section className="card" style={{ marginBottom: 18 }}><strong>وضعیت گردش‌کار</strong><p>فرآیند: {data.workflow.workflowName || "—"}</p><p>مرحله جاری: {data.workflow.currentNodeName || (data.status === FORECAST_STATUS.Approved ? "پایان فرآیند" : "—")}</p><p>مسئول مرحله: {data.workflow.currentNodeRole ? roleLabel(data.workflow.currentNodeRole) : "—"}</p></section> : null}
           <form className="grid" style={{ gap: 18 }} onSubmit={save}>
             <section className="form-section">
@@ -324,7 +320,7 @@ export default function ForecastDetailsPage() {
                   {permittedActions?.some((item) => item.key === "return-for-edit") ? <button
                     type="button"
                     className="btn btn-outline"
-                    onClick={() => action("return-for-edit")}
+                    onClick={() => { setReasonText(""); setReasonAction("return-for-edit"); }}
                     disabled={Boolean(busy)}
                   >
                     {busy === "return-for-edit" ? (
@@ -337,7 +333,7 @@ export default function ForecastDetailsPage() {
                   {permittedActions?.some((item) => item.key === "reject") ? <button
                     type="button"
                     className="btn btn-outline"
-                    onClick={() => action("reject")}
+                    onClick={() => { setReasonText(""); setReasonAction("reject"); }}
                     disabled={Boolean(busy)}
                   >
                     {busy === "reject" ? (
@@ -364,7 +360,7 @@ export default function ForecastDetailsPage() {
                 </button>
               ))}
 
-              <button
+              {data.status !== FORECAST_STATUS.Approved ? <button
                 type="button"
                 className="btn btn-outline"
                 onClick={removeForecast}
@@ -372,10 +368,20 @@ export default function ForecastDetailsPage() {
               >
                 {busy === "delete" ? <Loader2 size={16} /> : <Trash2 size={16} />}
                 حذف
-              </button>
+              </button> : null}
             </div>
           </section>
 
+          {reasonAction ? <div role="dialog" aria-modal="true" aria-labelledby="reason-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <div className="w-full max-w-lg rounded-xl bg-background p-6 shadow-xl">
+              <h2 id="reason-dialog-title" className="mb-3 text-lg font-semibold">{reasonAction === "reject" ? "علت رد پیش‌بینی" : "علت بازگشت برای اصلاح"}</h2>
+              <textarea autoFocus className="input w-full" rows={5} value={reasonText} maxLength={2000} onChange={e => setReasonText(e.target.value)} placeholder="علت را برای اطلاع تهیه‌کننده بنویسید" />
+              <div className="mt-4 flex justify-end gap-2">
+                <button type="button" className="btn btn-outline" disabled={Boolean(busy)} onClick={() => setReasonAction(null)}>انصراف</button>
+                <button type="button" className="btn btn-primary" disabled={Boolean(busy) || !reasonText.trim()} onClick={() => void action(reasonAction)}>ثبت و ارسال</button>
+              </div>
+            </div>
+          </div> : null}
           {message ? (
             <div
               className={
