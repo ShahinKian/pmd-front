@@ -3,7 +3,7 @@
 import {FormEvent,useEffect,useMemo,useState} from "react";
 import {useRouter} from "next/navigation";
 import useSWR from "swr";
-import {Loader2,Save,Trash2,Clock3,Users,Layers3} from "lucide-react";
+import {Loader2,Save,Trash2,Clock3,Users,Layers3,Plus,PenLine,Check, X, UserRound} from "lucide-react";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import {apiClient,apiErrorMessage} from "@/lib/http/client";
 import type {ForecastResponse} from "@/lib/forecasts/types";
@@ -60,6 +60,11 @@ export default function IssueProfilePage(){
     ?planItems.Data.filter(item=>item.PlanId===selected?.planId):null;
   const [itemsDraft,setItemsDraft]=useState<EditableItem[]>([]);
   const [crewDraft,setCrewDraft]=useState<EditableCrew[]>([]);
+  const [editingCrewId,setEditingCrewId]=useState<string|null>(null);
+  const [addItemOpen,setAddItemOpen]=useState(false);
+  const [newItemName,setNewItemName]=useState("");
+  const [newItemSubject,setNewItemSubject]=useState("");
+  const [newItemDuration,setNewItemDuration]=useState("00:05:00");
   const [addJobId,setAddJobId]=useState("");
   const [addJobName,setAddJobName]=useState("");
   const {data:jobs}=useSWR<{IsSuccess:boolean;Data:{Value:string;Text:string}[]}>("/base-info/business-types");
@@ -70,6 +75,7 @@ export default function IssueProfilePage(){
     })));
   },[planItems,selected?.planId]);
   useEffect(()=>{
+    setEditingCrewId(null);
     setCrewDraft((externalCrew??[]).map(person=>({
       rowId:String(person.Id),personnelId:person.PersonnelId??0,
       personnelName:person.PersonnelName??"",activityTypeId:person.ActivityTypeId,
@@ -77,6 +83,11 @@ export default function IssueProfilePage(){
       jobId:person.BussinessTypeId,jobName:person.BussinessTypeName
     })));
   },[estimateDetail,selected?.planId]);
+  function addItem(){
+    if(!newItemName.trim()||durationSeconds(newItemDuration)<=0){setMessage("عنوان و مدت معتبر برای آیتم جدید الزامی است.");return;}
+    setItemsDraft(rows=>[...rows,{rowId:crypto.randomUUID(),itemName:newItemName.trim(),subject:newItemSubject.trim(),duration:normalizeDuration(newItemDuration),productionType:""}]);
+    setNewItemName("");setNewItemSubject("");setNewItemDuration("00:05:00");setAddItemOpen(false);setMessage("");
+  }
   function editCrew(id:string,patch:Partial<EditableCrew>){setCrewDraft(rows=>rows.map(row=>row.rowId===id?{...row,...patch}:row));}
   const crewValid=crewDraft.filter(x=>x.personnelId>0&&x.personnelName.trim()&&x.activityTypeId>0);
   const [programDuration,setProgramDuration]=useState("");
@@ -146,13 +157,14 @@ export default function IssueProfilePage(){
       </div>
       <section className="rounded-2xl border border-default-200 bg-card p-5 shadow-sm" style={{marginTop:20}}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3"><span className="rounded-xl bg-primary/10 p-3 text-primary"><Layers3 size={22}/></span><div><h2 className="font-semibold">آیتم‌های شناسنامه</h2><p className="mt-1 text-xs text-default-500">آیتم‌های مصوب از وب‌سرویس خوانده می‌شوند؛ فقط حذف از این شناسنامه مجاز است.</p></div></div>
-          <div className="rounded-xl bg-default-50 px-4 py-3 text-sm"><Clock3 size={15} className="ml-2 inline-block"/><span>زمان آیتم‌ها: </span><strong dir="ltr">{totalDuration(itemsDraft.map(x=>({Id:0,PlanId:0,ItemTitle:x.itemName,ItemSubject:x.subject,ItemPeriod:x.duration})))}</strong><span className="mx-2">/</span><span dir="ltr">{programDuration||"—"}</span></div>
+          <div className="flex items-center gap-3"><span className="rounded-xl bg-violet-100 p-3 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"><Layers3 size={22}/></span><div><h2 className="font-semibold">آیتم‌های شناسنامه</h2><p className="mt-1 text-xs text-default-500">آیتم‌های طرح ثابت هستند؛ می‌توانید آیتم جدید اضافه کنید یا موارد غیرضروری را حذف کنید.</p></div></div>
+          <div className="flex flex-wrap items-center gap-3"><button type="button" className="btn btn-primary" onClick={()=>setAddItemOpen(value=>!value)}><Plus size={16}/> افزودن آیتم</button><div className={"rounded-xl px-4 py-3 text-sm "+(overDuration?"bg-red-50 text-red-700 dark:bg-red-950/30":"bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200")}><Clock3 size={15} className="ml-2 inline-block"/><span>زمان آیتم‌ها: </span><strong dir="ltr">{totalDuration(itemsDraft.map(x=>({Id:0,PlanId:0,ItemTitle:x.itemName,ItemSubject:x.subject,ItemPeriod:x.duration})))}</strong><span className="mx-2">/</span><span dir="ltr">{programDuration||"—"}</span></div></div>
         </div>
+        {addItemOpen?<div className="mb-5 grid gap-3 rounded-xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-900 dark:bg-violet-950/20 md:grid-cols-[1fr_1.4fr_160px_auto]"><input className="input" aria-label="عنوان آیتم جدید" placeholder="عنوان آیتم" value={newItemName} onChange={e=>setNewItemName(e.target.value)}/><input className="input" aria-label="موضوع آیتم جدید" placeholder="موضوع آیتم" value={newItemSubject} onChange={e=>setNewItemSubject(e.target.value)}/><input className="input" dir="ltr" aria-label="مدت آیتم جدید" value={newItemDuration} onChange={e=>setNewItemDuration(e.target.value)}/><div className="flex gap-2"><button type="button" className="btn btn-primary" onClick={addItem}><Check size={16}/> ثبت</button><button type="button" className="btn btn-outline" onClick={()=>setAddItemOpen(false)}><X size={16}/></button></div></div>:null}
         {itemsError?<p className="alert alert-error">دریافت آیتم‌های طرح ناموفق بود.</p>:null}
         {overDuration?<p className="alert alert-error mb-4">مجموع مدت آیتم‌ها از مدت برنامه بیشتر است. برای صدور شناسنامه، آیتم‌های اضافی را حذف کنید یا مدت برنامه را اصلاح کنید.</p>:null}
         <div className="overflow-x-auto rounded-xl border border-default-200">
-          <table className="w-full text-right text-sm"><thead className="bg-default-50 text-default-600"><tr><th className="p-3">عنوان آیتم</th><th className="p-3">موضوع</th><th className="p-3">مدت</th><th className="w-16 p-3" aria-label="عملیات"></th></tr></thead>
+          <table className="w-full text-right text-sm"><thead className="bg-violet-50/70 text-violet-900 dark:bg-violet-950/20 dark:text-violet-200"><tr><th className="p-3">عنوان آیتم</th><th className="p-3">موضوع</th><th className="p-3">مدت</th><th className="w-16 p-3" aria-label="عملیات"></th></tr></thead>
             <tbody className="divide-y divide-default-100">{itemsDraft.map(item=><tr key={item.rowId} className="transition-colors hover:bg-default-50"><td className="p-3 font-medium">{item.itemName}</td><td className="p-3 text-default-500">{item.subject}</td><td className="p-3 font-medium" dir="ltr">{item.duration}</td><td className="p-3"><button type="button" className="rounded-lg p-2 text-danger hover:bg-danger/10" title="حذف آیتم" aria-label={`حذف آیتم ${item.itemName}`} onClick={()=>setItemsDraft(rows=>rows.filter(x=>x.rowId!==item.rowId))}><Trash2 size={17}/></button></td></tr>)}</tbody>
           </table>
           {itemsDraft.length===0?<p className="p-5 text-center text-default-500">آیتمی برای این شناسنامه باقی نمانده است.</p>:null}
@@ -160,13 +172,15 @@ export default function IssueProfilePage(){
       </section>
       <section className="rounded-2xl border border-default-200 bg-card p-5 shadow-sm" style={{marginTop:20}}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3"><span className="rounded-xl bg-primary/10 p-3 text-primary"><Users size={22}/></span><div><h2 className="font-semibold">عوامل شناسنامه</h2><p className="mt-1 text-xs text-default-500">نام عامل از وب‌سرویس پرسنل قابل تغییر است؛ نوع فعالیت از اطلاعات پایه خوانده می‌شود.</p></div></div>
+          <div className="flex items-center gap-3"><span className="rounded-xl bg-sky-100 p-3 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"><Users size={22}/></span><div><h2 className="font-semibold">عوامل شناسنامه</h2><p className="mt-1 text-xs text-default-500">نام عامل از وب‌سرویس پرسنل قابل تغییر است؛ نوع فعالیت از اطلاعات پایه خوانده می‌شود.</p></div></div>
           <div className="flex flex-wrap gap-2"><select className="select" aria-label="شغل عامل جدید" value={addJobId} onChange={e=>{setAddJobId(e.target.value);setAddJobName(jobs?.Data.find(x=>x.Value===e.target.value)?.Text??"");}}><option value="">انتخاب شغل برای افزودن</option>{(jobs?.Data??[]).map(x=><option key={x.Value} value={x.Value}>{x.Text}</option>)}</select><button className="btn btn-outline" type="button" disabled={!addJobId} onClick={()=>setCrewDraft(rows=>[...rows,{rowId:crypto.randomUUID(),personnelId:0,personnelName:"",activityTypeId:0,activityTypeName:"",jobId:Number(addJobId),jobName:addJobName,isPresent:true}])}>افزودن عامل</button></div>
         </div>
         {estimateError?<p className="alert alert-error">دریافت عوامل ناموفق بود.</p>:null}
         <div className="overflow-x-auto rounded-xl border border-default-200">
-          <table className="w-full text-right text-sm"><thead className="bg-default-50 text-default-600"><tr><th className="p-3">عامل</th><th className="p-3">نوع فعالیت</th><th className="w-16 p-3" aria-label="عملیات"></th></tr></thead>
-            <tbody className="divide-y divide-default-100">{crewDraft.map(person=><tr key={person.rowId} className="hover:bg-default-50"><td className="min-w-56 p-3"><PersonnelPicker networkId={selected?.networkId??0} jobId={person.jobId} value={person.personnelId} onChange={(id,name)=>editCrew(person.rowId,{personnelId:id,personnelName:name})}/></td><td className="p-3 text-default-700">{person.activityTypeName||"فعالیت مشخص نشده"}</td><td className="p-3"><button type="button" title="حذف عامل" aria-label={`حذف عامل ${person.personnelName||"بدون نام"}`} className="rounded-lg p-2 text-danger hover:bg-danger/10" onClick={()=>setCrewDraft(rows=>rows.filter(x=>x.rowId!==person.rowId))}><Trash2 size={17}/></button></td></tr>)}</tbody>
+          <table className="w-full text-right text-sm"><thead className="bg-sky-50/70 text-sky-900 dark:bg-sky-950/20 dark:text-sky-200"><tr><th className="p-3">عامل</th><th className="p-3">نوع فعالیت</th><th className="w-16 p-3" aria-label="عملیات"></th></tr></thead>
+            <tbody className="divide-y divide-default-100">{crewDraft.map(person=><tr key={person.rowId} className="hover:bg-default-50"><td className="min-w-56 p-3">{editingCrewId===person.rowId||!person.personnelId?
+            <div className="flex items-center gap-2"><div className="min-w-0 flex-1"><PersonnelPicker networkId={selected?.networkId??0} jobId={person.jobId} value={person.personnelId} onChange={(id,name)=>{editCrew(person.rowId,{personnelId:id,personnelName:name});if(id>0)setEditingCrewId(null);}}/></div>{editingCrewId===person.rowId?<button type="button" className="rounded-lg p-2 text-default-500 hover:bg-default-100" aria-label="بستن ویرایش عامل" onClick={()=>setEditingCrewId(null)}><X size={16}/></button>:null}</div>
+            :<div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><span className="rounded-full bg-sky-100 p-2 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"><UserRound size={16}/></span><span className="font-medium">{person.personnelName}</span></div><button type="button" className="inline-flex items-center gap-1 rounded-lg bg-sky-50 px-3 py-2 text-xs font-medium text-sky-700 hover:bg-sky-100 dark:bg-sky-900/20 dark:text-sky-300" onClick={()=>setEditingCrewId(person.rowId)}><PenLine size={14}/> تغییر عامل</button></div>}</td><td className="p-3"><span className="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300">{person.activityTypeName||"فعالیت مشخص نشده"}</span></td><td className="p-3"><button type="button" title="حذف عامل" aria-label={`حذف عامل ${person.personnelName||"بدون نام"}`} className="rounded-lg p-2 text-danger hover:bg-danger/10" onClick={()=>setCrewDraft(rows=>rows.filter(x=>x.rowId!==person.rowId))}><Trash2 size={17}/></button></td></tr>)}</tbody>
           </table>
           {crewDraft.length===0?<p className="p-5 text-center text-default-500">عاملی انتخاب نشده است.</p>:null}
         </div>
