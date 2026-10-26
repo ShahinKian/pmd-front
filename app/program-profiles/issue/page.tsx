@@ -3,10 +3,11 @@
 import {FormEvent,useEffect,useMemo,useState} from "react";
 import {useRouter} from "next/navigation";
 import useSWR from "swr";
-import {Loader2,Save,Trash2,Clock3,Users,Layers3,Plus,PenLine,Check, X, UserRound} from "lucide-react";
+import {Loader2,Save,Trash2,Clock3,Users,Layers3,Plus,PenLine,Check, X, UserRound,ChevronDown,ChevronUp} from "lucide-react";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import {apiClient,apiErrorMessage} from "@/lib/http/client";
 import type {ForecastResponse} from "@/lib/forecasts/types";
+import type {ExpertResponse} from "@/lib/experts/types";
 
 type Crew={personnelId:number;personnelName:string;activityTypeId:number;activityTypeName:string;isPresent:boolean};
 type Item={itemName:string;productionType:string;duration:string};
@@ -57,7 +58,19 @@ export default function IssueProfilePage(){
   const router=useRouter();
   const {data:forecasts}=useSWR<ForecastResponse[]>("/forecasts?status=3&pageNumber=1&pageSize=100");
   const [forecastId,setForecastId]=useState("");
+  const [step,setStep]=useState(0);
+  const stepTitles=["اطلاعات برنامه","آیتم‌های برنامه","عوامل برنامه","کارشناسان و محورهای موضوعی","بررسی و صدور"];
   const selected=useMemo(()=>forecasts?.find(x=>x.id===forecastId)??null,[forecasts,forecastId]);
+  const {data:experts}=useSWR<ExpertResponse[]>(selected?"/experts?networkId="+selected.networkId+"&pageNumber=1&pageSize=100":null);
+  const [expertRows,setExpertRows]=useState<{expertId:string;topicAxisId:string;duration:string;attendanceType:number;hasPayment:boolean}[]>([]);
+  const availableExperts=(experts??[]).filter(x=>x.isActive||selected?.expertIds?.includes(x.id));
+  useEffect(()=>{
+    setExpertRows(selected?.expertIds?.map(expertId=>({expertId,topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}))??[]);
+    setStep(0);
+  },[selected?.id]);
+  function editExpert(index:number,patch:Partial<(typeof expertRows)[number]>){
+    setExpertRows(rows=>rows.map((row,i)=>i===index?{...row,...patch}:row));
+  }
   const {data:planDetail,error:planDetailError}=useSWR<PlanDetailResponse>(selected?`/base-info/plan-detail/${selected.planId}`:null);
   const planData=planDetail?.IsSuccess&&planDetail.Data?.PlanId===selected?.planId?planDetail.Data:null;
   const {data:estimateDetail,error:estimateError}=useSWR<ExternalResponse<ExternalCrew>>(selected?`/base-info/estimate-detail/${selected.planId}`:null);
@@ -119,7 +132,13 @@ export default function IssueProfilePage(){
     const form=new FormData(e.currentTarget);
     if(!programDuration.trim()||!startTime.trim()){setMessage("مدت برنامه و ساعت شروع الزامی هستند.");return;}
     if(!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(startTime)){setMessage("ساعت شروع معتبر نیست.");return;}
-    if(!planData){setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
+    if(!planData){setStep(0);setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
+    if(expertRows.some(x=>!x.expertId||!x.topicAxisId||durationSeconds(x.duration)<=0)){
+      setStep(3);setMessage("برای هر کارشناس، نام، محور موضوعی و مدت معتبر مشخص کنید.");return;
+    }
+    if(expertRows.some(x=>!selected.topicAxes.some(axis=>axis.id===x.topicAxisId))){
+      setStep(3);setMessage("محور موضوعی کارشناس باید از محورهای پیش‌بینی انتخاب شود.");return;
+    }
     if(!externalCrew||!externalItems){setMessage("دریافت عوامل و آیتم‌های طرح کامل نشده است.");return;}
     const crewMembers:Crew[]=crewValid.map(({personnelId,personnelName,activityTypeId,activityTypeName,isPresent})=>({personnelId,personnelName,activityTypeId,activityTypeName,isPresent}));
     if(crewDraft.some(person=>!person.personnelId||!person.personnelName.trim()||!person.activityTypeId||!person.activityTypeName.trim())){setMessage("برای تمام ردیف‌های عوامل، شخص و فعالیت معتبر انتخاب کنید یا ردیف ناقص را حذف کنید.");return;}
@@ -152,6 +171,17 @@ export default function IssueProfilePage(){
         crewMembers,
         items,
       });
+      if(expertRows.length){
+        try{
+          await apiClient.put("/program-profiles/"+response.data.id+"/experts",{
+            profileId:response.data.id,
+            experts:expertRows.map(x=>({...x,duration:normalizeDuration(x.duration)}))
+          });
+        }catch(error){
+          setMessage("شناسنامه صادر شد، اما ثبت ارتباط کارشناسان ناموفق بود: "+apiErrorMessage(error));
+          return;
+        }
+      }
       router.replace("/program-profiles/"+response.data.id);
     }catch(error){setMessage(apiErrorMessage(error,"صدور شناسنامه انجام نشد."));}
     finally{setSaving(false);}
@@ -160,8 +190,18 @@ export default function IssueProfilePage(){
   return <DashboardShell>
     <Breadcrumb items={[{label:"داشبورد",href:"/dashboard"},{label:"شناسنامه عملکرد",href:"/program-profiles"},{label:"صدور شناسنامه"}]}/>
     <div className="page-head"><div><h1 className="page-title">صدور شناسنامه عملکرد</h1><p className="page-description">فقط از پیش‌بینی تاییدشده صادر می‌شود.</p></div></div>
-    <form className="card" onSubmit={submit}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+    <nav aria-label="مراحل صدور شناسنامه" className="rounded-xl border border-default-200 bg-background p-3 lg:self-start">
+      <ol className="space-y-2">{stepTitles.map((title,index)=><li key={title}>
+        <button type="button" onClick={()=>{setStep(index);setMessage("");}} aria-current={step===index?"step":undefined}
+          className={"flex w-full items-center gap-3 rounded-lg px-3 py-3 text-right text-sm transition-colors "+(step===index?"bg-default-100 font-semibold text-default-900":"text-default-600 hover:bg-default-50")}>
+          <span className={"flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs "+(step===index?"border-green-600 bg-green-600 text-white":index<step?"border-green-500 text-green-700":"border-default-300")}>{index<step?<Check size={15}/>:index+1}</span>
+          {title}
+        </button>
+      </li>)}</ol>
+    </nav>
+    <form className="card min-w-0" onSubmit={submit} noValidate>
+      <div className={step===0?"grid grid-cols-1 gap-4 md:grid-cols-3":"hidden"}>
         <label className="field md:col-span-3"><span className="label">پیش‌بینی تأییدشده *</span>
           <select className="select" value={forecastId} onChange={e=>setForecastId(e.target.value)} required>
             <option value="">انتخاب نام برنامه، موضوع و شماره قسمت</option>
@@ -178,7 +218,7 @@ export default function IssueProfilePage(){
         <label className="field"><span className="label">ساعت شروع *</span><input className={"input "+(fieldErrors.startTime?"border-red-500 ring-1 ring-red-500":"")} name="startTime" type="time" step="60" value={startTime} onChange={e=>setStartTime(e.target.value)} required/>{fieldErrors.startTime?<span className="text-xs text-red-600">{fieldErrors.startTime}</span>:null}</label>
         <label className="field"><span className="label">نوع برنامه</span><input className="input bg-default-50" readOnly value={planData?.ProgramTypeName??""}/></label>
       </div>
-      <section className="rounded-xl border border-default-200 bg-background p-5" style={{marginTop:20}}>
+      <section className={"rounded-xl border border-default-200 bg-background p-5 "+(step===1?"":"hidden")} style={{marginTop:20}}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3"><span className="rounded-lg border border-default-200 p-2 text-default-600"><Layers3 size={22}/></span><div><h2 className="font-semibold">آیتم‌های شناسنامه</h2><p className="mt-1 text-xs text-default-500">آیتم‌های طرح ثابت هستند؛ می‌توانید آیتم جدید اضافه کنید یا موارد غیرضروری را حذف کنید.</p></div></div>
           <div className="flex flex-wrap items-center gap-3"><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setAddItemOpen(value=>!value)}><Plus size={16}/> افزودن آیتم</button><div className={"rounded-lg border border-default-200 px-3 py-2 text-sm "+(overDuration?"text-red-700":"text-default-700")}><Clock3 size={15} className="ml-2 inline-block"/><span>زمان آیتم‌ها: </span><strong dir="ltr">{totalDuration(itemsDraft.map(x=>({Id:0,PlanId:0,ItemTitle:x.itemName,ItemSubject:x.subject,ItemPeriod:x.duration})))}</strong><span className="mx-2">/</span><span dir="ltr">{programDuration||"—"}</span></div></div>
@@ -194,7 +234,7 @@ export default function IssueProfilePage(){
           {itemsDraft.length===0?<p className="p-5 text-center text-default-500">آیتمی برای این شناسنامه باقی نمانده است.</p>:null}
         </div>
       </section>
-      <section className="rounded-xl border border-default-200 bg-background p-5" style={{marginTop:20}}>
+      <section className={"rounded-xl border border-default-200 bg-background p-5 "+(step===2?"":"hidden")} style={{marginTop:20}}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3"><span className="rounded-lg border border-default-200 p-2 text-default-600"><Users size={22}/></span><div><h2 className="font-semibold">عوامل شناسنامه</h2><p className="mt-1 text-xs text-default-500">نام عامل از وب‌سرویس پرسنل قابل تغییر است؛ نوع فعالیت از اطلاعات پایه خوانده می‌شود.</p></div></div>
         </div>
@@ -211,7 +251,12 @@ export default function IssueProfilePage(){
         {crewDraft.some(x=>!x.personnelId||!x.activityTypeId)?<p className="mt-3 text-sm text-danger">ردیف‌های ناقص را حذف کنید یا اطلاعات آن‌ها را از وب‌سرویس تکمیل کنید.</p>:null}
       </section>
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
-      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
+      <div className="mt-6 flex items-center justify-between border-t border-default-200 pt-4">
+        <button type="button" className="btn btn-outline" disabled={step===0||saving} onClick={()=>setStep(value=>Math.max(0,value-1))}><ChevronUp size={16}/> مرحله قبل</button>
+        {step<4?<button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setStep(value=>Math.min(4,value+1))}>مرحله بعد <ChevronDown size={16}/></button>
+        :<button className="btn btn-primary" disabled={saving}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button>}
+      </div>
     </form>
+    </div>
   </DashboardShell>;
 }
