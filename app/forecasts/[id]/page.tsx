@@ -53,8 +53,7 @@ export default function ForecastDetailsPage() {
   const editable =
     data?.status === FORECAST_STATUS.Draft ||
     data?.status === FORECAST_STATUS.ReturnedForEdit;
-  const pendingReview = data?.status === FORECAST_STATUS.PendingReview;
-  const canReview = pendingReview && Boolean(permittedActions?.some((item) =>
+  const canReview = Boolean(permittedActions?.some((item) =>
     ["approve", "reject", "return-for-edit"].includes(item.key)
   ));
 
@@ -115,7 +114,7 @@ export default function ForecastDetailsPage() {
     setBusy(name);
     setMessage(null);
     try {
-      await apiClient.post("/forecasts/" + id + "/" + name, payload);
+      await apiClient.post("/forecasts/" + id + "/actions/" + name, payload ?? { reason: null });
       await mutate();
       await refreshActions();
       setMessage({
