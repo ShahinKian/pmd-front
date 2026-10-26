@@ -276,7 +276,7 @@ export default function WorkflowCanvas({
     try {
       const metadataJson = withNodePosition(null, pendingNode.position);
       await apiClient.post("/workflows/" + definition.id + "/nodes", {
-        key: String(form.get("key") ?? "").trim(),
+        key: "",
         name: String(form.get("name") ?? "").trim(),
         type,
         description: String(form.get("description") ?? "").trim() || null,
@@ -316,7 +316,7 @@ export default function WorkflowCanvas({
     setMessage(null);
     try {
       await apiClient.put("/workflows/" + definition.id + "/nodes/" + selectedNode.id, {
-        key: String(form.get("key") ?? "").trim(),
+        key: selectedNode.key,
         name: String(form.get("name") ?? "").trim(),
         type,
         description: String(form.get("description") ?? "").trim() || null,
@@ -665,8 +665,7 @@ function NodeForm({
         <Input name="name" defaultValue={node?.name ?? ""} required />
       </div>
       <div>
-        <Label className="mb-2 text-default-600">Key *</Label>
-        <Input name="key" dir="ltr" defaultValue={node?.key ?? ""} required />
+        <div className="text-xs text-default-500">شناسه داخلی مرحله به‌صورت خودکار مدیریت می‌شود.</div>
       </div>
       <div>
         <Label className="mb-2 text-default-600">نوع مرحله *</Label>
@@ -699,8 +698,8 @@ function NodeForm({
 
       {type === WorkflowNodeType.Decision ? (
         <div>
-          <Label className="mb-2 text-default-600">Decision Key *</Label>
-          <Input name="decisionKey" dir="ltr" defaultValue={node?.decisionKey ?? ""} required />
+          <div className="text-xs text-default-500">شناسه تصمیم به‌صورت خودکار مدیریت می‌شود.</div>
+          <input type="hidden" name="decisionKey" defaultValue={node?.decisionKey ?? `decision-${crypto.randomUUID()}`} />
         </div>
       ) : null}
 
