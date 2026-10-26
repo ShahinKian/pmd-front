@@ -141,7 +141,7 @@ export default function IssueProfilePage(){
   }
   function goToStep(target:number){
     if(target<=step){setStep(target);setMessage("");return;}
-    for(let i=step;i<target;i++){if(!validateStep(i))return;}
+    for(let i=0;i<target;i++){if(!validateStep(i)){setStep(i);return;}}
     setStep(target);
   }
   async function submit(e:FormEvent<HTMLFormElement>){
@@ -203,7 +203,7 @@ export default function IssueProfilePage(){
             newTopicAxes:newAxes.map(axis=>({id:axis.id,title:axis.title}))
           });
         }catch(error){
-          setMessage("شناسنامه صادر شد، اما ثبت ارتباط کارشناسان ناموفق بود: "+apiErrorMessage(error));
+          setStep(5);setMessage("شناسنامه صادر شد، اما ثبت ارتباط کارشناسان ناموفق بود: "+apiErrorMessage(error));
           return;
         }
       }
