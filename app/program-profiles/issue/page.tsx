@@ -250,6 +250,20 @@ export default function IssueProfilePage(){
         {fieldErrors.crew?<p className="text-sm text-red-600">{fieldErrors.crew}</p>:null}
         {crewDraft.some(x=>!x.personnelId||!x.activityTypeId)?<p className="mt-3 text-sm text-danger">ردیف‌های ناقص را حذف کنید یا اطلاعات آن‌ها را از وب‌سرویس تکمیل کنید.</p>:null}
       </section>
+      <section className={step===3?"rounded-xl border border-default-200 p-5":"hidden"}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">کارشناسان و محورهای موضوعی</h2><p className="mt-1 text-sm text-default-500">کارشناسان پیش‌بینی بارگذاری شده‌اند. می‌توانید کارشناسی را که در پیش‌بینی نبوده نیز اضافه کنید.</p></div><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setExpertRows(rows=>[...rows,{expertId:"",topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}])}><Plus size={16}/> افزودن کارشناس</button></div>
+        <div className="space-y-3">{expertRows.map((x,i)=><div key={i} className="grid gap-3 rounded-lg border border-default-200 p-4 md:grid-cols-2">
+          <label className="field"><span className="label">کارشناس *</span><select className="select" value={x.expertId} onChange={e=>editExpert(i,{expertId:e.target.value})}><option value="">انتخاب کنید</option>{availableExperts.map(expert=><option key={expert.id} value={expert.id}>{expert.firstName} {expert.lastName} — {expert.specialty}</option>)}</select></label>
+          <label className="field"><span className="label">محور موضوعی *</span><select className="select" value={x.topicAxisId} onChange={e=>editExpert(i,{topicAxisId:e.target.value})}><option value="">انتخاب محور پیش‌بینی</option>{(selected?.topicAxes??[]).map(axis=><option value={axis.id} key={axis.id}>{axis.title}</option>)}</select></label>
+          <label className="field"><span className="label">مدت صحبت *</span><input className="input" dir="ltr" value={x.duration} placeholder="00:05:00" onChange={e=>editExpert(i,{duration:e.target.value})}/></label>
+          <label className="field"><span className="label">نوع حضور</span><select className="select" value={x.attendanceType} onChange={e=>editExpert(i,{attendanceType:Number(e.target.value)})}><option value={1}>حضوری</option><option value={2}>تلفنی</option><option value={3}>ضبطی</option><option value={4}>محل کار</option></select></label>
+          <div className="flex items-center justify-between md:col-span-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={x.hasPayment} onChange={e=>editExpert(i,{hasPayment:e.target.checked})}/> شامل پرداخت</label><button type="button" className="btn border border-red-200 text-red-600 hover:bg-red-50" onClick={()=>setExpertRows(rows=>rows.filter((_,j)=>i!==j))}><Trash2 size={15}/> حذف</button></div>
+        </div>)}{!expertRows.length?<p className="py-6 text-center text-default-500">کارشناسی اضافه نشده است. در صورت نیاز از «افزودن کارشناس» استفاده کنید.</p>:null}</div>
+      </section>
+      <section className={step===4?"rounded-xl border border-default-200 p-5":"hidden"}>
+        <h2 className="mb-4 font-semibold">بازبینی و صدور شناسنامه</h2>
+        <div className="grid gap-3 text-sm md:grid-cols-2"><p>برنامه: {selected?.planName||selected?.mainTopic||"انتخاب نشده"}</p><p>مدت: {programDuration||"وارد نشده"}</p><p>آیتم‌ها: {itemsDraft.length} مورد</p><p>عوامل: {crewDraft.length} نفر</p><p>کارشناسان: {expertRows.length} ارتباط</p><p>ساعت شروع: {startTime||"وارد نشده"}</p></div>
+      </section>
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
       <div className="mt-6 flex items-center justify-between border-t border-default-200 pt-4">
         <button type="button" className="btn btn-outline" disabled={step===0||saving} onClick={()=>setStep(value=>Math.max(0,value-1))}><ChevronUp size={16}/> مرحله قبل</button>
