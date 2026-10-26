@@ -44,6 +44,10 @@ function minutesToTime(minutes:number):string {
   if(!Number.isInteger(minutes)||minutes<=0)return "";
   return [Math.floor(minutes/60),minutes%60,0].map(n=>String(n).padStart(2,"0")).join(":");
 }
+function isValidStartTime(value:string):boolean {
+  const match=/^([0-9]{2}):([0-9]{2})(?::([0-9]{2}))?$/.exec(value.trim());
+  return Boolean(match&&Number(match[1])<24&&Number(match[2])<60&&(match[3]===undefined||Number(match[3])<60));
+}
 function durationSeconds(value:string):number {
   const match=/^(\d{1,}):([0-5]\d):([0-5]\d)(?:\.\d+)?$/.exec(value.trim());
   return match?Number(match[1])*3600+Number(match[2])*60+Number(match[3]):0;
@@ -132,7 +136,7 @@ export default function IssueProfilePage(){
       if(!selected)error="ابتدا پیش‌بینی تأییدشده را انتخاب کنید.";
       else if(!planData)error="اطلاعات طرح هنوز دریافت نشده است.";
       else if(durationSeconds(programDuration)<=0)error="مدت برنامه الزامی و باید معتبر باشد.";
-      else if(!/^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/.test(startTime))error="ساعت شروع الزامی است.";
+      else if(!isValidStartTime(startTime))error="ساعت شروع الزامی است.";
     }
     if(index===1&&(!externalItems||overDuration||itemsDraft.some(x=>durationSeconds(x.duration)<=0)))
       error="زمان آیتم‌ها را بررسی کنید؛ مجموع نباید از مدت برنامه بیشتر باشد.";
@@ -152,14 +156,14 @@ export default function IssueProfilePage(){
     e.preventDefault();setMessage("");setFieldErrors({});
     const errors:{duration?:string;startTime?:string;crew?:string;items?:string}={};
     if(durationSeconds(programDuration)<=0)errors.duration="مدت معتبر برنامه الزامی است.";
-    if(!/^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/.test(startTime))errors.startTime="ساعت شروع معتبر الزامی است.";
+    if(!isValidStartTime(startTime))errors.startTime="ساعت شروع معتبر الزامی است.";
     if(crewDraft.some(x=>!x.personnelName.trim()||!x.personnelId||!x.activityTypeId))errors.crew="تمام عوامل باید نام و فعالیت معتبر داشته باشند.";
     if(durationSeconds(programDuration)>0&&itemTotalSeconds>durationSeconds(programDuration))errors.items="مجموع مدت آیتم‌ها از مدت برنامه بیشتر است.";
     if(Object.keys(errors).length){setFieldErrors(errors);setMessage("موارد مشخص‌شده را اصلاح کنید.");return;}
     if(!selected){setMessage("پیش‌بینی تاییدشده را انتخاب کنید.");return;}
 
     if(!programDuration.trim()||!startTime.trim()){setMessage("مدت برنامه و ساعت شروع الزامی هستند.");return;}
-    if(!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(startTime)){setMessage("ساعت شروع معتبر نیست.");return;}
+    if(!isValidStartTime(startTime)){setMessage("ساعت شروع معتبر نیست.");return;}
     if(!planData){setStep(0);setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
     if(expertRows.some(x=>!x.expertId||!x.topicAxisId||durationSeconds(x.duration)<=0)){
       setStep(4);setMessage("برای هر کارشناس، نام، محور موضوعی و مدت معتبر مشخص کنید.");return;
