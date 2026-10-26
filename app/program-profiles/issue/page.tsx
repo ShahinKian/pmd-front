@@ -111,7 +111,7 @@ export default function IssueProfilePage(){
     if(!selected){setMessage("پیش‌بینی تاییدشده را انتخاب کنید.");return;}
     const form=new FormData(e.currentTarget);
     if(!programDuration.trim()||!startTime.trim()){setMessage("مدت برنامه و ساعت شروع الزامی هستند.");return;}
-    if(!/^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/.test(startTime)){setMessage("ساعت شروع معتبر نیست.");return;}
+    if(!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(startTime)){setMessage("ساعت شروع معتبر نیست.");return;}
     if(!planData){setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
     if(!externalCrew||!externalItems){setMessage("دریافت عوامل و آیتم‌های طرح کامل نشده است.");return;}
     const crewMembers:Crew[]=crewValid.map(({personnelId,personnelName,activityTypeId,activityTypeName,isPresent})=>({personnelId,personnelName,activityTypeId,activityTypeName,isPresent}));
