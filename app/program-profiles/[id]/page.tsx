@@ -27,6 +27,25 @@ export default function ProfileDetailsPage(){
   const {data:comments,mutate:mutateComments}=useSWR<SupervisorComment[]>("/program-profiles/"+id+"/supervisor-comments");
   const [busy,setBusy]=useState("");
   const [comment,setComment]=useState("");
+  const {data:forecast}=useSWR<{expertIds:string[];topicAxes:{id:string;title:string}[]}>(data?.forecastId?`/forecasts/${data.forecastId}`:null);
+  const [expertRows,setExpertRows]=useState<{expertId:string;topicAxisId:string;duration:string;attendanceType:number;hasPayment:boolean}[]|null>(null);
+  const rows=expertRows??(data?.experts??[]).map(x=>({expertId:x.expertId,topicAxisId:x.topicAxisId,duration:String(x.duration).split(".")[0],attendanceType:({InPerson:1,Phone:2,Recorded:3,Workplace:4}[x.attendanceType]??1),hasPayment:x.hasPayment}));
+  const [expertSaving,setExpertSaving]=useState(false);
+  function updateExpert(index:number,patch:Partial<(typeof rows)[number]>){
+    setExpertRows(rows.map((row,i)=>i===index?{...row,...patch}:row));
+  }
+  async function saveExperts(){
+    if(!data)return;
+    if(rows.some(x=>!x.expertId||!x.topicAxisId||!/^\d{2,}:([0-5]\d):([0-5]\d)$/.test(x.duration))){
+      setMessage({type:"error",text:"کارشناس، محور موضوعی و مدت معتبر برای هر ردیف لازم است."});return;
+    }
+    setExpertSaving(true);
+    try{
+      await apiClient.put(`/program-profiles/${id}/experts`,{profileId:id,experts:rows});
+      setExpertRows(null);await mutate();setMessage({type:"success",text:"ارتباط کارشناسان با محورهای موضوعی ثبت شد."});
+    }catch(e){setMessage({type:"error",text:apiErrorMessage(e,"ثبت کارشناسان انجام نشد.")});}
+    finally{setExpertSaving(false);}
+  }
   const [message,setMessage]=useState<{type:"error"|"success";text:string}|null>(null);
 
   const activeStageRole=data?roleForStage(data):null;
@@ -113,6 +132,20 @@ export default function ProfileDetailsPage(){
         </section>
       </div>
 
+      <section className="card" style={{marginTop:18}}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">کارشناسان و محورهای موضوعی</h2><p className="text-sm text-default-500">اتصال هر کارشناس پیش‌بینی به محور موضوعی، مدت و نوع حضور</p></div><button type="button" className="btn btn-outline" onClick={()=>setExpertRows([...rows,{expertId:"",topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}])}>افزودن ارتباط</button></div>
+        <div className="overflow-x-auto"><table className="w-full text-right text-sm"><thead className="bg-default-50"><tr><th className="p-3">کارشناس</th><th className="p-3">محور موضوعی</th><th className="p-3">مدت</th><th className="p-3">نوع حضور</th><th className="p-3">پرداخت</th><th className="p-3"></th></tr></thead><tbody>
+          {rows.map((row,i)=><tr key={i} className="border-b border-default-200">
+            <td className="p-2"><select className="select" value={row.expertId} onChange={e=>updateExpert(i,{expertId:e.target.value})}><option value="">انتخاب کارشناس</option>{(forecast?.expertIds??[]).map(expertId=><option key={expertId} value={expertId}>{expertId}</option>)}</select></td>
+            <td className="p-2"><select className="select" value={row.topicAxisId} onChange={e=>updateExpert(i,{topicAxisId:e.target.value})}><option value="">انتخاب محور</option>{(forecast?.topicAxes??[]).map(axis=><option key={axis.id} value={axis.id}>{axis.title}</option>)}</select></td>
+            <td className="p-2"><input className="input" dir="ltr" value={row.duration} onChange={e=>updateExpert(i,{duration:e.target.value})}/></td>
+            <td className="p-2"><select className="select" value={row.attendanceType} onChange={e=>updateExpert(i,{attendanceType:Number(e.target.value)})}><option value={1}>حضوری</option><option value={2}>تلفنی</option><option value={3}>ضبط‌شده</option><option value={4}>محل کار</option></select></td>
+            <td className="p-2"><input type="checkbox" checked={row.hasPayment} onChange={e=>updateExpert(i,{hasPayment:e.target.checked})}/></td>
+            <td className="p-2"><button type="button" className="btn btn-outline" onClick={()=>setExpertRows(rows.filter((_,j)=>i!==j))}>حذف</button></td>
+          </tr>)}
+        </tbody></table></div>
+        <div className="mt-4 flex justify-end"><button type="button" className="btn btn-primary" disabled={expertSaving||!forecast} onClick={saveExperts}>{expertSaving?"در حال ذخیره...":"ثبت ارتباط کارشناسان"}</button></div>
+      </section>
       <section className="card" style={{marginTop:18}}>
         <h2 style={{fontSize:16}}>نظرات ناظر</h2>
         {(comments??[]).map(c=><div key={c.id} style={{padding:"10px 0",borderBottom:"1px solid var(--border)"}}><strong>{c.supervisorName}</strong><div className="muted" style={{fontSize:11}}>{new Date(c.createdDate).toLocaleString("fa-IR")}</div><p style={{marginBottom:0}}>{c.comment}</p></div>)}
