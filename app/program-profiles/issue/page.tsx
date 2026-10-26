@@ -59,14 +59,16 @@ export default function IssueProfilePage(){
   const {data:forecasts}=useSWR<ForecastResponse[]>("/forecasts?status=3&pageNumber=1&pageSize=100");
   const [forecastId,setForecastId]=useState("");
   const [step,setStep]=useState(0);
-  const stepTitles=["اطلاعات برنامه","آیتم‌های برنامه","عوامل برنامه","کارشناسان و محورهای موضوعی","بررسی و صدور"];
+  const stepTitles=["اطلاعات برنامه","آیتم‌های برنامه","عوامل برنامه","محورهای موضوعی","کارشناسان","بررسی و صدور"];
   const selected=useMemo(()=>forecasts?.find(x=>x.id===forecastId)??null,[forecasts,forecastId]);
   const {data:experts}=useSWR<ExpertResponse[]>(selected?"/experts?networkId="+selected.networkId+"&pageNumber=1&pageSize=100":null);
+  const [newAxes,setNewAxes]=useState<{id:string;title:string}[]>([]);
+  const [axisTitle,setAxisTitle]=useState("");
   const [expertRows,setExpertRows]=useState<{expertId:string;topicAxisId:string;duration:string;attendanceType:number;hasPayment:boolean}[]>([]);
   const availableExperts=(experts??[]).filter(x=>x.isActive||selected?.expertIds?.includes(x.id));
   useEffect(()=>{
     setExpertRows(selected?.expertIds?.map(expertId=>({expertId,topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}))??[]);
-    setStep(0);
+    setNewAxes([]);setAxisTitle("");setStep(0);
   },[selected?.id]);
   function editExpert(index:number,patch:Partial<(typeof expertRows)[number]>){
     setExpertRows(rows=>rows.map((row,i)=>i===index?{...row,...patch}:row));
@@ -120,6 +122,28 @@ export default function IssueProfilePage(){
   const [message,setMessage]=useState("");
   const [fieldErrors,setFieldErrors]=useState<{duration?:string;startTime?:string;crew?:string;items?:string}>({});
 
+  function validateStep(index:number):boolean{
+    let error="";
+    if(index===0){
+      if(!selected)error="ابتدا پیش‌بینی تأییدشده را انتخاب کنید.";
+      else if(!planData)error="اطلاعات طرح هنوز دریافت نشده است.";
+      else if(durationSeconds(programDuration)<=0)error="مدت برنامه الزامی و باید معتبر باشد.";
+      else if(!/^([01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d)?$/.test(startTime))error="ساعت شروع الزامی است.";
+    }
+    if(index===1&&(!externalItems||overDuration||itemsDraft.some(x=>durationSeconds(x.duration)<=0)))
+      error="زمان آیتم‌ها را بررسی کنید؛ مجموع نباید از مدت برنامه بیشتر باشد.";
+    if(index===2&&(!externalCrew||crewDraft.length===0||crewDraft.some(x=>!x.personnelId||!x.personnelName.trim()||!x.activityTypeId)))
+      error="تمام عوامل باید نام و فعالیت معتبر داشته باشند.";
+    if(index===4&&expertRows.some(x=>!x.expertId||!x.topicAxisId||durationSeconds(x.duration)<=0))
+      error="کارشناس، محور موضوعی و مدت صحبت باید تکمیل شود.";
+    if(error){setMessage(error);return false;}
+    setMessage("");return true;
+  }
+  function goToStep(target:number){
+    if(target<=step){setStep(target);setMessage("");return;}
+    for(let i=step;i<target;i++){if(!validateStep(i))return;}
+    setStep(target);
+  }
   async function submit(e:FormEvent<HTMLFormElement>){
     e.preventDefault();setMessage("");setFieldErrors({});
     const errors:{duration?:string;startTime?:string;crew?:string;items?:string}={};
@@ -134,10 +158,10 @@ export default function IssueProfilePage(){
     if(!/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/.test(startTime)){setMessage("ساعت شروع معتبر نیست.");return;}
     if(!planData){setStep(0);setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
     if(expertRows.some(x=>!x.expertId||!x.topicAxisId||durationSeconds(x.duration)<=0)){
-      setStep(3);setMessage("برای هر کارشناس، نام، محور موضوعی و مدت معتبر مشخص کنید.");return;
+      setStep(4);setMessage("برای هر کارشناس، نام، محور موضوعی و مدت معتبر مشخص کنید.");return;
     }
-    if(expertRows.some(x=>!selected.topicAxes.some(axis=>axis.id===x.topicAxisId))){
-      setStep(3);setMessage("محور موضوعی کارشناس باید از محورهای پیش‌بینی انتخاب شود.");return;
+    if(expertRows.some(x=>![...selected.topicAxes,...newAxes].some(axis=>axis.id===x.topicAxisId))){
+      setStep(4);setMessage("محور موضوعی کارشناس باید از محورهای پیش‌بینی انتخاب شود.");return;
     }
     if(!externalCrew||!externalItems){setMessage("دریافت عوامل و آیتم‌های طرح کامل نشده است.");return;}
     const crewMembers:Crew[]=crewValid.map(({personnelId,personnelName,activityTypeId,activityTypeName,isPresent})=>({personnelId,personnelName,activityTypeId,activityTypeName,isPresent}));
@@ -175,7 +199,8 @@ export default function IssueProfilePage(){
         try{
           await apiClient.put("/program-profiles/"+response.data.id+"/experts",{
             profileId:response.data.id,
-            experts:expertRows.map(x=>({...x,duration:normalizeDuration(x.duration)}))
+            experts:expertRows.map(x=>({...x,duration:normalizeDuration(x.duration)})),
+            newTopicAxes:newAxes.map(axis=>({id:axis.id,title:axis.title}))
           });
         }catch(error){
           setMessage("شناسنامه صادر شد، اما ثبت ارتباط کارشناسان ناموفق بود: "+apiErrorMessage(error));
@@ -193,7 +218,7 @@ export default function IssueProfilePage(){
     <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
     <nav aria-label="مراحل صدور شناسنامه" className="rounded-xl border border-default-200 bg-background p-3 lg:self-start">
       <ol className="space-y-2">{stepTitles.map((title,index)=><li key={title}>
-        <button type="button" onClick={()=>{setStep(index);setMessage("");}} aria-current={step===index?"step":undefined}
+        <button type="button" onClick={()=>goToStep(index)} aria-current={step===index?"step":undefined}
           className={"flex w-full items-center gap-3 rounded-lg px-3 py-3 text-right text-sm transition-colors "+(step===index?"bg-default-100 font-semibold text-default-900":"text-default-600 hover:bg-default-50")}>
           <span className={"flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs "+(step===index?"border-green-600 bg-green-600 text-white":index<step?"border-green-500 text-green-700":"border-default-300")}>{index<step?<Check size={15}/>:index+1}</span>
           {title}
@@ -251,10 +276,16 @@ export default function IssueProfilePage(){
         {crewDraft.some(x=>!x.personnelId||!x.activityTypeId)?<p className="mt-3 text-sm text-danger">ردیف‌های ناقص را حذف کنید یا اطلاعات آن‌ها را از وب‌سرویس تکمیل کنید.</p>:null}
       </section>
       <section className={step===3?"rounded-xl border border-default-200 p-5":"hidden"}>
+        <h2 className="mb-2 font-semibold">محورهای موضوعی برنامه</h2>
+        <p className="mb-4 text-sm text-default-500">محورهای پیش‌بینی نمایش داده می‌شوند؛ می‌توانید برای این شناسنامه محور جدید تعریف کنید.</p>
+        <div className="space-y-2">{[...(selected?.topicAxes??[]),...newAxes].map(axis=><div key={axis.id} className="flex justify-between rounded-lg border border-default-200 px-4 py-3 text-sm"><span>{axis.title}</span>{newAxes.some(x=>x.id===axis.id)?<button type="button" className="text-red-600" onClick={()=>{setNewAxes(rows=>rows.filter(x=>x.id!==axis.id));setExpertRows(rows=>rows.map(x=>x.topicAxisId===axis.id?{...x,topicAxisId:""}:x));}}>حذف</button>:<span className="text-default-500">پیش‌بینی</span>}</div>)}</div>
+        <div className="mt-4 flex gap-2"><input className="input" placeholder="عنوان محور موضوعی جدید" value={axisTitle} onChange={e=>setAxisTitle(e.target.value)}/><button type="button" className="btn bg-green-600 text-white" onClick={()=>{if(!axisTitle.trim())return;setNewAxes(rows=>[...rows,{id:crypto.randomUUID(),title:axisTitle.trim()}]);setAxisTitle("");}}>افزودن محور</button></div>
+      </section>
+      <section className={step===4?"rounded-xl border border-default-200 p-5":"hidden"}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">کارشناسان و محورهای موضوعی</h2><p className="mt-1 text-sm text-default-500">کارشناسان پیش‌بینی بارگذاری شده‌اند. می‌توانید کارشناسی را که در پیش‌بینی نبوده نیز اضافه کنید.</p></div><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setExpertRows(rows=>[...rows,{expertId:"",topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}])}><Plus size={16}/> افزودن کارشناس</button></div>
         <div className="space-y-3">{expertRows.map((x,i)=><div key={i} className="grid gap-3 rounded-lg border border-default-200 p-4 md:grid-cols-2">
           <label className="field"><span className="label">کارشناس *</span><select className="select" value={x.expertId} onChange={e=>editExpert(i,{expertId:e.target.value})}><option value="">انتخاب کنید</option>{availableExperts.map(expert=><option key={expert.id} value={expert.id}>{expert.firstName} {expert.lastName} — {expert.specialty}</option>)}</select></label>
-          <label className="field"><span className="label">محور موضوعی *</span><select className="select" value={x.topicAxisId} onChange={e=>editExpert(i,{topicAxisId:e.target.value})}><option value="">انتخاب محور پیش‌بینی</option>{(selected?.topicAxes??[]).map(axis=><option value={axis.id} key={axis.id}>{axis.title}</option>)}</select></label>
+          <label className="field"><span className="label">محور موضوعی *</span><select className="select" value={x.topicAxisId} onChange={e=>editExpert(i,{topicAxisId:e.target.value})}><option value="">انتخاب محور پیش‌بینی</option>{[...(selected?.topicAxes??[]),...newAxes].map(axis=><option value={axis.id} key={axis.id}>{axis.title}</option>)}</select></label>
           <label className="field"><span className="label">مدت صحبت *</span><input className="input" dir="ltr" value={x.duration} placeholder="00:05:00" onChange={e=>editExpert(i,{duration:e.target.value})}/></label>
           <label className="field"><span className="label">نوع حضور</span><select className="select" value={x.attendanceType} onChange={e=>editExpert(i,{attendanceType:Number(e.target.value)})}><option value={1}>حضوری</option><option value={2}>تلفنی</option><option value={3}>ضبطی</option><option value={4}>محل کار</option></select></label>
           <div className="flex items-center justify-between md:col-span-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={x.hasPayment} onChange={e=>editExpert(i,{hasPayment:e.target.checked})}/> شامل پرداخت</label><button type="button" className="btn border border-red-200 text-red-600 hover:bg-red-50" onClick={()=>setExpertRows(rows=>rows.filter((_,j)=>i!==j))}><Trash2 size={15}/> حذف</button></div>
@@ -266,8 +297,8 @@ export default function IssueProfilePage(){
       </section>
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
       <div className="mt-6 flex items-center justify-between border-t border-default-200 pt-4">
-        <button type="button" className="btn btn-outline" disabled={step===0||saving} onClick={()=>setStep(value=>Math.max(0,value-1))}><ChevronUp size={16}/> مرحله قبل</button>
-        {step<4?<button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setStep(value=>Math.min(4,value+1))}>مرحله بعد <ChevronDown size={16}/></button>
+        <button type="button" className="btn btn-outline" disabled={step===0||saving} onClick={()=>goToStep(Math.max(0,step-1))}><ChevronUp size={16}/> مرحله قبل</button>
+        {step<5?<button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>goToStep(Math.min(5,step+1))}>مرحله بعد <ChevronDown size={16}/></button>
         :<button className="btn btn-primary" disabled={saving}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button>}
       </div>
     </form>
