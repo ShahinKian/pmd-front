@@ -3,7 +3,7 @@
 import {FormEvent,useEffect,useMemo,useState} from "react";
 import {useRouter} from "next/navigation";
 import useSWR from "swr";
-import {Loader2,Save} from "lucide-react";
+import {Loader2,Save,Trash2,Clock3,Users,Layers3} from "lucide-react";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import {apiClient,apiErrorMessage} from "@/lib/http/client";
 import type {ForecastResponse} from "@/lib/forecasts/types";
@@ -32,6 +32,10 @@ function normalizeDuration(value:string):string {
   const time=value.trim().split(".")[0];
   return /^\d{2,}:\d{2}:\d{2}$/.test(time)?time:"";
 }
+function durationSeconds(value:string):number {
+  const match=/^(\d{1,}):([0-5]\d):([0-5]\d)(?:\.\d+)?$/.exec(value.trim());
+  return match?Number(match[1])*3600+Number(match[2])*60+Number(match[3]):0;
+}
 function totalDuration(items:ExternalItem[]):string {
   const seconds=items.reduce((total,item)=>{
     const parts=normalizeDuration(item.ItemPeriod).split(":").map(Number);
@@ -47,7 +51,6 @@ export default function IssueProfilePage(){
   const {data:forecasts}=useSWR<ForecastResponse[]>("/forecasts?status=3&pageNumber=1&pageSize=100");
   const [forecastId,setForecastId]=useState("");
   const selected=useMemo(()=>forecasts?.find(x=>x.id===forecastId)??null,[forecasts,forecastId]);
-  const {data:structures}=useSWR<BaseInfoListResponse>("/base-info/structure-programs");
   const {data:planDetail,error:planDetailError}=useSWR<PlanDetailResponse>(selected?`/base-info/plan-detail/${selected.planId}`:null);
   const planData=planDetail?.IsSuccess&&planDetail.Data?.PlanId===selected?.planId?planDetail.Data:null;
   const {data:estimateDetail,error:estimateError}=useSWR<ExternalResponse<ExternalCrew>>(selected?`/base-info/estimate-detail/${selected.planId}`:null);
@@ -74,9 +77,12 @@ export default function IssueProfilePage(){
       jobId:person.BussinessTypeId,jobName:person.BussinessTypeName
     })));
   },[estimateDetail,selected?.planId]);
-  function editItem(id:string,patch:Partial<EditableItem>){setItemsDraft(rows=>rows.map(row=>row.rowId===id?{...row,...patch}:row));}
   function editCrew(id:string,patch:Partial<EditableCrew>){setCrewDraft(rows=>rows.map(row=>row.rowId===id?{...row,...patch}:row));}
   const crewValid=crewDraft.filter(x=>x.personnelId>0&&x.personnelName.trim()&&x.activityTypeId>0);
+  const [programDuration,setProgramDuration]=useState("");
+  const itemTotalSeconds=itemsDraft.reduce((sum,item)=>sum+durationSeconds(item.duration),0);
+  const durationLimitSeconds=durationSeconds(programDuration);
+  const overDuration=durationLimitSeconds>0&&itemTotalSeconds>durationLimitSeconds;
   const [saving,setSaving]=useState(false);
   const [message,setMessage]=useState("");
 
@@ -91,6 +97,8 @@ export default function IssueProfilePage(){
     if(!crewMembers.length){setMessage("حداقل یک عامل معتبر برای صدور لازم است.");return;}
     const items:Item[]=itemsDraft.map(({itemName,duration,productionType})=>({itemName:itemName.trim(),duration:normalizeDuration(duration),productionType:productionType.trim()||String(form.get("productionMethod")??"").trim()}));
     if(items.some(item=>!item.itemName||!item.duration||!item.productionType)){setMessage("مدت زمان یک یا چند آیتم نامعتبر است.");return;}
+    if(!durationLimitSeconds){setMessage("مدت برنامه را به شکل ساعت:دقیقه:ثانیه وارد کنید.");return;}
+    if(overDuration){setMessage("مجموع زمان آیتم‌ها نباید از مدت برنامه بیشتر باشد.");return;}
     setSaving(true);
     try{
       const response=await apiClient.post("/program-profiles/issue",{
@@ -125,7 +133,7 @@ export default function IssueProfilePage(){
     <form className="card" onSubmit={submit}>
       <div className="form-grid">
         <label className="field full"><span className="label">پیش‌بینی تاییدشده *</span><select className="select" value={forecastId} onChange={e=>setForecastId(e.target.value)} required><option value="">انتخاب کنید</option>{(forecasts??[]).map(x=><option key={x.id} value={x.id}>{x.mainTopic} — طرح {x.planName || x.planId} — قسمت {x.episodeNumber}</option>)}</select></label>
-        <label className="field"><span className="label">مدت برنامه *</span><input className="input" name="duration" placeholder="01:00:00" required/></label>
+        <label className="field"><span className="label">مدت برنامه *</span><input className="input" name="duration" dir="ltr" value={programDuration} onChange={e=>setProgramDuration(e.target.value)} placeholder="01:00:00" required/></label>
         <label className="field"><span className="label">نحوه تولید *</span><input className="input" name="productionMethod" required/></label>
         <label className="field"><span className="label">مناسبت *</span><input className="input" name="occasion" required/></label>
         <label className="field"><span className="label">طبقه</span><input className="input" readOnly value={planData?.FloorPlanName??""}/></label>
@@ -136,23 +144,33 @@ export default function IssueProfilePage(){
         <label className="field"><span className="label">نوع برنامه</span><input className="input" readOnly value={planData?.ProgramTypeName??""}/></label>
 
       </div>
-      <section className="card" style={{marginTop:16}}>
-        <div className="flex items-center justify-between gap-3"><strong>آیتم‌های شناسنامه</strong><button type="button" className="btn btn-outline" onClick={()=>setItemsDraft(rows=>[...rows,{rowId:crypto.randomUUID(),itemName:"",subject:"",duration:"00:05:00",productionType:""}])}>افزودن آیتم</button></div>
-        <p className="muted">آیتم‌های اولیه از طرح دریافت می‌شوند؛ تغییرات فقط در شناسنامه ثبت خواهند شد.</p>
+      <section className="rounded-2xl border border-default-200 bg-card p-5 shadow-sm" style={{marginTop:20}}>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3"><span className="rounded-xl bg-primary/10 p-3 text-primary"><Layers3 size={22}/></span><div><h2 className="font-semibold">آیتم‌های شناسنامه</h2><p className="mt-1 text-xs text-default-500">آیتم‌های مصوب از وب‌سرویس خوانده می‌شوند؛ فقط حذف از این شناسنامه مجاز است.</p></div></div>
+          <div className="rounded-xl bg-default-50 px-4 py-3 text-sm"><Clock3 size={15} className="ml-2 inline-block"/><span>زمان آیتم‌ها: </span><strong dir="ltr">{totalDuration(itemsDraft.map(x=>({Id:0,PlanId:0,ItemTitle:x.itemName,ItemSubject:x.subject,ItemPeriod:x.duration})))}</strong><span className="mx-2">/</span><span dir="ltr">{programDuration||"—"}</span></div>
+        </div>
         {itemsError?<p className="alert alert-error">دریافت آیتم‌های طرح ناموفق بود.</p>:null}
-        <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><th>عنوان آیتم</th><th>موضوع</th><th>مدت (ساعت:دقیقه:ثانیه)</th><th>نوع تولید</th><th>حذف</th></tr></thead><tbody>
-          {itemsDraft.map(item=><tr key={item.rowId}><td><input className="input" value={item.itemName} onChange={e=>editItem(item.rowId,{itemName:e.target.value})}/></td><td><input className="input" value={item.subject} onChange={e=>editItem(item.rowId,{subject:e.target.value})}/></td><td><input className="input" dir="ltr" value={item.duration} onChange={e=>editItem(item.rowId,{duration:e.target.value})}/></td><td><input className="input" value={item.productionType} placeholder="پیش‌فرض: نحوه تولید برنامه" onChange={e=>editItem(item.rowId,{productionType:e.target.value})}/></td><td><button type="button" className="btn btn-outline" onClick={()=>setItemsDraft(rows=>rows.filter(x=>x.rowId!==item.rowId))}>حذف</button></td></tr>)}
-        </tbody></table></div>
-        <p>مجموع زمان آیتم‌ها: {totalDuration(itemsDraft.map(x=>({Id:0,PlanId:0,ItemTitle:x.itemName,ItemSubject:x.subject,ItemPeriod:x.duration})))}</p>
+        {overDuration?<p className="alert alert-error mb-4">مجموع مدت آیتم‌ها از مدت برنامه بیشتر است. برای صدور شناسنامه، آیتم‌های اضافی را حذف کنید یا مدت برنامه را اصلاح کنید.</p>:null}
+        <div className="overflow-x-auto rounded-xl border border-default-200">
+          <table className="w-full text-right text-sm"><thead className="bg-default-50 text-default-600"><tr><th className="p-3">عنوان آیتم</th><th className="p-3">موضوع</th><th className="p-3">مدت</th><th className="w-16 p-3" aria-label="عملیات"></th></tr></thead>
+            <tbody className="divide-y divide-default-100">{itemsDraft.map(item=><tr key={item.rowId} className="transition-colors hover:bg-default-50"><td className="p-3 font-medium">{item.itemName}</td><td className="p-3 text-default-500">{item.subject}</td><td className="p-3 font-medium" dir="ltr">{item.duration}</td><td className="p-3"><button type="button" className="rounded-lg p-2 text-danger hover:bg-danger/10" title="حذف آیتم" aria-label={`حذف آیتم ${item.itemName}`} onClick={()=>setItemsDraft(rows=>rows.filter(x=>x.rowId!==item.rowId))}><Trash2 size={17}/></button></td></tr>)}</tbody>
+          </table>
+          {itemsDraft.length===0?<p className="p-5 text-center text-default-500">آیتمی برای این شناسنامه باقی نمانده است.</p>:null}
+        </div>
       </section>
-      <section className="card" style={{marginTop:16}}>
-        <div className="flex items-center justify-between gap-3"><strong>عوامل شناسنامه</strong><div className="flex gap-2"><select className="select" value={addJobId} onChange={e=>{setAddJobId(e.target.value);setAddJobName(jobs?.Data.find(x=>x.Value===e.target.value)?.Text??"");}}><option value="">شغل جدید</option>{(jobs?.Data??[]).map(x=><option key={x.Value} value={x.Value}>{x.Text}</option>)}</select><button className="btn btn-outline" type="button" disabled={!addJobId} onClick={()=>setCrewDraft(rows=>[...rows,{rowId:crypto.randomUUID(),personnelId:0,personnelName:"",activityTypeId:0,activityTypeName:"",jobId:Number(addJobId),jobName:addJobName,isPresent:true}])}>افزودن عامل</button></div></div>
-        <p className="muted">پرسنل براساس شغل و شبکه از وب‌سرویس انتخاب می‌شوند. ردیف‌های بدون شخص را تعیین یا حذف کنید.</p>
+      <section className="rounded-2xl border border-default-200 bg-card p-5 shadow-sm" style={{marginTop:20}}>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3"><span className="rounded-xl bg-primary/10 p-3 text-primary"><Users size={22}/></span><div><h2 className="font-semibold">عوامل شناسنامه</h2><p className="mt-1 text-xs text-default-500">نام عامل از وب‌سرویس پرسنل قابل تغییر است؛ نوع فعالیت از اطلاعات پایه خوانده می‌شود.</p></div></div>
+          <div className="flex flex-wrap gap-2"><select className="select" aria-label="شغل عامل جدید" value={addJobId} onChange={e=>{setAddJobId(e.target.value);setAddJobName(jobs?.Data.find(x=>x.Value===e.target.value)?.Text??"");}}><option value="">انتخاب شغل برای افزودن</option>{(jobs?.Data??[]).map(x=><option key={x.Value} value={x.Value}>{x.Text}</option>)}</select><button className="btn btn-outline" type="button" disabled={!addJobId} onClick={()=>setCrewDraft(rows=>[...rows,{rowId:crypto.randomUUID(),personnelId:0,personnelName:"",activityTypeId:0,activityTypeName:"",jobId:Number(addJobId),jobName:addJobName,isPresent:true}])}>افزودن عامل</button></div>
+        </div>
         {estimateError?<p className="alert alert-error">دریافت عوامل ناموفق بود.</p>:null}
-        <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse"}}><thead><tr><th>شغل</th><th>عامل برنامه</th><th>نوع فعالیت</th><th>حضور</th><th>حذف</th></tr></thead><tbody>
-          {crewDraft.map(person=><tr key={person.rowId}><td>{person.jobName}</td><td><PersonnelPicker networkId={selected?.networkId??0} jobId={person.jobId} value={person.personnelId} onChange={(id,name)=>editCrew(person.rowId,{personnelId:id,personnelName:name})}/></td><td><input className="input" value={person.activityTypeName} placeholder="نوع فعالیت" onChange={e=>editCrew(person.rowId,{activityTypeName:e.target.value})}/><input className="input" type="number" min="1" aria-label="شناسه فعالیت" value={person.activityTypeId||""} onChange={e=>editCrew(person.rowId,{activityTypeId:Number(e.target.value)})}/></td><td><input type="checkbox" checked={person.isPresent} onChange={e=>editCrew(person.rowId,{isPresent:e.target.checked})}/></td><td><button type="button" className="btn btn-outline" onClick={()=>setCrewDraft(rows=>rows.filter(x=>x.rowId!==person.rowId))}>حذف</button></td></tr>)}
-        </tbody></table></div>
-        {crewDraft.some(x=>!x.personnelId||!x.activityTypeId)?<p className="alert">ردیف‌های ناقص مانع صدور شناسنامه هستند؛ شخص و فعالیت را تکمیل کنید یا ردیف را حذف کنید.</p>:null}
+        <div className="overflow-x-auto rounded-xl border border-default-200">
+          <table className="w-full text-right text-sm"><thead className="bg-default-50 text-default-600"><tr><th className="p-3">عامل</th><th className="p-3">نوع فعالیت</th><th className="w-16 p-3" aria-label="عملیات"></th></tr></thead>
+            <tbody className="divide-y divide-default-100">{crewDraft.map(person=><tr key={person.rowId} className="hover:bg-default-50"><td className="min-w-56 p-3"><PersonnelPicker networkId={selected?.networkId??0} jobId={person.jobId} value={person.personnelId} onChange={(id,name)=>editCrew(person.rowId,{personnelId:id,personnelName:name})}/></td><td className="p-3 text-default-700">{person.activityTypeName||"فعالیت مشخص نشده"}</td><td className="p-3"><button type="button" title="حذف عامل" aria-label={`حذف عامل ${person.personnelName||"بدون نام"}`} className="rounded-lg p-2 text-danger hover:bg-danger/10" onClick={()=>setCrewDraft(rows=>rows.filter(x=>x.rowId!==person.rowId))}><Trash2 size={17}/></button></td></tr>)}</tbody>
+          </table>
+          {crewDraft.length===0?<p className="p-5 text-center text-default-500">عاملی انتخاب نشده است.</p>:null}
+        </div>
+        {crewDraft.some(x=>!x.personnelId||!x.activityTypeId)?<p className="mt-3 text-sm text-danger">ردیف‌های ناقص را حذف کنید یا اطلاعات آن‌ها را از وب‌سرویس تکمیل کنید.</p>:null}
       </section>
       {selected?<section className="card" style={{marginTop:16}}>
         <strong>وضعیت دریافت اطلاعات از وب‌سرویس خارجی</strong>
@@ -162,7 +180,7 @@ export default function IssueProfilePage(){
         <p className="muted">اطلاعات پایه از سرویس مرجع دریافت می‌شود؛ لیست عوامل و آیتم‌ها در شناسنامه قابل تنظیم است.</p>
       </section>:null}
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
-      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving||!planData||!externalCrew||!externalItems||crewValid.length===0||crewDraft.length!==crewValid.length}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving||!planData||!externalCrew||!externalItems||crewValid.length===0||crewDraft.length!==crewValid.length||overDuration||!durationLimitSeconds}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
     </form>
   </DashboardShell>;
 }
