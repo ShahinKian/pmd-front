@@ -78,6 +78,40 @@ function normalizedAction(value: string | null): string {
 }
 
 
+
+const conditionFields = [
+  {key:"programType",label:"نوع برنامه",values:[["10","زنده"],["20","ضبطی"]]},
+  {key:"networkId",label:"شناسه شبکه"},
+  {key:"networkGroupId",label:"شناسه گروه"},
+  {key:"planId",label:"شناسه برنامه"},
+  {key:"durationMinutes",label:"مدت برنامه (دقیقه)"},
+  {key:"hasExpert",label:"دارای کارشناس",values:[["true","بله"],["false","خیر"]]},
+  {key:"productionMethod",label:"نحوه تولید"},
+  {key:"occasion",label:"مناسبت"},
+] as const;
+type ConditionRule={field:string;operator:string;value:string;join:string};
+function readGenericRules(json:string|null):{rules:ConditionRule[];trueOutcome:string;falseOutcome:string}{
+  try{
+    const x=JSON.parse(json||"{}").genericRules;
+    if(x?.rules?.length)return {rules:x.rules,trueOutcome:x.trueOutcome||"yes",falseOutcome:x.falseOutcome||"no"};
+  }catch{}
+  return {rules:[{field:"programType",operator:"eq",value:"10",join:"and"}],trueOutcome:"yes",falseOutcome:"no"};
+}
+function rulesMetadata(base:string|null,form:FormData):string{
+  let meta:Record<string,unknown>={};
+  try{meta=JSON.parse(base||"{}");}catch{}
+  const fields=form.getAll("ruleField").map(String);
+  const operators=form.getAll("ruleOperator").map(String);
+  const values=form.getAll("ruleValue").map(String);
+  const joins=form.getAll("ruleJoin").map(String);
+  meta.genericRules={
+    rules:fields.map((field,i)=>({field,operator:operators[i],value:values[i],join:joins[i]||"and"})),
+    trueOutcome:String(form.get("trueOutcome")||"yes"),
+    falseOutcome:String(form.get("falseOutcome")||"no"),
+  };
+  return JSON.stringify(meta);
+}
+
 const palette = [
   { type: WorkflowNodeType.Process, label: "فرآیند", icon: Workflow, hint: "مرحله اجرایی توسط یک نقش" },
   { type: WorkflowNodeType.Condition, label: "شرط", icon: Split, hint: "انشعاب بر اساس Outcome" },
@@ -274,7 +308,7 @@ export default function WorkflowCanvas({
     setBusy(true);
     setMessage(null);
     try {
-      const metadataJson = withNodePosition(null, pendingNode.position);
+      const metadataJson = type===WorkflowNodeType.Decision && form.get("decisionKey")==="generic-rules" ? rulesMetadata(withNodePosition(null,pendingNode.position),form) : withNodePosition(null,pendingNode.position);
       await apiClient.post("/workflows/" + definition.id + "/nodes", {
         key: "",
         name: String(form.get("name") ?? "").trim(),
@@ -307,10 +341,11 @@ export default function WorkflowCanvas({
     const form = new FormData(event.currentTarget);
     const type = Number(form.get("type")) as WorkflowNodeType;
     const currentGraphNode = nodes.find((node) => node.id === selectedNode.id);
-    const metadataJson = withNodePosition(
+    const positionedMetadata = withNodePosition(
       selectedNode.metadataJson,
       currentGraphNode?.position ?? getNodePosition(selectedNode) ?? { x: 0, y: 0 },
     );
+    const metadataJson = type===WorkflowNodeType.Decision && form.get("decisionKey")==="generic-rules" ? rulesMetadata(positionedMetadata,form) : positionedMetadata;
 
     setBusy(true);
     setMessage(null);
@@ -657,6 +692,8 @@ function NodeForm({
   const [type, setType] = useState<WorkflowNodeType>(node?.type ?? initialType);
   const [isStart, setIsStart] = useState(node?.isStart ?? false);
   const [allowBacktrack, setAllowBacktrack] = useState(node?.allowBacktrack ?? false);
+  const [genericDecision,setGenericDecision]=useState(node?.decisionKey==="generic-rules"||!node?.decisionKey);
+  const [ruleConfig,setRuleConfig]=useState(()=>readGenericRules(node?.metadataJson??null));
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -697,9 +734,25 @@ function NodeForm({
       </div>
 
       {type === WorkflowNodeType.Decision ? (
-        <div>
-          <div className="text-xs text-default-500">شناسه تصمیم به‌صورت خودکار مدیریت می‌شود.</div>
-          <input type="hidden" name="decisionKey" defaultValue={node?.decisionKey ?? `decision-${crypto.randomUUID()}`} />
+        <div className="space-y-3 rounded-xl border border-default-200 bg-default-50 p-3">
+          <Label>روش تصمیم‌گیری</Label>
+          <select className="w-full rounded-md border bg-background p-2 text-sm" value={genericDecision?"generic-rules":"legacy"} onChange={e=>setGenericDecision(e.target.value==="generic-rules")}>
+            <option value="generic-rules">شرط‌های قابل تنظیم بدون کدنویسی</option>
+            {node?.decisionKey&&node.decisionKey!=="generic-rules"?<option value="legacy">تصمیم قبلی (حفظ سازگاری)</option>:null}
+          </select>
+          <input type="hidden" name="decisionKey" value={genericDecision?"generic-rules":node?.decisionKey??""} />
+          {genericDecision?<div className="space-y-3">
+            {ruleConfig.rules.map((rule,i)=><div key={i} className="space-y-2 rounded-lg border bg-card p-3 shadow-sm">
+              {i>0?<select name="ruleJoin" value={rule.join||"and"} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,join:e.target.value}:x)}))} className="w-full rounded-md border p-2"><option value="and">و (AND)</option><option value="or">یا (OR)</option></select>:<input type="hidden" name="ruleJoin" value="and"/>}
+              <select name="ruleField" className="w-full rounded-md border p-2" value={rule.field} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,field:e.target.value,value:""}:x)}))}>{conditionFields.map(f=><option key={f.key} value={f.key}>{f.label}</option>)}</select>
+              <select name="ruleOperator" className="w-full rounded-md border p-2" value={rule.operator} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,operator:e.target.value}:x)}))}><option value="eq">برابر</option><option value="ne">نابرابر</option><option value="gt">بزرگ‌تر از</option><option value="lt">کوچک‌تر از</option><option value="contains">شامل</option></select>
+              {conditionFields.find(f=>f.key===rule.field&&"values" in f) && "values" in conditionFields.find(f=>f.key===rule.field)! ? <select name="ruleValue" className="w-full rounded-md border p-2" value={rule.value} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))}><option value="">انتخاب مقدار</option>{(conditionFields.find(f=>f.key===rule.field) as {values:readonly (readonly [string,string])[]}).values.map(v=><option key={v[0]} value={v[0]}>{v[1]}</option>)}</select>:<Input name="ruleValue" value={rule.value} placeholder="مقدار مقایسه" onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))} />}
+              {ruleConfig.rules.length>1?<button type="button" className="text-xs text-red-600" onClick={()=>setRuleConfig(c=>({...c,rules:c.rules.filter((_,j)=>j!==i)}))}>حذف شرط</button>:null}
+            </div>)}
+            <button type="button" className="text-sm text-primary" onClick={()=>setRuleConfig(c=>({...c,rules:[...c.rules,{field:"programType",operator:"eq",value:"10",join:"and"}]}))}>+ افزودن شرط</button>
+            <p className="text-xs text-default-500">برای این مرحله دو مسیر خروجی با نتیجه‌های «yes» و «no» تعریف کنید. نتیجه واقعی براساس شرط‌ها محاسبه می‌شود.</p>
+            <input type="hidden" name="trueOutcome" value="yes"/><input type="hidden" name="falseOutcome" value="no"/>
+          </div>:null}
         </div>
       ) : null}
 
