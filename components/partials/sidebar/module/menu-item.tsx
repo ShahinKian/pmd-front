@@ -15,7 +15,7 @@ function NavLink({ childItem, locationName, trans }: {
     <Link
       href={href}
       className={cn(
-        "flex  font-medium  text-sm capitalize px-[10px] py-3 gap-3 rounded-md cursor-pointer",
+        "flex flex-row items-center text-right font-medium text-sm capitalize px-[10px] py-3 gap-3 rounded-md cursor-pointer",
         {
           "bg-primary text-primary-foreground": isLocationMatch(
             href,
@@ -26,11 +26,11 @@ function NavLink({ childItem, locationName, trans }: {
       )}
     >
       {icon && (
-        <span className="inline-flex items-center   flex-grow-0">
+        <span className="inline-flex shrink-0 items-center justify-center order-first">
           <childItem.icon className=" h-5 w-5" />
         </span>
       )}
-      <div className="flex-grow truncate">{translate(title, trans)}</div>
+      <div className="min-w-0 flex-1 truncate text-right">{translate(title, trans)}</div>
       {badge && <Badge className="rounded h-min ">{badge}</Badge>}
     </Link>
   );
@@ -64,7 +64,7 @@ const MenuItem = ({
         >
           <div
             className={cn(
-              "flex  font-medium  text-sm capitalize  gap-3 cursor-pointer flex-1 "
+               "flex flex-row items-center text-right font-medium text-sm capitalize gap-3 cursor-pointer flex-1"
             )}
             onClick={() => toggleNested(index)}
           >
