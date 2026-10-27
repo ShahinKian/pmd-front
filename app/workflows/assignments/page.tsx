@@ -19,6 +19,15 @@ import {
   type WorkflowFormType,
 } from "@/lib/workflows/types";
 
+const registeredForms = [
+  { key: "forecast", title: "پیش‌بینی برنامه", description: "متصل به داده‌ها و گردش‌کار پیش‌بینی برنامه" },
+  { key: "program-profile", title: "شناسنامه برنامه", description: "متصل به اطلاعات شناسنامه برنامه و شرایط آن" },
+  { key: "final-permit", title: "مجوز نهایی", description: "فرم سیستمی ثبت‌شده در PMD" },
+  { key: "payment-permit", title: "مجوز پرداخت", description: "فرم سیستمی ثبت‌شده در PMD" },
+  { key: "finance", title: "امور مالی", description: "فرم سیستمی ثبت‌شده در PMD" },
+] as const;
+const registeredKeys = new Set<string>(registeredForms.map(f => f.key));
+
 function toPositiveInt(value: string): number | null {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -54,7 +63,7 @@ export default function WorkflowAssignmentsPage() {
   );
 
   const activeFormTypes = useMemo(
-    () => (formTypes ?? []).filter((item) => item.isActive),
+    () => (formTypes ?? []).filter((item) => item.isActive && registeredKeys.has(item.key)),
     [formTypes],
   );
 
@@ -209,7 +218,7 @@ export default function WorkflowAssignmentsPage() {
                     {editingFormType ? "ویرایش نوع فرم" : "تعریف نوع فرم"}
                   </h2>
                   <p className="mt-1 text-xs text-default-500">
-                    عنوان فارسی فرم را وارد کنید؛ شناسه داخلی به‌طور خودکار ساخته می‌شود و هنگام ویرایش ثابت می‌ماند.
+                    فقط فرم‌های واقعی ثبت‌شده در سامانه قابل تخصیص هستند. شناسه فنی هر فرم ثابت است.
                   </p>
                 </div>
               </div>
@@ -228,49 +237,18 @@ export default function WorkflowAssignmentsPage() {
               ) : null}
             </div>
 
-            <form
-              key={editingFormType?.id ?? "new"}
-              onSubmit={saveFormType}
-              className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.5fr_160px_170px_auto]"
-            >
-              <div>
-                <Label className="mb-2 text-default-600">عنوان فارسی *</Label>
-                <Input
-                  name="name"
-                  defaultValue={editingFormType?.name ?? ""}
-                  placeholder="شناسنامه برنامه"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label className="mb-2 text-default-600">ترتیب</Label>
-                <Input
-                  name="sortOrder"
-                  type="number"
-                  min="0"
-                  defaultValue={editingFormType?.sortOrder ?? (formTypes?.length ?? 0) * 10 + 10}
-                />
-              </div>
-
-              <div className="flex items-end">
-                <label className="flex h-10 w-full items-center justify-between rounded-md border px-3">
-                  <span className="text-sm text-default-700">فعال</span>
-                  <Switch checked={formTypeActive} onCheckedChange={setFormTypeActive} />
-                </label>
-              </div>
-
-              <div className="flex items-end">
-                <Button className="w-full" disabled={savingFormType}>
-                  {savingFormType ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  {editingFormType ? "ذخیره تغییرات" : "تعریف نوع فرم"}
-                </Button>
-              </div>
-            </form>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {registeredForms.map(form => {
+                const matched = (formTypes ?? []).find(t => t.key === form.key);
+                return <div key={form.key} className="rounded-lg border bg-default-50 p-4">
+                  <div className="font-semibold">{matched?.name ?? form.title}</div>
+                  <p className="mt-1 text-xs text-default-500">{form.description}</p>
+                  <code dir="ltr" className="mt-2 block text-xs">{form.key}</code>
+                  <div className="mt-3 text-xs">{matched?.isActive ? "فعال و قابل تخصیص" : matched ? "غیرفعال" : "نیازمند ثبت در پایگاه داده"}</div>
+                </div>;
+              })}
+            </div>
+            <p className="mt-4 text-sm text-default-500">فرم جدید صرفاً با واردکردن عنوان، به فرم واقعی برنامه متصل نمی‌شود. تعریف فرم سفارشی تا زمان معرفی قرارداد داده و منبع معتبر آن غیرفعال است. فرم‌های قدیمی سفارشی حذف نشده‌اند.</p>
           </section>
 
           <section className="overflow-hidden rounded-xl border bg-card">
