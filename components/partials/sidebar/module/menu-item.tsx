@@ -14,8 +14,9 @@ function NavLink({ childItem, locationName, trans }: {
   return (
     <Link
       href={href}
+      dir="rtl"
       className={cn(
-        "flex flex-row items-center text-right font-medium text-sm capitalize px-[10px] py-3 gap-3 rounded-md cursor-pointer",
+        "flex flex-row items-center justify-start text-right font-medium text-sm capitalize px-[10px] py-3 gap-3 rounded-md cursor-pointer",
         {
           "bg-primary text-primary-foreground": isLocationMatch(
             href,
@@ -26,7 +27,7 @@ function NavLink({ childItem, locationName, trans }: {
       )}
     >
       {icon && (
-        <span className="inline-flex shrink-0 items-center justify-center order-first">
+        <span className="inline-flex shrink-0 items-center justify-center">
           <childItem.icon className=" h-5 w-5" />
         </span>
       )}
@@ -57,6 +58,7 @@ const MenuItem = ({
     <div>
       {childItem?.nested ? (
         <div
+          dir="rtl"
           className={cn("flex items-center gap-3 px-[10px] py-3 rounded-md ", {
             "bg-primary  text-primary-foreground": nestedIndex === index,
             "  text-default-600": nestedIndex !== index,
