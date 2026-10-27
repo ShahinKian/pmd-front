@@ -62,6 +62,7 @@ export default function ProfileDetailsPage(){
       await apiClient.post("/program-profiles/"+id+"/actions/"+actionKey,{reason});
       await mutate();await refreshActions();
       setMessage({type:"success",text:"اقدام با موفقیت انجام شد."});
+      if(returnAction){setReturnAction(null);setReturnReason("");}
     }catch(error){setMessage({type:"error",text:apiErrorMessage(error,"اجرای اقدام انجام نشد.")});}
     finally{setBusy("");}
   }
@@ -69,7 +70,6 @@ export default function ProfileDetailsPage(){
   async function submitReturn(){
     if(!returnAction||!returnReason.trim()){setMessage({type:"error",text:"علت بازگشت الزامی است."});return;}
     await executeCustomAction(returnAction.key,returnAction.label,returnReason.trim());
-    setReturnAction(null);setReturnReason("");
   }
 
   async function saveComment(){
