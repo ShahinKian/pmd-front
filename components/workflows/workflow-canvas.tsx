@@ -692,6 +692,8 @@ function NodeForm({
   const [type, setType] = useState<WorkflowNodeType>(node?.type ?? initialType);
   const [isStart, setIsStart] = useState(node?.isStart ?? false);
   const [allowBacktrack, setAllowBacktrack] = useState(node?.allowBacktrack ?? false);
+  const {data:serverFields}=useSWR<{key:string;label:string;type:string;source:string;operators:string[]}[]>("/workflows/actions?fields=1");
+  const availableFields=serverFields?.length?serverFields.map(f=>({...f,values:f.key==="programType"?[["10","زنده"],["20","ضبطی"]]:f.key==="hasExpert"?[["true","بله"],["false","خیر"]]:undefined})):conditionFields;
   const [genericDecision,setGenericDecision]=useState(node?.decisionKey==="generic-rules"||!node?.decisionKey);
   const [ruleConfig,setRuleConfig]=useState(()=>readGenericRules(node?.metadataJson??null));
 
@@ -744,9 +746,9 @@ function NodeForm({
           {genericDecision?<div className="space-y-3">
             {ruleConfig.rules.map((rule,i)=><div key={i} className="space-y-2 rounded-lg border bg-card p-3 shadow-sm">
               {i>0?<select name="ruleJoin" value={rule.join||"and"} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,join:e.target.value}:x)}))} className="w-full rounded-md border p-2"><option value="and">و (AND)</option><option value="or">یا (OR)</option></select>:<input type="hidden" name="ruleJoin" value="and"/>}
-              <select name="ruleField" className="w-full rounded-md border p-2" value={rule.field} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,field:e.target.value,value:""}:x)}))}>{conditionFields.map(f=><option key={f.key} value={f.key}>{f.label}</option>)}</select>
+              <select name="ruleField" className="w-full rounded-md border p-2" value={rule.field} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,field:e.target.value,value:""}:x)}))}>{availableFields.map(f=><option key={f.key} value={f.key}>{f.label}</option>)}</select>
               <select name="ruleOperator" className="w-full rounded-md border p-2" value={rule.operator} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,operator:e.target.value}:x)}))}><option value="eq">برابر</option><option value="ne">نابرابر</option><option value="gt">بزرگ‌تر از</option><option value="lt">کوچک‌تر از</option><option value="contains">شامل</option></select>
-              {conditionFields.find(f=>f.key===rule.field&&"values" in f) && "values" in conditionFields.find(f=>f.key===rule.field)! ? <select name="ruleValue" className="w-full rounded-md border p-2" value={rule.value} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))}><option value="">انتخاب مقدار</option>{(conditionFields.find(f=>f.key===rule.field) as {values:readonly (readonly [string,string])[]}).values.map(v=><option key={v[0]} value={v[0]}>{v[1]}</option>)}</select>:<Input name="ruleValue" value={rule.value} placeholder="مقدار مقایسه" onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))} />}
+              {availableFields.find(f=>f.key===rule.field&&f.values) ? <select name="ruleValue" className="w-full rounded-md border p-2" value={rule.value} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))}><option value="">انتخاب مقدار</option>{(availableFields.find(f=>f.key===rule.field) as {values:readonly (readonly [string,string])[]}).values.map(v=><option key={v[0]} value={v[0]}>{v[1]}</option>)}</select>:<Input name="ruleValue" value={rule.value} placeholder="مقدار مقایسه" onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))} />}
               {ruleConfig.rules.length>1?<button type="button" className="text-xs text-red-600" onClick={()=>setRuleConfig(c=>({...c,rules:c.rules.filter((_,j)=>j!==i)}))}>حذف شرط</button>:null}
             </div>)}
             <button type="button" className="text-sm text-primary" onClick={()=>setRuleConfig(c=>({...c,rules:[...c.rules,{field:"programType",operator:"eq",value:"10",join:"and"}]}))}>+ افزودن شرط</button>
