@@ -88,12 +88,12 @@ export default function ProfileDetailsPage(){
     {error?<div className="alert alert-error">دریافت شناسنامه انجام نشد.</div>:null}
     {data?<><div className="page-head"><div><h1 className="page-title">{data.mainTopic}</h1><p className="page-description">{programName||"در حال دریافت نام برنامه..."} — {profileStatusLabel(data.status,data.statusDisplayName)}</p></div><span className="admin-badge">{profileStatusLabel(data.status,data.statusDisplayName)}</span></div>
       <div className="grid grid-2">
-        <section className="card"><h2 style={{fontSize:16}}>اطلاعات برنامه</h2>
-          <p>نوع برنامه: {data.programTypeName}</p><p>نحوه تولید: {data.productionMethod}</p><p>مناسبت: {data.occasion}</p>
+        <section className="card"><h2 className="mb-4 border-b border-default-200 pb-3 text-base font-semibold">اطلاعات برنامه</h2>
+          <div className="grid gap-3 text-sm sm:grid-cols-2"><p><span className="text-default-500">نوع برنامه: </span>{data.programTypeName}</p><p><span className="text-default-500">نحوه تولید: </span>{data.productionMethod}</p><p><span className="text-default-500">مناسبت: </span>{data.occasion}</p>
           <p>تاریخ پخش: {new Date(data.broadcastDate).toLocaleDateString("fa-IR-u-ca-persian")}</p><p>مدت: {data.duration}</p><p>ساعت شروع: {data.startTime}</p>
-          <p>ساختار: {data.programStructureName}</p><p>درجه: {data.programDegreeName}</p><p>طبقه: {data.floorName}</p>
+          <p><span className="text-default-500">ساختار: </span>{data.programStructureName}</p><p><span className="text-default-500">درجه: </span>{data.programDegreeName}</p><p><span className="text-default-500">طبقه: </span>{data.floorName}</p></div>
         </section>
-        <section className="card"><h2 style={{fontSize:16}}>گردش‌کار</h2>
+        <section className="card"><h2 className="mb-4 border-b border-default-200 pb-3 text-base font-semibold">گردش‌کار</h2>
           {canSubmit?<p className="muted">شناسنامه نزد تهیه‌کننده است. برای ورود به گردش‌کار، دکمه «ارسال به گردش‌کار» را بزنید.</p>:null}
           <p className="muted">مرحله فعلی: {profileStatusLabel(data.status,data.statusDisplayName)}</p>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
@@ -120,7 +120,7 @@ export default function ProfileDetailsPage(){
 
       {(data.experts??[]).length>0?<section className="card" style={{marginTop:18}}>
         <h2 className="mb-4 text-base font-semibold">کارشناسان برنامه</h2>
-        <div className="overflow-x-auto"><table className="w-full text-right text-sm"><thead className="bg-default-50"><tr><th className="p-3">کارشناس</th><th className="p-3">محور موضوعی</th><th className="p-3">مدت صحبت</th><th className="p-3">نوع حضور</th><th className="p-3">پرداخت</th></tr></thead><tbody className="divide-y divide-default-100">{data.experts.map(x=><tr key={x.id??x.expertId}><td className="p-3">{expertDirectory?.find(e=>e.id===x.expertId)?((e)=>e.firstName+" "+e.lastName)(expertDirectory!.find(e=>e.id===x.expertId)!):"شناسه کارشناس: "+x.expertId}</td><td className="p-3">{forecast?.topicAxes?.find(a=>a.id===x.topicAxisId)?.title||"محور ثبت‌شده"}</td><td className="p-3" dir="ltr">{x.duration}</td><td className="p-3">{({InPerson:"حضوری",Phone:"تلفنی",Recorded:"ضبطی",Workplace:"محل کار"} as Record<string,string>)[String(x.attendanceType)]||String(x.attendanceType)}</td><td className="p-3">{x.hasPayment?"بله":"خیر"}</td></tr>)}</tbody></table></div>
+        <div className="overflow-x-auto"><table className="w-full text-right text-sm"><thead className="bg-default-50"><tr><th className="p-3">کارشناس</th><th className="p-3">محور موضوعی</th><th className="p-3">مدت صحبت</th><th className="p-3">نوع حضور</th><th className="p-3">پرداخت</th></tr></thead><tbody className="divide-y divide-default-100">{data.experts.map(x=><tr key={x.id??x.expertId}><td className="p-3">{expertDirectory?.find(e=>e.id===x.expertId)?[expertDirectory.find(e=>e.id===x.expertId)?.firstName,expertDirectory.find(e=>e.id===x.expertId)?.lastName].filter(Boolean).join(" "):"شناسه کارشناس: "+x.expertId}</td><td className="p-3">{forecast?.topicAxes?.find(a=>a.id===x.topicAxisId)?.title||"محور ثبت‌شده"}</td><td className="p-3" dir="ltr">{x.duration}</td><td className="p-3">{({InPerson:"حضوری",Phone:"تلفنی",Recorded:"ضبطی",Workplace:"محل کار"} as Record<string,string>)[String(x.attendanceType)]||String(x.attendanceType)}</td><td className="p-3">{x.hasPayment?"بله":"خیر"}</td></tr>)}</tbody></table></div>
       </section>:null}
       {((comments?.length??0)>0||canComment)?<section className="card" style={{marginTop:18}}>
         <h2 style={{fontSize:16}}>نظرات ناظر</h2>
