@@ -825,6 +825,7 @@ function TransitionForm({
   onDelete: (() => void) | null;
 }) {
   const isSystemDecision = sourceNode?.type === WorkflowNodeType.Decision;
+  const isGenericDecision = isSystemDecision && sourceNode?.decisionKey === "generic-rules";
   const [custom, setCustom] = useState(false);
   const [selectedAction, setSelectedAction] = useState(normalizedAction(transition?.outcome ?? ""));
   return (
@@ -837,8 +838,8 @@ function TransitionForm({
         {isSystemDecision ? (
           <>
             <Label className="mb-2 text-default-600">نتیجه تصمیم سیستمی</Label>
-            <Input name="outcome" dir="ltr" defaultValue={transition?.outcome ?? ""} placeholder="10" required />
-            <p className="mt-1 text-xs text-default-500">مقدار نتیجه باید با خروجی تصمیم سیستمی برابر باشد.</p>
+            {isGenericDecision?<select name="outcome" defaultValue={transition?.outcome??""} className="w-full rounded-md border bg-background p-2 text-sm" required><option value="">انتخاب نتیجه</option><option value="yes">درست (بله)</option><option value="no">نادرست (خیر)</option></select>:<Input name="outcome" dir="ltr" defaultValue={transition?.outcome ?? ""} placeholder="10" required />}
+            <p className="mt-1 text-xs text-default-500">{isGenericDecision?"مسیر درست و نادرست باید هر دو متصل باشند.":"مقدار نتیجه باید با خروجی تصمیم سیستمی برابر باشد."}</p>
           </>
         ) : (
           <>
