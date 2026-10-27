@@ -20,6 +20,8 @@ import {
 import {
   createForecastWorkflowSample,
   createProgramProfileWorkflowSample,
+  createProgramProfileNoCodeSample,
+  programProfileNoCodeSampleName,
   forecastWorkflowSampleName,
   programProfileWorkflowSampleName,
 } from "@/lib/workflows/samples";
@@ -130,6 +132,14 @@ export default function WorkflowsPage() {
                 <WandSparkles className="h-4 w-4" />
               )}
               نمونه فرآیند شناسنامه برنامه
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => openOrCreateSample("program-profile", programProfileNoCodeSampleName, createProgramProfileNoCodeSample)}
+              disabled={creatingSample !== null}
+            >
+              {creatingSample === "program-profile" ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+              نمونه جدید شناسنامه (شرط‌گذاری بدون کدنویسی)
             </Button>
             <Button asChild variant="outline">
               <Link href="/workflows/assignments">
