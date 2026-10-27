@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { SiteLogo } from "@/components/svg";
@@ -16,10 +16,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
-  const [captchaVersion, setCaptchaVersion] = useState(1);
+  const [captchaVersion, setCaptchaVersion] = useState(0);
+
+  useEffect(() => { refreshCaptcha(); }, []);
 
   function refreshCaptcha() {
-    setCaptchaVersion((value) => value + 1);
+    setCaptchaVersion(Date.now());
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -27,7 +29,8 @@ export default function LoginPage() {
     setLoading(true);
     setMessage("");
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
 
     try {
       await apiClient.post("/auth/login", {
@@ -46,8 +49,9 @@ export default function LoginPage() {
     } catch (error) {
       setMessage(apiErrorMessage(error, "ورود به سامانه انجام نشد."));
       refreshCaptcha();
-      const captchaInput = event.currentTarget.elements.namedItem("captcha");
+      const captchaInput = formElement.elements.namedItem("captcha");
       if (captchaInput instanceof HTMLInputElement) captchaInput.value = "";
+    } finally {
       setLoading(false);
     }
   }
@@ -139,13 +143,13 @@ export default function LoginPage() {
                   <div className="rounded-xl border bg-default-50 p-3">
                     <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1 overflow-hidden rounded-lg border bg-white">
-                        <img
+                        {captchaVersion > 0 ? <img
                           key={captchaVersion}
                           src={"/api/auth/captcha?v=" + captchaVersion}
                           alt="کد امنیتی"
                           className="h-[66px] w-full object-cover"
                           draggable={false}
-                        />
+                        /> : <div className="h-[66px]" aria-label="در حال دریافت کد امنیتی" />}
                       </div>
 
                       <Button

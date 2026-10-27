@@ -14,6 +14,7 @@ import {
   useReactFlow,
 } from "@xyflow/react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
 import {
   GitBranch,
   GripVertical,
@@ -67,6 +68,49 @@ interface PendingConnection {
 }
 
 const nodeTypes = { workflowNode: WorkflowFlowNode };
+
+type ActionDefinition = { key: string; label: string };
+const legacyActions: Record<string, string> = {
+  Submitted: "submit", Approved: "approve", Rejected: "reject", ReturnForEdit: "return-for-edit",
+};
+function normalizedAction(value: string | null): string {
+  return value ? (legacyActions[value] ?? value) : "";
+}
+
+
+
+const conditionFields = [
+  {key:"programType",label:"نوع برنامه",values:[["10","زنده"],["20","ضبطی"]]},
+  {key:"networkId",label:"شناسه شبکه"},
+  {key:"networkGroupId",label:"شناسه گروه"},
+  {key:"planId",label:"شناسه برنامه"},
+  {key:"durationMinutes",label:"مدت برنامه (دقیقه)"},
+  {key:"hasExpert",label:"دارای کارشناس",values:[["true","بله"],["false","خیر"]]},
+  {key:"productionMethod",label:"نحوه تولید"},
+  {key:"occasion",label:"مناسبت"},
+] as const;
+type ConditionRule={field:string;operator:string;value:string;join:string};
+function readGenericRules(json:string|null):{rules:ConditionRule[];trueOutcome:string;falseOutcome:string}{
+  try{
+    const x=JSON.parse(json||"{}").genericRules;
+    if(x?.rules?.length)return {rules:x.rules,trueOutcome:x.trueOutcome||"yes",falseOutcome:x.falseOutcome||"no"};
+  }catch{}
+  return {rules:[{field:"programType",operator:"eq",value:"10",join:"and"}],trueOutcome:"yes",falseOutcome:"no"};
+}
+function rulesMetadata(base:string|null,form:FormData):string{
+  let meta:Record<string,unknown>={};
+  try{meta=JSON.parse(base||"{}");}catch{}
+  const fields=form.getAll("ruleField").map(String);
+  const operators=form.getAll("ruleOperator").map(String);
+  const values=form.getAll("ruleValue").map(String);
+  const joins=form.getAll("ruleJoin").map(String);
+  meta.genericRules={
+    rules:fields.map((field,i)=>({field,operator:operators[i],value:values[i],join:joins[i]||"and"})),
+    trueOutcome:String(form.get("trueOutcome")||"yes"),
+    falseOutcome:String(form.get("falseOutcome")||"no"),
+  };
+  return JSON.stringify(meta);
+}
 
 const palette = [
   { type: WorkflowNodeType.Process, label: "فرآیند", icon: Workflow, hint: "مرحله اجرایی توسط یک نقش" },
@@ -133,6 +177,7 @@ export default function WorkflowCanvas({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [pendingNode, setPendingNode] = useState<PendingNode | null>(null);
   const [pendingConnection, setPendingConnection] = useState<PendingConnection | null>(null);
+  const { data: availableActions } = useSWR<ActionDefinition[]>("/workflows/actions");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
@@ -263,9 +308,10 @@ export default function WorkflowCanvas({
     setBusy(true);
     setMessage(null);
     try {
-      const metadataJson = withNodePosition(null, pendingNode.position);
+      const baseMetadata = withNodePosition(null,pendingNode.position);
+      const metadataJson = type===WorkflowNodeType.Decision ? form.get("decisionKey")==="generic-rules"?rulesMetadata(baseMetadata,form):form.get("decisionKey")==="multi-branch"?JSON.stringify({...JSON.parse(baseMetadata),multiBranch:JSON.parse(String(form.get("multiBranchConfig")||"{}"))}):baseMetadata : baseMetadata;
       await apiClient.post("/workflows/" + definition.id + "/nodes", {
-        key: String(form.get("key") ?? "").trim(),
+        key: "",
         name: String(form.get("name") ?? "").trim(),
         type,
         description: String(form.get("description") ?? "").trim() || null,
@@ -296,16 +342,17 @@ export default function WorkflowCanvas({
     const form = new FormData(event.currentTarget);
     const type = Number(form.get("type")) as WorkflowNodeType;
     const currentGraphNode = nodes.find((node) => node.id === selectedNode.id);
-    const metadataJson = withNodePosition(
+    const positionedMetadata = withNodePosition(
       selectedNode.metadataJson,
       currentGraphNode?.position ?? getNodePosition(selectedNode) ?? { x: 0, y: 0 },
     );
+    const metadataJson = type===WorkflowNodeType.Decision ? form.get("decisionKey")==="generic-rules"?rulesMetadata(positionedMetadata,form):form.get("decisionKey")==="multi-branch"?JSON.stringify({...JSON.parse(positionedMetadata),multiBranch:JSON.parse(String(form.get("multiBranchConfig")||"{}"))}):positionedMetadata : positionedMetadata;
 
     setBusy(true);
     setMessage(null);
     try {
       await apiClient.put("/workflows/" + definition.id + "/nodes/" + selectedNode.id, {
-        key: String(form.get("key") ?? "").trim(),
+        key: selectedNode.key,
         name: String(form.get("name") ?? "").trim(),
         type,
         description: String(form.get("description") ?? "").trim() || null,
@@ -595,6 +642,8 @@ export default function WorkflowCanvas({
             <TransitionForm
               key={pendingConnection.source + pendingConnection.target}
               transition={null}
+              actions={availableActions ?? []}
+              sourceNode={definition.nodes.find((node) => node.id === pendingConnection.source)}
               busy={busy}
               onSubmit={saveConnection}
               onDelete={null}
@@ -605,6 +654,8 @@ export default function WorkflowCanvas({
             <TransitionForm
               key={selectedTransition.id}
               transition={selectedTransition}
+              actions={availableActions ?? []}
+              sourceNode={definition.nodes.find((node) => node.id === selectedTransition.fromNodeId)}
               busy={busy}
               onSubmit={saveTransition}
               onDelete={draft ? () => void deleteTransition(selectedTransition) : null}
@@ -642,6 +693,16 @@ function NodeForm({
   const [type, setType] = useState<WorkflowNodeType>(node?.type ?? initialType);
   const [isStart, setIsStart] = useState(node?.isStart ?? false);
   const [allowBacktrack, setAllowBacktrack] = useState(node?.allowBacktrack ?? false);
+  const {data:serverFields}=useSWR<{key:string;label:string;type:string;source:string;operators:string[]}[]>("/workflows/actions?fields=1");
+  const availableFields=serverFields?.length?serverFields.map(f=>({...f,values:f.key==="programType"?[["10","زنده"],["20","ضبطی"]]:f.key==="hasExpert"?[["true","بله"],["false","خیر"]]:undefined})):conditionFields;
+  const [genericDecision,setGenericDecision]=useState(node?.decisionKey==="generic-rules"||!node?.decisionKey);
+  const [ruleConfig,setRuleConfig]=useState(()=>readGenericRules(node?.metadataJson??null));
+  const [multiMode,setMultiMode]=useState(node?.decisionKey==="multi-branch");
+  const [branchConfig,setBranchConfig]=useState(()=>{
+    try {const v=JSON.parse(node?.metadataJson||"{}").multiBranch;if(v?.branches?.length)return v;}catch{}
+    return {branches:[{outcome:"route-1",priority:0,rules:[{field:"programType",operator:"eq",value:"10",join:"and"}]}],defaultOutcome:"fallback"};
+  });
+
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -650,8 +711,7 @@ function NodeForm({
         <Input name="name" defaultValue={node?.name ?? ""} required />
       </div>
       <div>
-        <Label className="mb-2 text-default-600">Key *</Label>
-        <Input name="key" dir="ltr" defaultValue={node?.key ?? ""} required />
+        <div className="text-xs text-default-500">شناسه داخلی مرحله به‌صورت خودکار مدیریت می‌شود.</div>
       </div>
       <div>
         <Label className="mb-2 text-default-600">نوع مرحله *</Label>
@@ -683,9 +743,25 @@ function NodeForm({
       </div>
 
       {type === WorkflowNodeType.Decision ? (
-        <div>
-          <Label className="mb-2 text-default-600">Decision Key *</Label>
-          <Input name="decisionKey" dir="ltr" defaultValue={node?.decisionKey ?? ""} required />
+        <div className="space-y-3 rounded-xl border border-default-200 bg-default-50 p-3">
+          <Label>روش تصمیم‌گیری</Label>
+          <select className="w-full rounded-md border bg-background p-2 text-sm" value={multiMode?"multi-branch":genericDecision?"generic-rules":"legacy"} onChange={e=>{setMultiMode(e.target.value==="multi-branch");setGenericDecision(e.target.value==="generic-rules")}}>
+            <option value="generic-rules">شرط‌های دوخروجی</option><option value="multi-branch">تصمیم چندمسیره</option>
+            {node?.decisionKey&&node.decisionKey!=="generic-rules"?<option value="legacy">تصمیم قبلی (حفظ سازگاری)</option>:null}
+          </select>
+          <input type="hidden" name="decisionKey" value={multiMode?"multi-branch":genericDecision?"generic-rules":node?.decisionKey??""} />
+          {multiMode?<div className="space-y-3"><p className="text-xs text-default-500">برای هر مسیر یک شرط و نتیجه تعریف کنید. مسیر پیش‌فرض اجباری است.</p>{branchConfig.branches.map((b:{outcome:string;priority:number;rules:ConditionRule[]},i:number)=><div key={i} className="space-y-2 rounded-lg border bg-card p-3"><Input value={b.outcome} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,outcome:e.target.value}:x)}))} placeholder="شناسه مسیر (مثلاً live)"/><select className="w-full rounded-md border p-2" value={b.rules[0]?.field||"programType"} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,rules:[{...x.rules[0],field:e.target.value}]}:x)}))}>{availableFields.map(f=><option key={f.key} value={f.key}>{f.label}</option>)}</select><select className="w-full rounded-md border p-2" value={b.rules[0]?.operator||"eq"} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,rules:[{...x.rules[0],operator:e.target.value}]}:x)}))}><option value="eq">برابر</option><option value="ne">نابرابر</option><option value="gt">بزرگ‌تر</option><option value="lt">کوچک‌تر</option><option value="contains">شامل</option></select><Input value={b.rules[0]?.value||""} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,rules:[{...x.rules[0],value:e.target.value}]}:x)}))} placeholder="مقدار"/><button type="button" className="text-xs text-red-600" onClick={()=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.filter((_:typeof b,j:number)=>j!==i)}))}>حذف مسیر</button></div>)}<button type="button" className="text-sm text-primary" onClick={()=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:[...c.branches,{outcome:"route-"+(c.branches.length+1),priority:c.branches.length,rules:[{field:"programType",operator:"eq",value:"10",join:"and"}]}]}))}>+ مسیر جدید</button><Label>خروجی پیش‌فرض</Label><Input value={branchConfig.defaultOutcome} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,defaultOutcome:e.target.value}))}/><input type="hidden" name="multiBranchConfig" value={JSON.stringify(branchConfig)}/></div>:genericDecision?<div className="space-y-3">
+            {ruleConfig.rules.map((rule,i)=><div key={i} className="space-y-2 rounded-lg border bg-card p-3 shadow-sm">
+              {i>0?<select name="ruleJoin" value={rule.join||"and"} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,join:e.target.value}:x)}))} className="w-full rounded-md border p-2"><option value="and">و (AND)</option><option value="or">یا (OR)</option></select>:<input type="hidden" name="ruleJoin" value="and"/>}
+              <select name="ruleField" className="w-full rounded-md border p-2" value={rule.field} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,field:e.target.value,value:""}:x)}))}>{availableFields.map(f=><option key={f.key} value={f.key}>{f.label}</option>)}</select>
+              <select name="ruleOperator" className="w-full rounded-md border p-2" value={rule.operator} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,operator:e.target.value}:x)}))}><option value="eq">برابر</option><option value="ne">نابرابر</option><option value="gt">بزرگ‌تر از</option><option value="lt">کوچک‌تر از</option><option value="contains">شامل</option></select>
+              {availableFields.find(f=>f.key===rule.field&&"values" in f && f.values) ? <select name="ruleValue" className="w-full rounded-md border p-2" value={rule.value} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))}><option value="">انتخاب مقدار</option>{(availableFields.find(f=>f.key===rule.field) as {values:readonly (readonly [string,string])[]}).values.map(v=><option key={v[0]} value={v[0]}>{v[1]}</option>)}</select>:<Input name="ruleValue" value={rule.value} placeholder="مقدار مقایسه" onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))} />}
+              {ruleConfig.rules.length>1?<button type="button" className="text-xs text-red-600" onClick={()=>setRuleConfig(c=>({...c,rules:c.rules.filter((_,j)=>j!==i)}))}>حذف شرط</button>:null}
+            </div>)}
+            <button type="button" className="text-sm text-primary" onClick={()=>setRuleConfig(c=>({...c,rules:[...c.rules,{field:"programType",operator:"eq",value:"10",join:"and"}]}))}>+ افزودن شرط</button>
+            <p className="text-xs text-default-500">برای این مرحله دو مسیر خروجی با نتیجه‌های «yes» و «no» تعریف کنید. نتیجه واقعی براساس شرط‌ها محاسبه می‌شود.</p>
+            <input type="hidden" name="trueOutcome" value="yes"/><input type="hidden" name="falseOutcome" value="no"/>
+          </div>:null}
         </div>
       ) : null}
 
@@ -744,15 +820,24 @@ function NodeForm({
 
 function TransitionForm({
   transition,
+  actions,
+  sourceNode,
   busy,
   onSubmit,
   onDelete,
 }: {
   transition: WorkflowTransition | null;
+  actions: ActionDefinition[];
+  sourceNode?: WorkflowNode;
   busy: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onDelete: (() => void) | null;
 }) {
+  const isSystemDecision = sourceNode?.type === WorkflowNodeType.Decision;
+  const isGenericDecision = isSystemDecision && sourceNode?.decisionKey === "generic-rules";
+  const isMultiDecision = isSystemDecision && sourceNode?.decisionKey === "multi-branch";
+  const [custom, setCustom] = useState(false);
+  const [selectedAction, setSelectedAction] = useState(normalizedAction(transition?.outcome ?? ""));
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
@@ -760,11 +845,40 @@ function TransitionForm({
         <Input name="name" defaultValue={transition?.name ?? ""} placeholder="مثلاً تأیید" />
       </div>
       <div>
-        <Label className="mb-2 text-default-600">Outcome</Label>
-        <Input name="outcome" dir="ltr" defaultValue={transition?.outcome ?? ""} placeholder="Approved" />
-        <p className="mt-1 text-[11px] leading-5 text-default-500">
-          برای مراحل شرطی، Outcome مسیرها باید یکتا و مشخص باشد.
-        </p>
+        {isSystemDecision ? (
+          <>
+            <Label className="mb-2 text-default-600">نتیجه تصمیم سیستمی</Label>
+            {isMultiDecision?<Input name="outcome" defaultValue={transition?.outcome??""} placeholder="شناسه خروجی مسیر یا پیش‌فرض" required/>:isGenericDecision?<select name="outcome" defaultValue={transition?.outcome??""} className="w-full rounded-md border bg-background p-2 text-sm" required><option value="">انتخاب نتیجه</option><option value="yes">درست (بله)</option><option value="no">نادرست (خیر)</option></select>:<Input name="outcome" dir="ltr" defaultValue={transition?.outcome ?? ""} placeholder="10" required />}
+            <p className="mt-1 text-xs text-default-500">{isGenericDecision?"مسیر درست و نادرست باید هر دو متصل باشند.":"مقدار نتیجه باید با خروجی تصمیم سیستمی برابر باشد."}</p>
+          </>
+        ) : (
+          <>
+            <Label className="mb-2 text-default-600">اقدام این مسیر</Label>
+            <select
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={custom ? "__custom" : selectedAction}
+              onChange={(event) => {
+                setCustom(event.target.value === "__custom");
+                if (event.target.value !== "__custom") setSelectedAction(event.target.value);
+              }}
+              required
+            >
+              <option value="">یک اقدام انتخاب کنید</option>
+              {actions.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+              {!custom && selectedAction && !actions.some((item) => item.key === selectedAction)
+                ? <option value={selectedAction}>{transition?.name || "اقدام اختصاصی"}</option> : null}
+              <option value="__custom">اقدام اختصاصی / تعریف جدید</option>
+            </select>
+            {custom ? (
+              <><p className="text-xs text-default-500">عنوان مسیر بالا، نام اقدام اختصاصی خواهد بود. شناسه فنی به‌صورت خودکار ساخته می‌شود.</p><input type="hidden" name="outcome" value="" /></>
+            ) : (
+              <input type="hidden" name="outcome" value={selectedAction} />
+            )}
+            <p className="mt-1 text-xs text-default-500">
+              کلید فنی اقدام به‌صورت خودکار ذخیره می‌شود و نیازی به وارد کردن Outcome نیست.
+            </p>
+          </>
+        )}
       </div>
       <div>
         <Label className="mb-2 text-default-600">اولویت</Label>
