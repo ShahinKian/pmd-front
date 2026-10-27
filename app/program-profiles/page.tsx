@@ -3,6 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import { Plus } from "lucide-react";
+import {useSession} from "@/hooks/use-session";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import {profileStatusLabel,type ProgramProfileResponse} from "@/lib/program-profiles/types";
 
@@ -14,6 +15,7 @@ function ProgramName({profile}:{profile:ProgramProfileResponse}){
   return <span className="block max-w-[240px] truncate" title={title||"در حال دریافت نام برنامه"}>{title||"در حال دریافت نام برنامه..."}</span>;
 }
 export default function ProfilesPage(){
+  const {data:session}=useSession();
   const {data,error,isLoading}=useSWR<ProgramProfileResponse[]>("/program-profiles?pageNumber=1&pageSize=50");
   return <DashboardShell>
     <Breadcrumb items={[{label:"داشبورد",href:"/dashboard"},{label:"شناسنامه برنامه"}]}/>
@@ -32,7 +34,7 @@ export default function ProfilesPage(){
           <td style={{padding:12,fontWeight:700}}>{p.mainTopic}</td>
           <td style={{padding:12}}><ProgramName profile={p}/></td>
           <td style={{padding:12}}>{new Date(p.broadcastDate).toLocaleDateString("fa-IR-u-ca-persian")}</td>
-          <td style={{padding:12}}><span className="admin-badge">{profileStatusLabel(p.status,p.statusDisplayName)}</span></td>
+          <td style={{padding:12}}><span className="admin-badge">{profileStatusLabel(p.status,p.statusDisplayName)}</span>{p.createdByUserId!==session?.user?.id&&p.status!==0?<span className="mr-2 inline-block rounded-md border border-green-200 px-2 py-1 text-xs text-green-700">ارجاع‌شده</span>:null}</td>
           <td style={{padding:12}}><Link href={"/program-profiles/"+p.id} className="btn btn-outline">مشاهده</Link></td>
         </tr>)}</tbody>
       </table>
