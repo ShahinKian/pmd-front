@@ -46,6 +46,7 @@ export interface ProgramProfileResponse {
   programTypeName: string;
   status: number;
   statusDisplayName: string;
+  lastReturnReason?: string | null;
   crewMembers: ProfileCrewMember[];
   items: ProfileItem[];
   experts: ProfileExpert[];
