@@ -8,6 +8,7 @@ export interface ForecastResponse {
   id: string;
   planId: number;
   planName?: string | null;
+  lastActionReason?: string | null;
   workflow?: { workflowName: string; currentNodeName: string | null; currentNodeRole: string | null; lastAction: string | null } | null;
   networkId: number;
   networkGroupId: number;
