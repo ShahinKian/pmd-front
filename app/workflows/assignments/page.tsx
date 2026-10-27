@@ -36,6 +36,7 @@ function toPositiveInt(value: string): number | null {
 export default function WorkflowAssignmentsPage() {
   const { data: session } = useSession();
   const { data: workflows } = useSWR<WorkflowDefinition[]>("/workflows");
+  const { data: registry } = useSWR<Array<{key:string;name:string;version:number;fields:Array<{key:string;label:string;type:string}>}>>("/workflows/actions?registry=1");
   const { data: networks } = useSWR<BaseInfoListResponse>("/base-info/networks");
   const {
     data: formTypes,
@@ -63,8 +64,8 @@ export default function WorkflowAssignmentsPage() {
   );
 
   const activeFormTypes = useMemo(
-    () => (formTypes ?? []).filter((item) => item.isActive && registeredKeys.has(item.key)),
-    [formTypes],
+    () => (formTypes ?? []).filter((item) => item.isActive && (registry ?? []).some(r => r.key === item.key)),
+    [formTypes, registry],
   );
 
   const networkOptions = useMemo(
@@ -238,11 +239,11 @@ export default function WorkflowAssignmentsPage() {
             </div>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {registeredForms.map(form => {
+              {(registry ?? []).map(form => {
                 const matched = (formTypes ?? []).find(t => t.key === form.key);
                 return <div key={form.key} className="rounded-lg border bg-default-50 p-4">
-                  <div className="font-semibold">{matched?.name ?? form.title}</div>
-                  <p className="mt-1 text-xs text-default-500">{form.description}</p>
+                  <div className="font-semibold">{matched?.name ?? form.name}</div>
+                  <p className="mt-1 text-xs text-default-500">نسخه قرارداد {form.version} · {form.fields.length} فیلد معتبر</p>
                   <code dir="ltr" className="mt-2 block text-xs">{form.key}</code>
                   <div className="mt-3 text-xs">{matched?.isActive ? "فعال و قابل تخصیص" : matched ? "غیرفعال" : "نیازمند ثبت در پایگاه داده"}</div>
                 </div>;
