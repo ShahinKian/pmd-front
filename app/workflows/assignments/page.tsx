@@ -113,14 +113,14 @@ export default function WorkflowAssignmentsPage() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const payload = {
-      key: String(form.get("key") ?? "").trim(),
+      key: editingFormType?.key ?? `custom-form-${crypto.randomUUID()}`,
       name: String(form.get("name") ?? "").trim(),
       sortOrder: Number(form.get("sortOrder") ?? 0),
       isActive: formTypeActive,
     };
 
-    if (!payload.key || !payload.name) {
-      setMessage({ type: "error", text: "کلید و عنوان نوع فرم الزامی است." });
+    if (!payload.name) {
+      setMessage({ type: "error", text: "عنوان فارسی نوع فرم الزامی است." });
       return;
     }
 
@@ -209,7 +209,7 @@ export default function WorkflowAssignmentsPage() {
                     {editingFormType ? "ویرایش نوع فرم" : "تعریف نوع فرم"}
                   </h2>
                   <p className="mt-1 text-xs text-default-500">
-                    Key برای اتصال نرم‌افزاری ثابت است؛ عنوان فارسی چیزی است که کاربران می‌بینند.
+                    عنوان فارسی فرم را وارد کنید؛ شناسه داخلی به‌طور خودکار ساخته می‌شود و هنگام ویرایش ثابت می‌ماند.
                   </p>
                 </div>
               </div>
@@ -231,19 +231,8 @@ export default function WorkflowAssignmentsPage() {
             <form
               key={editingFormType?.id ?? "new"}
               onSubmit={saveFormType}
-              className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1.4fr_160px_170px_auto]"
+              className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.5fr_160px_170px_auto]"
             >
-              <div>
-                <Label className="mb-2 text-default-600">Key *</Label>
-                <Input
-                  name="key"
-                  dir="ltr"
-                  defaultValue={editingFormType?.key ?? ""}
-                  placeholder="program-profile"
-                  required
-                />
-              </div>
-
               <div>
                 <Label className="mb-2 text-default-600">عنوان فارسی *</Label>
                 <Input
@@ -296,7 +285,7 @@ export default function WorkflowAssignmentsPage() {
                 <thead className="bg-default-50">
                   <tr>
                     <th className="px-4 py-3 text-right">عنوان</th>
-                    <th className="px-4 py-3 text-right">Key</th>
+                    
                     <th className="px-4 py-3 text-right">ترتیب</th>
                     <th className="px-4 py-3 text-right">وضعیت</th>
                     <th className="px-4 py-3 text-right">عملیات</th>
@@ -306,7 +295,7 @@ export default function WorkflowAssignmentsPage() {
                   {(formTypes ?? []).map((item) => (
                     <tr key={item.id} className="border-t hover:bg-default-50">
                       <td className="px-4 py-3 font-medium text-default-700">{item.name}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-default-600" dir="ltr">{item.key}</td>
+                      
                       <td className="px-4 py-3 text-default-600">{item.sortOrder}</td>
                       <td className="px-4 py-3">
                         <span className={item.isActive ? "text-success" : "text-default-400"}>
