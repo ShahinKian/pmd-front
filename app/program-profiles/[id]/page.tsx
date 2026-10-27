@@ -30,23 +30,20 @@ export default function ProfileDetailsPage(){
   const {data:comments,mutate:mutateComments}=useSWR<SupervisorComment[]>("/program-profiles/"+id+"/supervisor-comments");
   const [busy,setBusy]=useState("");
   const [comment,setComment]=useState("");
+  const [returnAction,setReturnAction]=useState<{key:string;label:string}|null>(null);
+  const [returnReason,setReturnReason]=useState("");
   const {data:forecast}=useSWR<{expertIds:string[];topicAxes:{id:string;title:string}[]}>(data?.forecastId?`/forecasts/${data.forecastId}`:null);
   const [message,setMessage]=useState<{type:"error"|"success";text:string}|null>(null);
 
   const activeStageRole=data?roleForStage(data):null;
   const canAct=Boolean(data&&activeStageRole&&(session?.isSystemAdmin||session?.user.roles.includes(activeStageRole)));
-  const canReturn=Boolean(canAct&&data?.status!==PROFILE_STATUS.PendingSupervisor);
+  const returnActions=(permittedActions??[]).filter(x=>/return|reject|بازگشت|ارجاع.*اصلاح/i.test(x.key+" "+x.label));
+  const canReturn=Boolean(returnActions.length);
   const canComment=Boolean(data?.status===PROFILE_STATUS.PendingSupervisor&&activeStageRole&&(session?.isSystemAdmin||session?.user.roles.includes(activeStageRole)));
   const canSubmit=Boolean(data&&(data.status===PROFILE_STATUS.Draft||data.status===PROFILE_STATUS.ReturnedForEdit));
 
   async function action(name:"submit"|"approve"|"return"){
     let payload:unknown=undefined;
-    if(name==="return"){
-      const reason=window.prompt("دلیل بازگشت را وارد کنید:");
-      if(reason===null)return;
-      if(!reason.trim()){setMessage({type:"error",text:"دلیل بازگشت الزامی است."});return;}
-      payload={reason:reason.trim()};
-    }
     setBusy(name);setMessage(null);
     try{
       await apiClient.post("/program-profiles/"+id+"/"+name,payload,{
@@ -58,10 +55,8 @@ export default function ProfileDetailsPage(){
     finally{setBusy("");}
   }
 
-  async function executeCustomAction(actionKey:string,label:string){
+  async function executeCustomAction(actionKey:string,label:string,reason=""){
     if(!/^[a-z0-9-]{1,100}$/.test(actionKey))return;
-    const reason=window.prompt(`توضیحات اقدام «${label}» (اختیاری):`);
-    if(reason===null)return;
     setBusy(actionKey);setMessage(null);
     try{
       await apiClient.post("/program-profiles/"+id+"/actions/"+actionKey,{reason});
@@ -69,6 +64,12 @@ export default function ProfileDetailsPage(){
       setMessage({type:"success",text:"اقدام با موفقیت انجام شد."});
     }catch(error){setMessage({type:"error",text:apiErrorMessage(error,"اجرای اقدام انجام نشد.")});}
     finally{setBusy("");}
+  }
+
+  async function submitReturn(){
+    if(!returnAction||!returnReason.trim()){setMessage({type:"error",text:"علت بازگشت الزامی است."});return;}
+    await executeCustomAction(returnAction.key,returnAction.label,returnReason.trim());
+    setReturnAction(null);setReturnReason("");
   }
 
   async function saveComment(){
@@ -84,9 +85,10 @@ export default function ProfileDetailsPage(){
 
   return <DashboardShell>
     <Breadcrumb items={[{label:"داشبورد",href:"/dashboard"},{label:"شناسنامه برنامه",href:"/program-profiles"},{label:"جزئیات"}]}/>
-    {isLoading?<div className="card">در حال دریافت شناسنامه...</div>:null}
+    {isLoading?<div className="card shadow-sm">در حال دریافت شناسنامه...</div>:null}
     {error?<div className="alert alert-error">دریافت شناسنامه انجام نشد.</div>:null}
     {data?<><div className="page-head"><div><h1 className="page-title">{data.mainTopic}</h1><p className="page-description">{programName||"در حال دریافت نام برنامه..."} — {profileStatusLabel(data.status,data.statusDisplayName)}</p></div><span className="admin-badge">{profileStatusLabel(data.status,data.statusDisplayName)}</span></div>
+      {data.lastReturnReason?<div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-md dark:border-amber-900 dark:bg-amber-950/20"><h2 className="mb-2 font-semibold text-amber-900 dark:text-amber-200">علت بازگشت برای اصلاح</h2><p className="whitespace-pre-wrap text-sm text-amber-900 dark:text-amber-100">{data.lastReturnReason}</p></div>:null}
       <div className="grid grid-2">
         <section className="card"><h2 className="mb-4 border-b border-default-200 pb-3 text-base font-semibold">اطلاعات برنامه</h2>
           <div className="grid gap-3 text-sm sm:grid-cols-2"><p><span className="text-default-500">نوع برنامه: </span>{data.programTypeName}</p><p><span className="text-default-500">نحوه تولید: </span>{data.productionMethod}</p><p><span className="text-default-500">مناسبت: </span>{data.occasion}</p>
@@ -99,8 +101,8 @@ export default function ProfileDetailsPage(){
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
             {canSubmit?<button className="btn btn-primary" onClick={()=>action("submit")} disabled={Boolean(busy)}>{busy==="submit"?<Loader2 size={16}/>:<Send size={16}/>}ارسال به گردش‌کار</button>:null}
             {canAct&&permittedActions?.some(x=>x.key==="approve")?<button className="btn btn-primary" onClick={()=>action("approve")} disabled={Boolean(busy)}>{busy==="approve"?<Loader2 size={16}/>:<CheckCircle2 size={16}/>}تایید مرحله</button>:null}
-            {canReturn&&permittedActions?.some(x=>x.key==="return-for-edit")?<button className="btn btn-outline" onClick={()=>action("return")} disabled={Boolean(busy)}>{busy==="return"?<Loader2 size={16}/>:<Undo2 size={16}/>}بازگشت</button>:null}
-            {(permittedActions??[]).filter(x=>!["submit","approve","return-for-edit"].includes(x.key)).map(x=>
+            {canReturn?returnActions.map(x=><button key={x.transitionId} className="btn border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={()=>setReturnAction({key:x.key,label:x.label})} disabled={Boolean(busy)}><Undo2 size={16}/>{x.label}</button>):null}
+            {(permittedActions??[]).filter(x=>!["submit","approve"].includes(x.key)&&!returnActions.some(r=>r.transitionId===x.transitionId)).map(x=>
               <button key={x.transitionId} className="btn btn-outline" onClick={()=>executeCustomAction(x.key,x.label)} disabled={Boolean(busy)}>{x.label}</button>
             )}
           </div>
@@ -127,6 +129,7 @@ export default function ProfileDetailsPage(){
         {(comments??[]).map(c=><div key={c.id} style={{padding:"10px 0",borderBottom:"1px solid var(--border)"}}><strong>{c.supervisorName}</strong><div className="muted" style={{fontSize:11}}>{new Date(c.createdDate).toLocaleString("fa-IR")}</div><p style={{marginBottom:0}}>{c.comment}</p></div>)}
         {canComment?<div style={{marginTop:16}}><textarea className="input" style={{height:100,paddingTop:10,width:"100%"}} value={comment} onChange={e=>setComment(e.target.value)} placeholder="نظر ناظر را وارد کنید"/><button className="btn btn-primary" style={{marginTop:10}} onClick={saveComment} disabled={busy==="comment"||!comment.trim()}>{busy==="comment"?<Loader2 size={16}/>:<MessageSquare size={16}/>}ثبت نظر ناظر</button></div>:null}
       </section>:null}
+      {returnAction?<div role="dialog" aria-modal="true" aria-label="ثبت علت بازگشت" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"><div className="w-full max-w-lg rounded-xl bg-card p-6 shadow-xl"><h2 className="mb-2 text-lg font-semibold">{returnAction.label}</h2><p className="mb-4 text-sm text-default-500">لطفاً علت بازگشت و موارد لازم برای اصلاح را ثبت کنید.</p><textarea className="input min-h-32 w-full" value={returnReason} onChange={e=>setReturnReason(e.target.value)} placeholder="علت بازگشت..." autoFocus/><div className="mt-5 flex justify-end gap-2"><button type="button" className="btn btn-outline" onClick={()=>setReturnAction(null)}>انصراف</button><button type="button" className="btn bg-amber-500 text-white hover:bg-amber-600" disabled={!returnReason.trim()||Boolean(busy)} onClick={submitReturn}>ثبت بازگشت</button></div></div></div>:null}
       {message?<div className={"alert "+(message.type==="error"?"alert-error":"alert-success")} style={{marginTop:18}}>{message.text}</div>:null}
     </>:null}
   </DashboardShell>;
