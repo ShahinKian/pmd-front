@@ -29,7 +29,8 @@ export default function LoginPage() {
     setLoading(true);
     setMessage("");
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
 
     try {
       await apiClient.post("/auth/login", {
@@ -48,8 +49,9 @@ export default function LoginPage() {
     } catch (error) {
       setMessage(apiErrorMessage(error, "ورود به سامانه انجام نشد."));
       refreshCaptcha();
-      const captchaInput = event.currentTarget.elements.namedItem("captcha");
+      const captchaInput = formElement.elements.namedItem("captcha");
       if (captchaInput instanceof HTMLInputElement) captchaInput.value = "";
+    } finally {
       setLoading(false);
     }
   }
