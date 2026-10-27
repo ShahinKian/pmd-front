@@ -35,7 +35,7 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       icon: Files,
       child: [
         { title: "پیش‌بینی برنامه", href: "/forecasts", icon: ClipBoard },
-        { title: "شناسنامه عملکرد", href: "/program-profiles", icon: Files },
+        { title: "شناسنامه برنامه", href: "/program-profiles", icon: Files },
         { title: "کارشناسان", href: "/experts", icon: Users },
       ],
     },
