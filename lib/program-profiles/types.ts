@@ -73,7 +73,7 @@ export const PROFILE_STATUS = {
 } as const;
 
 export function profileStatusLabel(status: number, displayName?: string): string {
-  if (status === 0) return "نزد تهیه‌کننده (پیش‌نویس)";
+  if (status === 0) return "تهیه‌کننده (پیش‌نویس)";
   if (displayName?.trim()) return displayName;
   switch (status) {
     case 0: return "نزد تهیه‌کننده (پیش‌نویس)";
