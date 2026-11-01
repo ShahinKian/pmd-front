@@ -7,6 +7,7 @@ import { Camera, Loader2, Save, ShieldAlert, UserPlus, UsersRound } from "lucide
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
+import { showToast } from "@/lib/ui/toast";
 import type { RoleResponse } from "@/lib/auth/types";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { roleLabel } from "@/lib/auth/roles";
@@ -205,22 +206,13 @@ export default function NewUserPage() {
         | null
         | undefined;
 
-      setMessage({
-        type: warning ? "error" : "success",
-        text: warning
-          ? `کاربر «${createdName}» ایجاد شد. ${warning}`
-          : `کاربر «${createdName}» با موفقیت ایجاد شد.`,
-      });
+      const successText = warning
+        ? `کاربر «${createdName}» با موفقیت ایجاد شد. ${warning}`
+        : `کاربر «${createdName}» با موفقیت ایجاد شد.`;
 
-      event.currentTarget.reset();
-      setSelectedRoles([]);
-      setSelectedNetworkIds([]);
-      setGroupNetworkId(null);
-      setNetworkGroupId(null);
-      setProviderId(null);
-      setPicture(null);
-      if (picturePreview) URL.revokeObjectURL(picturePreview);
-      setPicturePreview(null);
+      // ایجاد کاربر موفق است حتی اگر بارگذاری عکس هشدار جداگانه داشته باشد.
+      showToast({ type: "success", message: successText }, true);
+      router.push("/users");
     } catch (error) {
       setMessage({
         type: "error",
