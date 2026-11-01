@@ -16,7 +16,7 @@ function pickText(value: unknown): string | null {
   return null;
 }
 
-function extractTitle(data: unknown, planId: number): string {
+function extractTitle(data: unknown): string {
   if (Array.isArray(data)) {
     for (const item of data) {
       const text = pickText(item);
@@ -26,7 +26,7 @@ function extractTitle(data: unknown, planId: number): string {
     const text = pickText(data);
     if (text) return text;
   }
-  return `طرح شماره ${planId}`;
+  return "نام برنامه در دسترس نیست";
 }
 
 export async function GET(request: NextRequest) {
@@ -47,9 +47,9 @@ export async function GET(request: NextRequest) {
     links.map(async (link) => {
       try {
         const detail = await baseInfoService.getPlanDetail(link.planId);
-        return { ...link, title: extractTitle(detail.Data, link.planId) };
+        return { ...link, title: extractTitle(detail.Data) };
       } catch {
-        return { ...link, title: `طرح شماره ${link.planId}` };
+        return { ...link, title: "نام برنامه در دسترس نیست" };
       }
     }),
   );
