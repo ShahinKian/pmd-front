@@ -31,18 +31,19 @@ export default function MyPlansPage() {
       {error ? <div className="alert alert-error">دریافت برنامه‌های تهیه‌کننده انجام نشد.</div> : null}
 
       {data ? (
-        <div className="grid grid-3">
-          {data.map((plan) => (
-            <article className="card" key={plan.planId}>
-              <div className="stat-icon" style={{marginBottom:14}}><FolderKanban size={21}/></div>
-              <h2 style={{fontSize:16,margin:"0 0 8px"}}>{plan.title}</h2>
-              <div className="muted" style={{fontSize:12,marginTop:8,display:"flex",alignItems:"center",gap:6}}>
-                <CalendarClock size={14}/>
-                تاریخ اتصال: {new Date(plan.assignedAt).toLocaleString("fa-IR")}
-              </div>
-            </article>
-          ))}
-        </div>
+        <section className="card" style={{padding:0,overflow:"hidden"}}>
+          <table className="w-full text-right text-sm">
+            <thead className="bg-default-50"><tr><th className="p-3">نام برنامه</th><th className="p-3">تاریخ تخصیص</th></tr></thead>
+            <tbody className="divide-y divide-default-100">
+              {data.map((plan) => (
+                <tr key={plan.planId}>
+                  <td className="p-3"><div className="flex items-center gap-2"><FolderKanban size={18}/><strong>{plan.title}</strong></div></td>
+                  <td className="p-3 muted"><span className="inline-flex items-center gap-2"><CalendarClock size={14}/>{new Date(plan.assignedAt).toLocaleString("fa-IR")}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
       ) : null}
 
       {data?.length === 0 ? (
