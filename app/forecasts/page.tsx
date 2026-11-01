@@ -90,7 +90,7 @@ export default function ForecastsPage() {
           <div><strong>فیلتر پیش‌بینی‌ها</strong><div className="section-kicker">تاریخ‌ها به‌صورت شمسی انتخاب می‌شوند.</div></div>
         </div>
         <div className="form-section-body">
-          <div className="form-grid">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <label className="field">
               <span className="label">وضعیت</span>
               <select className="select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
