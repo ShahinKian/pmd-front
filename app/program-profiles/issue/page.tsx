@@ -15,6 +15,7 @@ type ExternalItem={Id:number;PlanId:number;ItemTitle:string;ItemSubject:string;I
 type ExternalCrew={Id:number;PersonnelId:number|null;PersonnelName:string|null;ActivityTypeId:number;ActivityTypeName:string;BussinessTypeId:number;BussinessTypeName:string;ProgramActivityTypeName:string|null};
 type EditableItem=Item&{rowId:string;subject:string};
 type EditableCrew=Crew&{rowId:string;jobId:number;jobName:string};
+type KeywordOption={id:string;title:string;isGlobal:boolean;networkId:number|null;isActive:boolean};
 function ForecastOption({forecast}:{forecast:ForecastResponse}){
   const {data}=useSWR<{IsSuccess:boolean;Data:{Value:string;Text:string}[]}>(
     forecast.planName?null:`/base-info/plans/${forecast.networkId}?networkGroupId=${forecast.networkGroupId}`
@@ -67,8 +68,12 @@ export default function IssueProfilePage(){
   const {data:forecasts}=useSWR<ForecastResponse[]>("/forecasts?status=3&pageNumber=1&pageSize=100");
   const [forecastId,setForecastId]=useState("");
   const [step,setStep]=useState(0);
-  const stepTitles=["اطلاعات برنامه","آیتم‌های برنامه","عوامل برنامه","محورهای موضوعی","کارشناسان","بررسی و صدور"];
+  const stepTitles=["اطلاعات برنامه","آیتم‌های برنامه","عوامل برنامه","محورهای موضوعی","کارشناسان","کلیدواژه‌ها","بررسی و صدور"];
   const selected=useMemo(()=>forecasts?.find(x=>x.id===forecastId)??null,[forecasts,forecastId]);
+  const {data:keywordOptions}=useSWR<KeywordOption[]>(selected?`/keywords?networkId=${selected.networkId}`:null);
+  const [keywords,setKeywords]=useState<string[]>([]);
+  const [keywordInput,setKeywordInput]=useState("");
+  function addKeyword(value:string){const title=value.trim();if(!title)return;setKeywords(rows=>rows.some(x=>x.toLocaleLowerCase("fa")===title.toLocaleLowerCase("fa"))?rows:[...rows,title]);setKeywordInput("");}
   const {data:experts}=useSWR<ExpertResponse[]>(selected?"/experts?networkId="+selected.networkId+"&pageNumber=1&pageSize=100":null);
   const [newAxes,setNewAxes]=useState<{id:string;title:string}[]>([]);
   const [axisTitle,setAxisTitle]=useState("");
@@ -76,7 +81,7 @@ export default function IssueProfilePage(){
   const availableExperts=(experts??[]).filter(x=>x.isActive||selected?.expertIds?.includes(x.id));
   useEffect(()=>{
     setExpertRows(selected?.expertIds?.map(expertId=>({expertId,topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}))??[]);
-    setNewAxes([]);setAxisTitle("");setStep(0);
+    setNewAxes([]);setAxisTitle("");setKeywords([]);setKeywordInput("");setStep(0);
   },[selected?.id]);
   function editExpert(index:number,patch:Partial<(typeof expertRows)[number]>){
     setExpertRows(rows=>rows.map((row,i)=>i===index?{...row,...patch}:row));
@@ -144,6 +149,8 @@ export default function IssueProfilePage(){
       error="تمام عوامل باید نام و فعالیت معتبر داشته باشند.";
     if(index===4&&expertRows.some(x=>!x.expertId||!x.topicAxisId||durationSeconds(x.duration)<=0))
       error="کارشناس، محور موضوعی و مدت صحبت باید تکمیل شود.";
+    if(index===5&&keywords.length<5)
+      error="حداقل ۵ کلیدواژه برای شناسنامه انتخاب یا وارد کنید.";
     if(error){setMessage(error);return false;}
     setMessage("");return true;
   }
@@ -171,6 +178,7 @@ export default function IssueProfilePage(){
     if(expertRows.some(x=>![...selected.topicAxes,...newAxes].some(axis=>axis.id===x.topicAxisId))){
       setStep(4);setMessage("محور موضوعی کارشناس باید از محورهای پیش‌بینی انتخاب شود.");return;
     }
+    if(keywords.length<5){setStep(5);setMessage("حداقل ۵ کلیدواژه برای شناسنامه الزامی است.");return;}
     if(!externalCrew||!externalItems){setMessage("دریافت عوامل و آیتم‌های طرح کامل نشده است.");return;}
     const crewMembers:Crew[]=crewValid.map(({personnelId,personnelName,activityTypeId,activityTypeName,isPresent})=>({personnelId,personnelName,activityTypeId,activityTypeName,isPresent}));
     if(crewDraft.some(person=>!person.personnelId||!person.personnelName.trim()||!person.activityTypeId||!person.activityTypeName.trim())){setMessage("برای تمام ردیف‌های عوامل، شخص و فعالیت معتبر انتخاب کنید یا ردیف ناقص را حذف کنید.");return;}
@@ -202,6 +210,7 @@ export default function IssueProfilePage(){
         programTypeName:planData.ProgramTypeName,
         crewMembers,
         items,
+        keywords,
       });
       if(expertRows.length){
         try{
@@ -211,7 +220,7 @@ export default function IssueProfilePage(){
             newTopicAxes:newAxes.map(axis=>({id:axis.id,title:axis.title}))
           });
         }catch(error){
-          setStep(5);setMessage("شناسنامه صادر شد، اما ثبت ارتباط کارشناسان ناموفق بود: "+apiErrorMessage(error));
+          setStep(6);setMessage("شناسنامه صادر شد، اما ثبت ارتباط کارشناسان ناموفق بود: "+apiErrorMessage(error));
           return;
         }
       }
@@ -300,13 +309,29 @@ export default function IssueProfilePage(){
         </div>)}{!expertRows.length?<p className="py-6 text-center text-default-500">کارشناسی اضافه نشده است. در صورت نیاز از «افزودن کارشناس» استفاده کنید.</p>:null}</div>
       </section>
       <section className={step===5?"rounded-xl border border-default-200 p-5":"hidden"}>
+        <h2 className="mb-2 font-semibold">کلیدواژه‌های شناسنامه *</h2>
+        <p className="mb-4 text-sm text-default-500">حداقل ۵ کلیدواژه الزامی است. موارد جدید پس از ثبت برای همان شبکه نیز قابل استفاده خواهند بود.</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {(keywordOptions??[]).map(item=>{
+            const active=keywords.some(x=>x.toLocaleLowerCase("fa")===item.title.toLocaleLowerCase("fa"));
+            return <button type="button" key={item.id} onClick={()=>active?setKeywords(rows=>rows.filter(x=>x.toLocaleLowerCase("fa")!==item.title.toLocaleLowerCase("fa"))):addKeyword(item.title)}
+              className={`rounded-full border px-3 py-1.5 text-sm ${active?"border-green-500 bg-green-50 text-green-700":"border-default-200 hover:bg-default-50"}`}>
+              {item.title}{item.isGlobal?" · سراسری":""}
+            </button>;
+          })}
+        </div>
+        <div className="flex gap-2"><input className="input" value={keywordInput} onChange={e=>setKeywordInput(e.target.value)} placeholder="کلیدواژه جدید"/><button type="button" className="btn btn-outline" onClick={()=>addKeyword(keywordInput)}><Plus size={15}/>افزودن</button></div>
+        <div className="mt-4 flex flex-wrap gap-2">{keywords.map(title=><span key={title} className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1.5 text-sm text-green-800">{title}<button type="button" onClick={()=>setKeywords(rows=>rows.filter(x=>x!==title))}><X size={13}/></button></span>)}</div>
+        <div className={`mt-3 text-sm ${keywords.length>=5?"text-green-700":"text-red-600"}`}>{keywords.length} از حداقل ۵ کلیدواژه انتخاب شده است.</div>
+      </section>
+      <section className={step===6?"rounded-xl border border-default-200 p-5":"hidden"}>
         <h2 className="mb-4 font-semibold">بازبینی و صدور شناسنامه</h2>
-        <div className="grid gap-3 text-sm md:grid-cols-2"><p>برنامه: {selected?.planName||selected?.mainTopic||"انتخاب نشده"}</p><p>مدت: {programDuration||"وارد نشده"}</p><p>آیتم‌ها: {itemsDraft.length} مورد</p><p>عوامل: {crewDraft.length} نفر</p><p>کارشناسان: {expertRows.length} ارتباط</p><p>ساعت شروع: {startTime||"وارد نشده"}</p></div>
+        <div className="grid gap-3 text-sm md:grid-cols-2"><p>برنامه: {selected?.planName||selected?.mainTopic||"انتخاب نشده"}</p><p>مدت: {programDuration||"وارد نشده"}</p><p>آیتم‌ها: {itemsDraft.length} مورد</p><p>عوامل: {crewDraft.length} نفر</p><p>کارشناسان: {expertRows.length} ارتباط</p><p>کلیدواژه‌ها: {keywords.length} مورد</p><p>ساعت شروع: {startTime||"وارد نشده"}</p></div>
       </section>
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
       <div className="mt-6 flex items-center justify-between border-t border-default-200 pt-4">
         <button type="button" className="btn btn-outline" disabled={step===0||saving} onClick={()=>goToStep(Math.max(0,step-1))}><ChevronUp size={16}/> مرحله قبل</button>
-        {step<5?<button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>goToStep(Math.min(5,step+1))}>مرحله بعد <ChevronDown size={16}/></button>
+        {step<6?<button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>goToStep(Math.min(6,step+1))}>مرحله بعد <ChevronDown size={16}/></button>
         :<button className="btn btn-primary" disabled={saving}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button>}
       </div>
     </form>
