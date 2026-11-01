@@ -53,6 +53,7 @@ export interface ProgramProfileResponse {
   createdByUserId: string;
   createdByUserName: string;
   createdDate: string;
+  keywords?: string[];
 }
 
 export interface SupervisorComment {
