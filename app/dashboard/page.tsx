@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
+import type { EnrichedProviderPlan } from "@/lib/plan-providers/types";
 
 interface DashboardSummary {
   totalForecasts: number;
@@ -31,6 +32,19 @@ export default function DashboardPage() {
     error: summaryError,
     isLoading: summaryLoading,
   } = useSWR<DashboardSummary>(session ? "/reports/dashboard-summary" : null);
+
+  const isProvider = session?.user.roles.includes("Providers") ?? false;
+  const { data: providerPlans } = useSWR<EnrichedProviderPlan[]>(
+    isProvider ? "/plan-providers/my/plans/enriched" : null,
+  );
+
+  const assignedNetworkCount = isProvider
+    ? new Set(
+        (providerPlans ?? [])
+          .map(plan => plan.networkId)
+          .filter((id): id is number => typeof id === "number" && id > 0),
+      ).size
+    : (session?.user.networkIds.length ?? 0);
 
   const cards = summary ? [
     {
@@ -104,8 +118,8 @@ export default function DashboardPage() {
             <div className="card stat-card shadow-sm">
               <div className="stat-icon"><Network size={22}/></div>
               <div>
-                <div className="stat-label">شبکه‌های تخصیص‌یافته</div>
-                <div className="stat-value">{session.user.networkIds.length}</div>
+                <div className="stat-label">{isProvider ? "شبکه‌های دارای برنامه" : "شبکه‌های تخصیص‌یافته"}</div>
+                <div className="stat-value">{assignedNetworkCount}</div>
               </div>
             </div>
           </div>
