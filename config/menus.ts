@@ -59,7 +59,7 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
         ...(isProvider
           ? [{ title: "برنامه‌های من", href: "/my-plans", icon: Files }]
           : []),
-        ...(session?.isSystemAdmin
+        ...(session
           ? [{ title: "کلیدواژه‌ها", href: "/keywords", icon: ClipBoard }]
           : []),
       ],
