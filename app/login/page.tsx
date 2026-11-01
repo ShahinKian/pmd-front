@@ -17,10 +17,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [captchaVersion, setCaptchaVersion] = useState(0);
+  const [captchaFailed, setCaptchaFailed] = useState(false);
 
   useEffect(() => { refreshCaptcha(); }, []);
 
   function refreshCaptcha() {
+    setCaptchaFailed(false);
     setCaptchaVersion(Date.now());
   }
 
@@ -143,13 +145,18 @@ export default function LoginPage() {
                   <div className="rounded-xl border bg-default-50 p-3">
                     <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1 overflow-hidden rounded-lg border bg-white">
-                        {captchaVersion > 0 ? <img
+                        {captchaVersion > 0 && !captchaFailed ? <img
                           key={captchaVersion}
                           src={"/api/auth/captcha?v=" + captchaVersion}
                           alt="کد امنیتی"
                           className="h-[66px] w-full object-cover"
                           draggable={false}
-                        /> : <div className="h-[66px]" aria-label="در حال دریافت کد امنیتی" />}
+                          onError={() => setCaptchaFailed(true)}
+                        /> : captchaFailed ? (
+                          <div className="flex h-[66px] items-center justify-center px-3 text-center text-xs text-red-600">
+                            دریافت کد امنیتی ناموفق بود
+                          </div>
+                        ) : <div className="h-[66px]" aria-label="در حال دریافت کد امنیتی" />}
                       </div>
 
                       <Button
