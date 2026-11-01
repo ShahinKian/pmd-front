@@ -25,6 +25,11 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
   const canManagePrograms = Boolean(
     session?.isSystemAdmin || roles.includes("PlanManager"),
   );
+  const canManageKeywords = Boolean(
+    session?.isSystemAdmin
+      || roles.includes("PlanManager")
+      || roles.includes("NetworkManager"),
+  );
 
   return [
     {
@@ -59,7 +64,7 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
         ...(isProvider
           ? [{ title: "برنامه‌های من", href: "/my-plans", icon: Files }]
           : []),
-        ...(session
+        ...(canManageKeywords
           ? [{ title: "کلیدواژه‌ها", href: "/keywords", icon: ClipBoard }]
           : []),
       ],
