@@ -90,7 +90,7 @@ export function clearCaptchaCookie(response: NextResponse, secure = process.env.
   response.cookies.set(CAPTCHA_COOKIE, "", {
     httpOnly: true,
     sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
+    secure,
     path: "/api/auth",
     expires: new Date(0),
   });
