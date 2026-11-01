@@ -21,7 +21,7 @@ export function applyAuthCookies(response: NextResponse, auth: AuthResponse, sec
   response.cookies.set(REFRESH_TOKEN_COOKIE, auth.refreshToken, common(secure));
 }
 
-export function clearAuthCookies(response: NextResponse, secure: boolean): void {
+export function clearAuthCookies(response: NextResponse, secure = false): void {
   response.cookies.set(ACCESS_TOKEN_COOKIE, "", { ...common(secure), expires: new Date(0) });
   response.cookies.set(REFRESH_TOKEN_COOKIE, "", { ...common(secure), expires: new Date(0) });
 }
