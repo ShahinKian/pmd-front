@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { applyAuthCookies } from "@/lib/auth/cookies";
-import { isSameOriginRequest } from "@/lib/auth/security";
+import { isSameOriginRequest, isSecureRequest } from "@/lib/auth/security";
 import type { AuthResponse } from "@/lib/auth/types";
 import { readUpstreamBody } from "@/lib/auth/upstream";
 import { pmdFetch } from "@/lib/pmd-api/client";
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       { message: "کد امنیتی صحیح نیست یا منقضی شده است." },
       { status: 400 },
     );
-    clearCaptchaCookie(response);
+    clearCaptchaCookie(response, isSecureRequest(request));
     return response;
   }
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   const payload = await readUpstreamBody(upstream);
   if (!upstream.ok) {
     const response = NextResponse.json(payload, { status: upstream.status });
-    clearCaptchaCookie(response);
+    clearCaptchaCookie(response, isSecureRequest(request));
     return response;
   }
 
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     providerId: auth.providerId,
   });
 
-  applyAuthCookies(response, auth);
-  clearCaptchaCookie(response);
+  applyAuthCookies(response, auth, isSecureRequest(request));
+  clearCaptchaCookie(response, isSecureRequest(request));
   return response;
 }
