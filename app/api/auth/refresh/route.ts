@@ -6,7 +6,7 @@ import {
   applyAuthCookies,
   clearAuthCookies,
 } from "@/lib/auth/cookies";
-import { isSameOriginRequest } from "@/lib/auth/security";
+import { isSameOriginRequest, isSecureRequest } from "@/lib/auth/security";
 import type { AuthResponse } from "@/lib/auth/types";
 import { readUpstreamBody } from "@/lib/auth/upstream";
 import { pmdFetch } from "@/lib/pmd-api/client";
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
   if (!accessToken || !refreshToken) {
     const response = NextResponse.json({ message: "نشست معتبر نیست." }, { status: 401 });
-    clearAuthCookies(response);
+    clearAuthCookies(response, isSecureRequest(request));
     return response;
   }
 
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   const payload = await readUpstreamBody(upstream);
   if (!upstream.ok) {
     const response = NextResponse.json(payload, { status: upstream.status });
-    clearAuthCookies(response);
+    clearAuthCookies(response, isSecureRequest(request));
     return response;
   }
 
@@ -46,6 +46,6 @@ export async function POST(request: NextRequest) {
     providerId: auth.providerId,
   });
 
-  applyAuthCookies(response, auth);
+  applyAuthCookies(response, auth, isSecureRequest(request));
   return response;
 }
