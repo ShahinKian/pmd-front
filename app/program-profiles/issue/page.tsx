@@ -66,10 +66,11 @@ type PlanDetailResponse={IsSuccess:boolean;Data:PlanDetail|null;Message:string|n
 export default function IssueProfilePage(){
   const router=useRouter();
   const {data:forecasts}=useSWR<ForecastResponse[]>("/forecasts?status=3&pageNumber=1&pageSize=100");
+  const availableForecasts=useMemo(()=>forecasts?.filter(x=>!x.hasProfile)??[],[forecasts]);
   const [forecastId,setForecastId]=useState("");
   const [step,setStep]=useState(0);
   const stepTitles=["اطلاعات برنامه","آیتم‌های برنامه","عوامل برنامه","محورهای موضوعی","کارشناسان","کلیدواژه‌ها","بررسی و صدور"];
-  const selected=useMemo(()=>forecasts?.find(x=>x.id===forecastId)??null,[forecasts,forecastId]);
+  const selected=useMemo(()=>availableForecasts.find(x=>x.id===forecastId)??null,[availableForecasts,forecastId]);
   const {data:keywordOptions}=useSWR<KeywordOption[]>(selected?`/keywords?networkId=${selected.networkId}`:null);
   const [keywords,setKeywords]=useState<string[]>([]);
   const [keywordInput,setKeywordInput]=useState("");
@@ -247,7 +248,7 @@ export default function IssueProfilePage(){
         <label className="field md:col-span-3"><span className="label">پیش‌بینی تأییدشده *</span>
           <select className="select" value={forecastId} onChange={e=>setForecastId(e.target.value)} required>
             <option value="">انتخاب نام برنامه، موضوع و شماره قسمت</option>
-            {(forecasts??[]).map(x=><ForecastOption key={x.id} forecast={x}/>)}
+            {availableForecasts.map(x=><ForecastOption key={x.id} forecast={x}/>)}
           </select>
         </label>
         <label className="field"><span className="label">مدت برنامه (ساعت:دقیقه)</span><input className={"input bg-default-50 "+(fieldErrors.duration?"border-red-500":"")} dir="ltr" value={programDuration} readOnly placeholder="از اطلاعات پایه طرح"/>{fieldErrors.duration?<span className="text-xs text-red-600">{fieldErrors.duration}</span>:null}</label>
