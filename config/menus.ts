@@ -20,8 +20,10 @@ export interface PmdMenuItem {
 }
 
 export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
-  const canManagePlanProviders = Boolean(
-    session?.isSystemAdmin || session?.user.roles.includes("PlanManager"),
+  const roles = session?.user.roles ?? [];
+  const isProvider = roles.includes("Providers");
+  const canManagePrograms = Boolean(
+    session?.isSystemAdmin || roles.includes("PlanManager"),
   );
 
   return [
@@ -36,20 +38,39 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       child: [
         { title: "پیش‌بینی برنامه", href: "/forecasts", icon: ClipBoard },
         { title: "شناسنامه برنامه", href: "/program-profiles", icon: Files },
-        { title: "کارشناسان", href: "/experts", icon: Users },
       ],
     },
-    ...(session?.user.roles.includes("Providers") || canManagePlanProviders
+    {
+      title: "گزارشات",
+      icon: Graph,
+      child: [
+        { title: "پیش‌بینی‌های تاییدشده", href: "/reports/approved-forecasts", icon: ClipBoard },
+        { title: "گزارش شناسنامه‌ها", href: "/reports/program-profiles", icon: Files },
+      ],
+    },
+    {
+      title: "اطلاعات پایه",
+      icon: Building2,
+      child: [
+        { title: "کارشناسان", href: "/experts", icon: Users },
+        ...(canManagePrograms
+          ? [{ title: "برنامه‌های شبکه", href: "/plan-providers", icon: Building }]
+          : []),
+        ...(isProvider
+          ? [{ title: "برنامه‌های من", href: "/my-plans", icon: Files }]
+          : []),
+        ...(session?.isSystemAdmin
+          ? [{ title: "کلیدواژه‌ها", href: "/keywords", icon: ClipBoard }]
+          : []),
+      ],
+    },
+    ...(session?.isSystemAdmin
       ? [{
-          title: "طرح و تهیه‌کننده",
-          icon: Building2,
+          title: "فرآیندها",
+          icon: Graph,
           child: [
-            ...(session?.user.roles.includes("Providers")
-              ? [{ title: "طرح‌های من", href: "/my-plans", icon: Files }]
-              : []),
-            ...(canManagePlanProviders
-              ? [{ title: "تخصیص طرح به تهیه‌کننده", href: "/plan-providers", icon: Building }]
-              : []),
+            { title: "تعریف فرآیند", href: "/workflows", icon: Graph },
+            { title: "تخصیص فرآیند", href: "/workflows/assignments", icon: Settings },
           ],
         }]
       : []),
@@ -60,9 +81,6 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
           child: [
             { title: "کاربران", href: "/users", icon: Users },
             { title: "تعریف کاربر", href: "/users/new", icon: Users },
-            { title: "ویرایش دسترسی", href: "/users/manage", icon: Settings },
-            { title: "مدیریت Workflow", href: "/workflows", icon: Graph },
-            { title: "تخصیص Workflow", href: "/workflows/assignments", icon: Settings },
           ],
         }]
       : []),
