@@ -5,6 +5,7 @@ import { authenticatedPmdFetch } from "@/lib/auth/request";
 import { isSystemAdmin, roleLabel } from "@/lib/auth/roles";
 import type { UserProfileResponse } from "@/lib/auth/types";
 import { readUpstreamBody } from "@/lib/auth/upstream";
+import { isSecureRequest } from "@/lib/auth/security";
 
 export async function GET(request: NextRequest) {
   const { response: upstream } = await authenticatedPmdFetch(request, "/api/auth/profile");
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   if (!upstream.ok) {
     const response = NextResponse.json(body, { status: upstream.status });
-    if (upstream.status === 401) clearAuthCookies(response);
+    if (upstream.status === 401) clearAuthCookies(response, isSecureRequest(request));
     return response;
   }
 
