@@ -231,28 +231,43 @@ export default function PlanProvidersPage() {
                   })}
                 </select>
               </label>
-              <label className="field">
-                <span className="label">برنامه *</span>
-                <select
-                  className="select"
-                  value={planId ?? ""}
-                  onChange={(event) => changePlan(event.target.value)}
-                  disabled={!networkGroupId || plansLoading}
-                >
-                  <option value="">
-                    {plansLoading ? "در حال دریافت برنامه‌ها..." : "انتخاب برنامه"}
-                  </option>
-                  {planOptions.map((plan) => (
-                    <option key={plan.id} value={plan.id} disabled={plan.disabled}>
-                      {plan.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
           </section>
 
           {groupsError || plansError || providersError ? <div className="alert alert-error">دریافت اطلاعات پایه ناموفق بود؛ لطفاً اتصال سرویس و دسترسی‌های خود را بررسی کنید.</div> : null}
+
+          {networkGroupId ? (
+            <section className="card" style={{padding:0,overflow:"hidden",marginBottom:18}}>
+              <div style={{padding:18,borderBottom:"1px solid var(--border)"}}>
+                <strong>فهرست برنامه‌های شبکه</strong>
+                <div className="muted" style={{fontSize:12,marginTop:4}}>برای مدیریت تهیه‌کننده، روی «تهیه‌کننده برنامه» کلیک کنید.</div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-default-50"><tr><th className="p-3">نام برنامه</th><th className="p-3">عملیات</th></tr></thead>
+                  <tbody className="divide-y divide-default-100">
+                    {planOptions.map(plan => (
+                      <tr key={plan.id} className={planId===plan.id?"bg-green-50/60":""}>
+                        <td className="p-3 font-semibold">{plan.label}</td>
+                        <td className="p-3">
+                          <button
+                            type="button"
+                            className={planId===plan.id?"btn btn-primary":"btn btn-outline"}
+                            disabled={plan.disabled}
+                            onClick={()=>changePlan(String(plan.id))}
+                          >
+                            <UsersRound size={16}/>تهیه‌کننده برنامه
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {plansLoading?<div className="p-5 muted">در حال دریافت برنامه‌ها...</div>:null}
+              {!plansLoading&&planOptions.length===0?<div className="p-6 text-center muted">برنامه‌ای برای این گروه دریافت نشد.</div>:null}
+            </section>
+          ) : null}
 
           {planId ? (
             <div className="grid grid-2">
