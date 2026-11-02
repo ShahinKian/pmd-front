@@ -6,9 +6,12 @@ import { Link2, Loader2, Save, Trash2, UsersRound } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
+import { showToast } from "@/lib/ui/toast";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import type { PlanProviderLink } from "@/lib/plan-providers/types";
 import { Switch } from "@/components/ui/switch";
+
+import { normalizeSearch } from "@/lib/base-info/search";
 
 function toPositiveInt(value: string): number | null {
   const parsed = Number(value);
@@ -29,9 +32,9 @@ export default function PlanProvidersPage() {
   const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
   const [planId, setPlanId] = useState<number | null>(null);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
+  const [providerSearch, setProviderSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingProviderId, setDeletingProviderId] = useState<number | null>(null);
-  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const groupsUrl = networkId ? `/base-info/network-groups/${networkId}` : null;
   const plansUrl = networkId && networkGroupId ? `/base-info/plans/${networkId}?networkGroupId=${networkGroupId}` : null;
@@ -88,6 +91,10 @@ export default function PlanProvidersPage() {
     [providers],
   );
 
+  const search = normalizeSearch(providerSearch);
+  const matchingProviders = search ? providerOptions.filter(provider => normalizeSearch(provider.label).includes(search)) : [];
+  const visibleProviders = providerOptions.filter(provider => selectedProviderIds.includes(provider.id) || matchingProviders.slice(0, 30).some(match => match.id === provider.id));
+
   const assignedIds = useMemo(
     () => new Set((assignments ?? []).map((item) => item.providerId)),
     [assignments],
@@ -96,22 +103,22 @@ export default function PlanProvidersPage() {
   function changeNetwork(value: string) {
     setNetworkId(toPositiveInt(value));
     setNetworkGroupId(null);
+    setProviderSearch("");
     setPlanId(null);
     setSelectedProviderIds([]);
-    setMessage(null);
   }
 
   function changeGroup(value: string) {
     setNetworkGroupId(toPositiveInt(value));
+    setProviderSearch("");
     setPlanId(null);
     setSelectedProviderIds([]);
-    setMessage(null);
   }
 
   function changePlan(value: string) {
+    setProviderSearch("");
     setPlanId(toPositiveInt(value));
     setSelectedProviderIds([]);
-    setMessage(null);
   }
 
   function toggleProvider(providerId: number) {
@@ -124,23 +131,22 @@ export default function PlanProvidersPage() {
 
   async function addProviders() {
     if (!planId || selectedProviderIds.length === 0) {
-      setMessage({ type: "error", text: "حداقل یک تهیه‌کننده برای طرح انتخاب کنید." });
+      showToast({ type: "error", message: "حداقل یک تهیه‌کننده برای برنامه انتخاب کنید." });
       return;
     }
 
     setSaving(true);
-    setMessage(null);
     try {
       await apiClient.post(`/plan-providers/plans/${planId}/providers`, {
         providerIds: selectedProviderIds,
       });
       setSelectedProviderIds([]);
       await mutateAssignments();
-      setMessage({ type: "success", text: "ارتباط تهیه‌کننده‌ها با طرح با موفقیت ثبت شد." });
+      showToast({ type: "success", message: "تهیه‌کننده‌های برنامه با موفقیت ثبت شدند." });
     } catch (error) {
-      setMessage({
+      showToast({
         type: "error",
-        text: apiErrorMessage(error, "ثبت ارتباط طرح و تهیه‌کننده انجام نشد."),
+        message: apiErrorMessage(error, "ثبت تهیه‌کننده برنامه انجام نشد."),
       });
     } finally {
       setSaving(false);
@@ -151,17 +157,16 @@ export default function PlanProvidersPage() {
     if (!planId) return;
 
     setDeletingProviderId(providerId);
-    setMessage(null);
     try {
       await apiClient.delete(
         `/plan-providers/plans/${planId}/providers/${providerId}`,
       );
       await mutateAssignments();
-      setMessage({ type: "success", text: "ارتباط تهیه‌کننده از طرح حذف شد." });
+      showToast({ type: "success", message: "تهیه‌کننده از برنامه حذف شد." });
     } catch (error) {
-      setMessage({
+      showToast({
         type: "error",
-        text: apiErrorMessage(error, "حذف ارتباط انجام نشد."),
+        message: apiErrorMessage(error, "حذف تهیه‌کننده از برنامه انجام نشد."),
       });
     } finally {
       setDeletingProviderId(null);
@@ -173,15 +178,15 @@ export default function PlanProvidersPage() {
       <Breadcrumb
         items={[
           { label: "داشبورد", href: "/dashboard" },
-          { label: "ارتباط طرح و تهیه‌کننده" },
+          { label: "برنامه‌های شبکه" },
         ]}
       />
 
       <div className="page-head">
         <div>
-          <h1 className="page-title">ارتباط طرح و تهیه‌کننده</h1>
+          <h1 className="page-title">برنامه‌های شبکه</h1>
           <p className="page-description">
-            تخصیص یک یا چند تهیه‌کننده به طرح‌های برنامه بر اساس شبکه
+            مشاهده برنامه‌های شبکه و تخصیص یک یا چند تهیه‌کننده به هر برنامه
           </p>
         </div>
       </div>
@@ -236,28 +241,43 @@ export default function PlanProvidersPage() {
                   })}
                 </select>
               </label>
-              <label className="field">
-                <span className="label">طرح *</span>
-                <select
-                  className="select"
-                  value={planId ?? ""}
-                  onChange={(event) => changePlan(event.target.value)}
-                  disabled={!networkGroupId || plansLoading}
-                >
-                  <option value="">
-                    {plansLoading ? "در حال دریافت طرح‌ها..." : "انتخاب طرح"}
-                  </option>
-                  {planOptions.map((plan) => (
-                    <option key={plan.id} value={plan.id} disabled={plan.disabled}>
-                      {plan.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </div>
           </section>
 
           {groupsError || plansError || providersError ? <div className="alert alert-error">دریافت اطلاعات پایه ناموفق بود؛ لطفاً اتصال سرویس و دسترسی‌های خود را بررسی کنید.</div> : null}
+
+          {networkGroupId ? (
+            <section className="card" style={{padding:0,overflow:"hidden",marginBottom:18}}>
+              <div style={{padding:18,borderBottom:"1px solid var(--border)"}}>
+                <strong>فهرست برنامه‌های شبکه</strong>
+                <div className="muted" style={{fontSize:12,marginTop:4}}>برای مدیریت تهیه‌کننده، روی «تهیه‌کننده برنامه» کلیک کنید.</div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-default-50"><tr><th className="p-3">نام برنامه</th><th className="p-3">عملیات</th></tr></thead>
+                  <tbody className="divide-y divide-default-100">
+                    {planOptions.map(plan => (
+                      <tr key={plan.id} className={planId===plan.id?"bg-green-50/60":""}>
+                        <td className="p-3 font-semibold">{plan.label}</td>
+                        <td className="p-3">
+                          <button
+                            type="button"
+                            className={planId===plan.id?"btn btn-primary":"btn btn-outline"}
+                            disabled={plan.disabled}
+                            onClick={()=>changePlan(String(plan.id))}
+                          >
+                            <UsersRound size={16}/>تهیه‌کننده برنامه
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {plansLoading?<div className="p-5 muted">در حال دریافت برنامه‌ها...</div>:null}
+              {!plansLoading&&planOptions.length===0?<div className="p-6 text-center muted">برنامه‌ای برای این گروه دریافت نشد.</div>:null}
+            </section>
+          ) : null}
 
           {planId ? (
             <div className="grid grid-2">
@@ -276,8 +296,11 @@ export default function PlanProvidersPage() {
                   <div className="muted">در حال دریافت تهیه‌کننده‌ها...</div>
                 ) : null}
 
+                <input className="input mb-3" aria-label="جست‌وجوی تهیه‌کننده" placeholder="نام تهیه‌کننده را جست‌وجو کنید..." value={providerSearch} onChange={event => setProviderSearch(event.target.value)} />
+                {!search ? <p className="muted mb-3">برای نمایش تهیه‌کنندگان، نام را جست‌وجو کنید.</p> : !providersLoading && !providersError && !matchingProviders.length ? <p className="muted mb-3">تهیه‌کننده‌ای یافت نشد.</p> : null}
+                {matchingProviders.length > 30 ? <p className="muted mb-3">۳۰ نتیجه از {matchingProviders.length}؛ جست‌وجو را دقیق‌تر کنید.</p> : null}
                 <div className="role-grid">
-                  {providerOptions.map((provider) => {
+                  {visibleProviders.map((provider) => {
                     const alreadyAssigned = assignedIds.has(provider.id);
                     const active =
                       alreadyAssigned || selectedProviderIds.includes(provider.id);
@@ -286,7 +309,7 @@ export default function PlanProvidersPage() {
                       <div className={`role-card ${active ? "active" : ""}`} key={provider.id}>
                         <div className="role-title">
                           <strong>{provider.label}</strong>
-                          <small>{alreadyAssigned ? "قبلاً به طرح متصل شده" : `ProviderId: ${provider.id}`}</small>
+                          <small>{alreadyAssigned ? "قبلاً به برنامه متصل شده" : "آماده تخصیص"}</small>
                         </div>
                         <Switch
                           checked={active}
@@ -320,9 +343,9 @@ export default function PlanProvidersPage() {
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
                   <div className="stat-icon"><Link2 size={20}/></div>
                   <div>
-                    <strong>تهیه‌کننده‌های فعلی طرح</strong>
+                    <strong>تهیه‌کننده‌های فعلی برنامه</strong>
                     <div className="muted" style={{fontSize:12,marginTop:3}}>
-                      ارتباط‌های ثبت‌شده در PlanProvider
+                      تخصیص‌های ثبت‌شده برای این برنامه
                     </div>
                   </div>
                 </div>
@@ -349,10 +372,7 @@ export default function PlanProvidersPage() {
                     >
                       <div>
                         <div style={{fontWeight:700}}>
-                          {provider?.label ?? `تهیه‌کننده شماره ${assignment.providerId}`}
-                        </div>
-                        <div className="muted" style={{fontSize:11,marginTop:4}}>
-                          ProviderId: {assignment.providerId}
+                          {provider?.label ?? "تهیه‌کننده"}
                         </div>
                       </div>
 
@@ -374,25 +394,17 @@ export default function PlanProvidersPage() {
 
                 {assignments?.length === 0 && !assignmentsLoading ? (
                   <div className="muted" style={{textAlign:"center",padding:28}}>
-                    هنوز تهیه‌کننده‌ای به این طرح متصل نشده است.
+                    هنوز تهیه‌کننده‌ای به این برنامه تخصیص داده نشده است.
                   </div>
                 ) : null}
               </section>
             </div>
           ) : (
             <section className="card" style={{textAlign:"center",padding:32}}>
-              ابتدا شبکه، گروه و سپس طرح را انتخاب کنید.
+              ابتدا شبکه، گروه و سپس برنامه را انتخاب کنید.
             </section>
           )}
 
-          {message ? (
-            <div
-              className={`alert ${message.type === "error" ? "alert-error" : "alert-success"}`}
-              style={{marginTop:18}}
-            >
-              {message.text}
-            </div>
-          ) : null}
         </>
       ) : null}
     </DashboardShell>

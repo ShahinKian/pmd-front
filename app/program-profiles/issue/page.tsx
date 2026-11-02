@@ -1,99 +1,478 @@
 "use client";
 
-import {FormEvent,useMemo,useState} from "react";
+import {FormEvent,useEffect,useMemo,useRef,useState} from "react";
 import {useRouter} from "next/navigation";
 import useSWR from "swr";
-import {Loader2,Save} from "lucide-react";
+import {RefreshCcw,Loader2,Save,Trash2,Clock3,Users,Layers3,Plus,PenLine,Check, X, UserRound,ChevronDown,ChevronUp} from "lucide-react";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import {apiClient,apiErrorMessage} from "@/lib/http/client";
 import type {ForecastResponse} from "@/lib/forecasts/types";
-import type {BaseInfoListResponse} from "@/lib/base-info/browser-types";
+import type {ExpertResponse} from "@/lib/experts/types";
+
+import { isSoundOperator, restoreMissing, type ProfileDraft, type SavedProfileDraft, type DraftSummary } from "@/lib/program-profiles/draft";
 
 type Crew={personnelId:number;personnelName:string;activityTypeId:number;activityTypeName:string;isPresent:boolean};
 type Item={itemName:string;productionType:string;duration:string};
+type ExternalItem={Id:number;PlanId:number;ItemTitle:string;ItemSubject:string;ItemPeriod:string};
+type ExternalCrew={Id:number;PersonnelId:number|null;PersonnelName:string|null;ActivityTypeId:number;ActivityTypeName:string;BussinessTypeId:number;BussinessTypeName:string;ProgramActivityTypeName:string|null};
+type EditableItem=Item&{rowId:string;subject:string};
+type EditableCrew=Crew&{rowId:string;jobId:number;jobName:string};
+type KeywordOption={id:string;title:string;isGlobal:boolean;networkId:number|null;isActive:boolean};
+function ForecastOption({forecast}:{forecast:ForecastResponse}){
+  const {data}=useSWR<{IsSuccess:boolean;Data:{Value:string;Text:string}[]}>(
+    forecast.planName?null:`/base-info/plans/${forecast.networkId}?networkGroupId=${forecast.networkGroupId}`
+  );
+  const name=forecast.planName?.trim()||data?.Data?.find(x=>Number(x.Value)===forecast.planId)?.Text;
+  return <option value={forecast.id} disabled={!name}>{name||"در حال دریافت نام برنامه..."} | {forecast.mainTopic} | قسمت {forecast.episodeNumber}</option>;
+}
+type PersonnelResponse={IsSuccess:boolean;Data:{Value:string;Text:string;Disabled:boolean}[];Message:string|null};
+function PersonnelPicker({networkId,jobId,value,onChange}:{networkId:number;jobId:number;value:number;onChange:(id:number,name:string)=>void}){
+  const {data,error,isLoading,mutate}=useSWR<PersonnelResponse>(jobId>0&&networkId>0?`/base-info/program-makers?jobId=${jobId}&networkId=${networkId}`:null);
+  const options=data?.IsSuccess?data.Data:[];
+  return <div><select className="select" value={value||""} disabled={!jobId||isLoading} onChange={e=>{
+    const id=Number(e.target.value);const selected=options.find(x=>Number(x.Value)===id);
+    onChange(id,selected?.Text??"");
+  }}>
+    <option value="">{isLoading?"در حال دریافت...":"انتخاب عامل"}</option>
+    {value>0&&!options.some(x=>Number(x.Value)===value)?<option value={value}>عامل فعلی (شناسه {value})</option>:null}
+    {options.map(x=><option key={x.Value} value={x.Value} disabled={x.Disabled}>{x.Text}</option>)}
+  </select>{error||data&&!data.IsSuccess?<div><small className="text-destructive">دریافت فهرست پرسنل ناموفق بود.</small><button type="button" className="btn btn-outline" onClick={()=>void mutate()}>تلاش مجدد</button></div>:null}</div>;
+}
+function CrewActivityEditor({person,onChange}:{person:EditableCrew;onChange:(patch:Partial<EditableCrew>)=>void}){
+  const {data:jobs,error:jobsError,mutate:retryJobs}=useSWR<PersonnelResponse>("/base-info/business-types");
+  const {data:activities,error:activitiesError,mutate:retryActivities}=useSWR<PersonnelResponse>(person.jobId>0?`/base-info/activity-types/${person.jobId}`:null);
+  return <div className="space-y-2 min-w-48">
+    <select className="select" aria-label="سمت عامل" value={person.jobId||""} onChange={event=>{
+      const job=jobs?.Data.find(row=>row.Value===event.target.value);
+      onChange({jobId:Number(event.target.value),jobName:job?.Text??"",activityTypeId:0,activityTypeName:"",personnelId:0,personnelName:""});
+    }}><option value="">انتخاب سمت</option>
+      {person.jobId>0&&!jobs?.Data.some(row=>Number(row.Value)===person.jobId)?<option value={person.jobId}>{person.jobName||"سمت فعلی"}</option>:null}
+      {(jobs?.Data??[]).filter(row=>!isSoundOperator(row.Text)).map(row=><option key={row.Value} value={row.Value} disabled={row.Disabled}>{row.Text}</option>)}
+    </select>
+    <select className="select" aria-label="فعالیت عامل" value={person.activityTypeId||""} disabled={!person.jobId} onChange={event=>{
+      const activity=activities?.Data.find(row=>row.Value===event.target.value);
+      onChange({activityTypeId:Number(event.target.value),activityTypeName:activity?.Text??""});
+    }}><option value="">انتخاب فعالیت</option>
+      {person.activityTypeId>0&&!activities?.Data.some(row=>Number(row.Value)===person.activityTypeId)?<option value={person.activityTypeId}>{person.activityTypeName||"فعالیت فعلی"}</option>:null}
+      {(activities?.Data??[]).filter(row=>!isSoundOperator(row.Text)).map(row=><option key={row.Value} value={row.Value} disabled={row.Disabled}>{row.Text}</option>)}
+    </select>
+    {jobsError||activitiesError?<button type="button" className="btn btn-outline" onClick={()=>{void retryJobs();void retryActivities();}}>خطای دریافت سمت و فعالیت؛ تلاش مجدد</button>:null}
+  </div>;
+}
+type ExternalResponse<T>={IsSuccess:boolean;Data:T[]|null;Message:string|null};
+function normalizeDuration(value:string):string {
+  const time=value.trim().split(".")[0];
+  return /^\d{1,}:[0-5]\d:[0-5]\d$/.test(time)?time.split(":").map(part=>part.padStart(2,"0")).join(":"):"";
+}
+function minutesToTime(minutes:number):string {
+  if(!Number.isInteger(minutes)||minutes<=0)return "";
+  return [Math.floor(minutes/60),minutes%60,0].map(n=>String(n).padStart(2,"0")).join(":");
+}
+function isValidStartTime(value:string):boolean {
+  const match=/^([0-9]{2}):([0-9]{2})(?::([0-9]{2}))?$/.exec(value.trim());
+  return Boolean(match&&Number(match[1])<24&&Number(match[2])<60&&(match[3]===undefined||Number(match[3])<60));
+}
+function durationSeconds(value:string):number {
+  const match=/^(\d{1,}):([0-5]\d):([0-5]\d)(?:\.\d+)?$/.exec(value.trim());
+  return match?Number(match[1])*3600+Number(match[2])*60+Number(match[3]):0;
+}
+function totalDuration(items:ExternalItem[]):string {
+  const seconds=items.reduce((total,item)=>{
+    const parts=normalizeDuration(item.ItemPeriod).split(":").map(Number);
+    return parts.length===3?total+parts[0]*3600+parts[1]*60+parts[2]:total;
+  },0);
+  return [Math.floor(seconds/3600),Math.floor(seconds/60)%60,seconds%60].map(n=>String(n).padStart(2,"0")).join(":");
+}
+type PlanDetail={PlanId:number;ApplicationType:number;ApplicationTypeName:string;ProgramType:number;ProgramTypeName:string;ProgramDegreeId:number;ProgramDegreeName:string;FloorPlanId:number;FloorPlanName:string;StructureProgramId:number;StructureProgramName:string;ProduceType:number;ProduceTypeName:string;PartNumber:number;Duration:number};
+type PlanDetailResponse={IsSuccess:boolean;Data:PlanDetail|null;Message:string|null};
 
 export default function IssueProfilePage(){
   const router=useRouter();
   const {data:forecasts}=useSWR<ForecastResponse[]>("/forecasts?status=3&pageNumber=1&pageSize=100");
   const [forecastId,setForecastId]=useState("");
-  const selected=useMemo(()=>forecasts?.find(x=>x.id===forecastId)??null,[forecasts,forecastId]);
-  const {data:structures}=useSWR<BaseInfoListResponse>("/base-info/structure-programs");
-  const [crewText,setCrewText]=useState("");
-  const [itemsText,setItemsText]=useState("");
+  const {data:savedDrafts,mutate:refreshDrafts,error:draftsError}=useSWR<DraftSummary[]>("/program-profiles/drafts");
+  const {data:restoredForecast}=useSWR<ForecastResponse>(forecastId?`/forecasts/${forecastId}`:null);
+  const availableForecasts=useMemo(()=>{
+    const rows=(forecasts??[]).filter(x=>!x.hasProfile||x.id===forecastId);
+    if(restoredForecast?.id===forecastId&&!rows.some(x=>x.id===forecastId))rows.push(restoredForecast);
+    return rows;
+  },[forecasts,forecastId,restoredForecast]);
+  const [step,setStep]=useState(0);
+  const stepTitles=["اطلاعات برنامه","آیتم‌های برنامه","عوامل برنامه","محورهای موضوعی","کارشناسان","کلیدواژه‌ها","بررسی و صدور"];
+  const selected=useMemo(()=>availableForecasts.find(x=>x.id===forecastId)??null,[availableForecasts,forecastId]);
+  const {data:keywordOptions}=useSWR<KeywordOption[]>(selected?`/keywords?networkId=${selected.networkId}`:null);
+  const [keywords,setKeywords]=useState<string[]>([]);
+  const [keywordInput,setKeywordInput]=useState("");
+  function addKeyword(value:string){const title=value.trim();if(!title)return;setKeywords(rows=>rows.some(x=>x.toLocaleLowerCase("fa")===title.toLocaleLowerCase("fa"))?rows:[...rows,title]);setKeywordInput("");}
+  const {data:experts}=useSWR<ExpertResponse[]>(selected?"/experts?networkId="+selected.networkId+"&pageNumber=1&pageSize=100":null);
+  const [newAxes,setNewAxes]=useState<{id:string;title:string}[]>([]);
+  const [axisTitle,setAxisTitle]=useState("");
+  const [expertRows,setExpertRows]=useState<{expertId:string;topicAxisId:string;duration:string;attendanceType:number;hasPayment:boolean}[]>([]);
+  const availableExperts=(experts??[]).filter(x=>x.isActive||selected?.expertIds?.includes(x.id));
+  function editExpert(index:number,patch:Partial<(typeof expertRows)[number]>){
+    setExpertRows(rows=>rows.map((row,i)=>i===index?{...row,...patch}:row));
+  }
+  const {data:planDetail,error:planDetailError,mutate:retryPlan}=useSWR<PlanDetailResponse>(selected?`/base-info/plan-detail/${selected.planId}`:null);
+  const planData=planDetail?.IsSuccess&&planDetail.Data?.PlanId===selected?.planId?planDetail.Data:null;
+  const {data:estimateDetail,error:estimateError,mutate:reloadEstimate,isValidating:crewLoading}=useSWR<ExternalResponse<ExternalCrew>>(selected?`/base-info/estimate-detail/${selected.planId}`:null,{revalidateOnFocus:false,revalidateOnReconnect:false});
+  const {data:planItems,error:itemsError,mutate:reloadItems,isValidating:itemsLoading}=useSWR<ExternalResponse<ExternalItem>>(selected?`/base-info/plan-items/${selected.planId}`:null,{revalidateOnFocus:false,revalidateOnReconnect:false});
+  const externalCrew=estimateDetail?.IsSuccess&&Array.isArray(estimateDetail.Data)?estimateDetail.Data:null;
+  const externalItems=planItems?.IsSuccess&&Array.isArray(planItems.Data)
+    ?planItems.Data.filter(item=>item.PlanId===selected?.planId):null;
+  const [itemsDraft,setItemsDraft]=useState<EditableItem[]>([]);
+  const [crewDraft,setCrewDraft]=useState<EditableCrew[]>([]);
+  const [editingCrewId,setEditingCrewId]=useState<string|null>(null);
+  const [addItemOpen,setAddItemOpen]=useState(false);
+  const [newItemName,setNewItemName]=useState("");
+  const [newItemSubject,setNewItemSubject]=useState("");
+  const [newItemDuration,setNewItemDuration]=useState("00:05:00");
+  const [editingItemId,setEditingItemId]=useState<string|null>(null);
+  const [itemEdit,setItemEdit]=useState<EditableItem|null>(null);
+  const [readyForecast,setReadyForecast]=useState("");
+  const [loadAttempt,setLoadAttempt]=useState(0);
+  const [draftLoading,setDraftLoading]=useState(false);
+  const [itemsLoaded,setItemsLoaded]=useState(false);
+  const [crewLoaded,setCrewLoaded]=useState(false);
+  const [draftRevision,setDraftRevision]=useState(0);
+  const [savedAt,setSavedAt]=useState("");
+  const [issuedProfileId,setIssuedProfileId]=useState<string|null>(null);
+  const operationLock=useRef(false);
+  const currentForecast=useRef(forecastId);
+  currentForecast.current=forecastId;
+  const draftReady=!!selected&&readyForecast===selected.id;
+
+  function mapItems(rows:ExternalItem[]):EditableItem[]{
+    return rows.filter(item=>item.PlanId===selected?.planId).map(item=>({rowId:String(item.Id),itemName:item.ItemTitle??"",subject:item.ItemSubject??"",duration:normalizeDuration(item.ItemPeriod??""),productionType:""}));
+  }
+  function mapCrew(rows:ExternalCrew[]):EditableCrew[]{
+    return rows.filter(person=>!isSoundOperator(person.BussinessTypeName,person.ActivityTypeName,person.ProgramActivityTypeName)).map(person=>({rowId:String(person.Id),personnelId:person.PersonnelId??0,personnelName:person.PersonnelName??"",activityTypeId:person.ActivityTypeId,activityTypeName:person.ActivityTypeName??"",isPresent:true,jobId:person.BussinessTypeId,jobName:person.BussinessTypeName??""}));
+  }
+  useEffect(()=>{
+    if(!selected)return;
+    let cancelled=false;
+    setReadyForecast("");setDraftLoading(true);setMessage("");
+    apiClient.get<SavedProfileDraft|null>(`/program-profiles/drafts/${selected.id}`).then(({data:saved})=>{
+      if(cancelled)return;
+      const draft=saved?.data;
+      if(draft?.completed&&draft.issuedProfileId){router.replace(`/program-profiles/${draft.issuedProfileId}`);return;}
+      setItemsDraft(draft?.items??[]);
+      setCrewDraft((draft?.crew??[]).filter(row=>!isSoundOperator(row.jobName,row.activityTypeName)));
+      setItemsLoaded(draft?.itemsLoaded??false);setCrewLoaded(draft?.crewLoaded??false);
+      setExpertRows(draft?.experts??selected.expertIds?.map(expertId=>({expertId,topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}))??[]);
+      setNewAxes(draft?.axes??[]);setKeywords(draft?.keywords??[]);
+      setStartTime(draft?.startTime??"");setOccasion(draft?.occasion??"");setStep(draft?.step??0);
+      setDraftRevision(saved?.revision??0);setSavedAt(saved?.updatedAt??"");setIssuedProfileId(draft?.issuedProfileId??null);
+      setEditingCrewId(null);setEditingItemId(null);setItemEdit(null);setAddItemOpen(false);
+      setAxisTitle("");setKeywordInput("");setFieldErrors({});
+      setReadyForecast(selected.id);
+    }).catch(error=>{if(!cancelled)setMessage(apiErrorMessage(error,"خواندن پیش‌نویس ناموفق بود. دوباره تلاش کنید."));})
+      .finally(()=>{if(!cancelled)setDraftLoading(false);});
+    return()=>{cancelled=true;};
+  },[selected?.id,loadAttempt]);
+  useEffect(()=>{
+    if(draftReady&&!itemsLoaded&&externalItems){setItemsDraft(mapItems(externalItems));setItemsLoaded(true);}
+  },[planItems,draftReady,itemsLoaded]);
+  useEffect(()=>{
+    if(draftReady&&!crewLoaded&&externalCrew){setCrewDraft(mapCrew(externalCrew));setCrewLoaded(true);}
+  },[estimateDetail,draftReady,crewLoaded]);
+
+  async function restoreExternal(kind:"items"|"crew"){
+    const id=forecastId;
+    setMessage("");
+    try{
+      if(kind==="items"){
+        const result=await reloadItems();
+        if(!result?.IsSuccess||!Array.isArray(result.Data))throw new Error(result?.Message||"دریافت آیتم‌ها ناموفق بود.");
+        if(currentForecast.current!==id)return;
+        setItemsDraft(rows=>restoreMissing(rows,mapItems(result.Data!)));setItemsLoaded(true);
+      }else{
+        const result=await reloadEstimate();
+        if(!result?.IsSuccess||!Array.isArray(result.Data))throw new Error(result?.Message||"دریافت عوامل ناموفق بود.");
+        if(currentForecast.current!==id)return;
+        setCrewDraft(rows=>restoreMissing(rows,mapCrew(result.Data!)));setCrewLoaded(true);
+      }
+    }catch(error){if(currentForecast.current===id)setMessage(apiErrorMessage(error,error instanceof Error?error.message:"بازخوانی ناموفق بود؛ دوباره تلاش کنید."));}
+  }
+  function saveItemEdit(){
+    if(!itemEdit)return;
+    if(!itemEdit.itemName.trim()||durationSeconds(itemEdit.duration)<=0){setMessage("عنوان و مدت آیتم باید معتبر باشد.");return;}
+    const total=itemsDraft.filter(row=>row.rowId!==itemEdit.rowId).reduce((sum,row)=>sum+durationSeconds(row.duration),0)+durationSeconds(itemEdit.duration);
+    if(total>durationSeconds(programDuration)&&total>=itemTotalSeconds){setMessage("مجموع مدت آیتم‌ها از مدت برنامه بیشتر می‌شود.");return;}
+    setItemsDraft(rows=>rows.map(row=>row.rowId===itemEdit.rowId?{...itemEdit,itemName:itemEdit.itemName.trim(),duration:normalizeDuration(itemEdit.duration)}:row));
+    setEditingItemId(null);setItemEdit(null);setMessage("");
+  }
+  function addItem(){
+    if(!newItemName.trim()||durationSeconds(newItemDuration)<=0){setMessage("عنوان و مدت معتبر برای آیتم جدید الزامی است.");return;}
+    if(!durationSeconds(programDuration)){setMessage("ابتدا مدت معتبر برنامه را وارد کنید.");return;}
+    if(itemTotalSeconds+durationSeconds(newItemDuration)>durationSeconds(programDuration)){setMessage("با افزودن این آیتم، مجموع زمان آیتم‌ها از مدت برنامه بیشتر می‌شود.");return;}
+    setItemsDraft(rows=>[...rows,{rowId:crypto.randomUUID(),itemName:newItemName.trim(),subject:newItemSubject.trim(),duration:normalizeDuration(newItemDuration),productionType:""}]);
+    setNewItemName("");setNewItemSubject("");setNewItemDuration("00:05:00");setAddItemOpen(false);setMessage("");
+  }
+  function editCrew(id:string,patch:Partial<EditableCrew>){setCrewDraft(rows=>rows.map(row=>row.rowId===id?{...row,...patch}:row));}
+  const crewValid=crewDraft.filter(x=>x.personnelId>0&&x.personnelName.trim()&&x.activityTypeId>0);
+  const programDuration=planData?minutesToTime(planData.Duration):"";
+  const [startTime,setStartTime]=useState("");
+  const productionMethod=planData?.ProduceTypeName?.trim()??"";
+  const [occasion,setOccasion]=useState("");
+  const itemTotalSeconds=itemsDraft.reduce((sum,item)=>sum+durationSeconds(item.duration),0);
+  const durationLimitSeconds=durationSeconds(programDuration);
+  const overDuration=durationLimitSeconds>0&&itemTotalSeconds>durationLimitSeconds;
   const [saving,setSaving]=useState(false);
   const [message,setMessage]=useState("");
+  const [fieldErrors,setFieldErrors]=useState<{duration?:string;startTime?:string;crew?:string;items?:string}>({});
 
-  function parseCrew():Crew[]{
-    return crewText.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{
-      const [personnelId,personnelName,activityTypeId,activityTypeName,isPresent]=line.split("|").map(x=>x.trim());
-      return {personnelId:Number(personnelId),personnelName,activityTypeId:Number(activityTypeId),activityTypeName,isPresent:isPresent!=="0"&&isPresent!=="false"};
-    }).filter(x=>Number.isInteger(x.personnelId)&&x.personnelId>0&&Number.isInteger(x.activityTypeId)&&x.activityTypeId>0&&x.personnelName&&x.activityTypeName);
+  function validateStep(index:number):boolean{
+    let error="";
+    if(index===0){
+      if(!selected)error="ابتدا پیش‌بینی تأییدشده را انتخاب کنید.";
+      else if(!planData)error="اطلاعات طرح هنوز دریافت نشده است.";
+      else if(durationSeconds(programDuration)<=0)error="مدت برنامه الزامی و باید معتبر باشد.";
+      else if(!isValidStartTime(startTime))error="ساعت شروع الزامی است.";
+    }
+    if(index===1&&(!itemsLoaded||overDuration||itemsDraft.some(x=>!x.itemName.trim()||durationSeconds(x.duration)<=0)))
+      error="زمان آیتم‌ها را بررسی کنید؛ مجموع نباید از مدت برنامه بیشتر باشد.";
+    if(index===2&&(!crewLoaded||crewDraft.length===0||crewDraft.some(x=>!x.personnelId||!x.personnelName.trim()||!x.activityTypeId||!x.activityTypeName.trim())))
+      error="تمام عوامل باید نام و فعالیت معتبر داشته باشند.";
+    if(index===4&&expertRows.some(x=>!x.expertId||!x.topicAxisId||durationSeconds(x.duration)<=0))
+      error="کارشناس، محور موضوعی و مدت صحبت باید تکمیل شود.";
+    if(index===5&&keywords.length<5)
+      error="حداقل ۵ کلیدواژه برای شناسنامه انتخاب یا وارد کنید.";
+    if(error){setMessage(error);return false;}
+    setMessage("");return true;
   }
-  function parseItems():Item[]{
-    return itemsText.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{
-      const [itemName,productionType,duration]=line.split("|").map(x=>x.trim());
-      return {itemName,productionType,duration};
-    }).filter(x=>x.itemName&&x.productionType&&x.duration);
+  function snapshot(target=step,profileId=issuedProfileId):ProfileDraft{
+    return {version:1,forecastId,title:selected?.planName||selected?.mainTopic||"شناسنامه برنامه",step:target,startTime,occasion,items:itemsDraft,crew:crewDraft,itemsLoaded,crewLoaded,keywords,axes:newAxes,experts:expertRows,issuedProfileId:profileId,completed:false};
   }
-
+  async function persistDraft(target=step,profileId=issuedProfileId,revision=draftRevision,completed=false){
+    const {data}=await apiClient.put<SavedProfileDraft>(`/program-profiles/drafts/${forecastId}`,{revision,data:{...snapshot(target,profileId),completed}});
+    setDraftRevision(data.revision);setSavedAt(data.updatedAt);void refreshDrafts();
+    return data.revision;
+  }
+  async function goToStep(target:number){
+    if(!draftReady||operationLock.current)return;
+    if(editingItemId){setMessage("ابتدا ویرایش آیتم را ثبت یا لغو کنید.");return;}
+    if(target>step){for(let i=0;i<target;i++){if(!validateStep(i)){setStep(i);return;}}}
+    operationLock.current=true;setSaving(true);setMessage("");
+    try{await persistDraft(target);setStep(target);}
+    catch(error){setMessage(apiErrorMessage(error,"ذخیره مرحله انجام نشد؛ دوباره تلاش کنید."));}
+    finally{operationLock.current=false;setSaving(false);}
+  }
   async function submit(e:FormEvent<HTMLFormElement>){
-    e.preventDefault();setMessage("");
+    e.preventDefault();if(operationLock.current||!draftReady)return;
+    if(editingItemId){setMessage("ابتدا ویرایش آیتم را ثبت کنید.");return;}
+    setMessage("");setFieldErrors({});
+    const errors:{duration?:string;startTime?:string;crew?:string;items?:string}={};
+    if(durationSeconds(programDuration)<=0)errors.duration="مدت معتبر برنامه الزامی است.";
+    if(!isValidStartTime(startTime))errors.startTime="ساعت شروع معتبر الزامی است.";
+    if(crewDraft.some(x=>!x.personnelName.trim()||!x.personnelId||!x.activityTypeId))errors.crew="تمام عوامل باید نام و فعالیت معتبر داشته باشند.";
+    if(durationSeconds(programDuration)>0&&itemTotalSeconds>durationSeconds(programDuration))errors.items="مجموع مدت آیتم‌ها از مدت برنامه بیشتر است.";
+    if(Object.keys(errors).length){setFieldErrors(errors);setMessage("موارد مشخص‌شده را اصلاح کنید.");return;}
     if(!selected){setMessage("پیش‌بینی تاییدشده را انتخاب کنید.");return;}
-    const form=new FormData(e.currentTarget);
-    const crewMembers=parseCrew();
-    if(!crewMembers.length){setMessage("حداقل یک عامل معتبر وارد کنید.");return;}
-    setSaving(true);
+
+    if(!programDuration.trim()||!startTime.trim()){setMessage("مدت برنامه و ساعت شروع الزامی هستند.");return;}
+    if(!isValidStartTime(startTime)){setMessage("ساعت شروع معتبر نیست.");return;}
+    if(!planData){setStep(0);setMessage("اطلاعات پایه طرح دریافت نشده است.");return;}
+    if(expertRows.some(x=>!x.expertId||!x.topicAxisId||durationSeconds(x.duration)<=0)){
+      setStep(4);setMessage("برای هر کارشناس، نام، محور موضوعی و مدت معتبر مشخص کنید.");return;
+    }
+    if(expertRows.some(x=>![...selected.topicAxes,...newAxes].some(axis=>axis.id===x.topicAxisId))){
+      setStep(4);setMessage("محور موضوعی کارشناس باید از محورهای پیش‌بینی انتخاب شود.");return;
+    }
+    if(keywords.length<5){setStep(5);setMessage("حداقل ۵ کلیدواژه برای شناسنامه الزامی است.");return;}
+    if(!crewLoaded||!itemsLoaded){setMessage("دریافت عوامل و آیتم‌های طرح کامل نشده است.");return;}
+    const crewMembers:Crew[]=crewValid.map(({personnelId,personnelName,activityTypeId,activityTypeName,isPresent})=>({personnelId,personnelName,activityTypeId,activityTypeName,isPresent}));
+    if(crewDraft.some(person=>!person.personnelId||!person.personnelName.trim()||!person.activityTypeId||!person.activityTypeName.trim())){setMessage("برای تمام ردیف‌های عوامل، شخص و فعالیت معتبر انتخاب کنید یا ردیف ناقص را حذف کنید.");return;}
+    if(!crewMembers.length){setMessage("حداقل یک عامل معتبر برای صدور لازم است.");return;}
+    const items:Item[]=itemsDraft.map(({itemName,duration,productionType})=>({itemName:itemName.trim(),duration:normalizeDuration(duration),productionType:productionType.trim()||productionMethod||planData.ProgramTypeName}));
+    if(items.some(item=>!item.itemName||!item.duration||!item.productionType)){setMessage("مدت زمان یک یا چند آیتم نامعتبر است.");return;}
+    if(itemsDraft.some(item=>durationSeconds(item.duration)<=0)){setMessage("مدت همه آیتم‌ها باید معتبر و بیشتر از صفر باشد.");return;}
+    if(!durationLimitSeconds){setMessage("مدت برنامه را به شکل ساعت:دقیقه:ثانیه وارد کنید.");return;}
+    if(overDuration){setMessage("مجموع زمان آیتم‌ها نباید از مدت برنامه بیشتر باشد.");return;}
+    operationLock.current=true;setSaving(true);
     try{
-      const response=await apiClient.post("/program-profiles/issue",{
+      let revision=await persistDraft();
+      const response=issuedProfileId?{data:{id:issuedProfileId}}:await apiClient.post("/program-profiles/issue",{
         forecastId:selected.id,
         planId:selected.planId,
         networkId:selected.networkId,
         networkGroupId:selected.networkGroupId,
-        duration:String(form.get("duration")??""),
+        duration:programDuration,
         broadcastDate:selected.broadcastDate,
-        productionMethod:String(form.get("productionMethod")??""),
-        occasion:String(form.get("occasion")??""),
-        floorId:Number(form.get("floorId")),
-        floorName:String(form.get("floorName")??""),
-        programDegreeId:Number(form.get("programDegreeId")),
-        programDegreeName:String(form.get("programDegreeName")??""),
-        programStructureId:Number(form.get("programStructureId")),
-        programStructureName:String(form.get("programStructureName")??""),
-        startTime:String(form.get("startTime")??""),
-        programType:Number(form.get("programType")),
-        programTypeName:String(form.get("programTypeName")??""),
+        productionMethod:productionMethod||planData.ProgramTypeName,
+        occasion:occasion.trim()||planData.ApplicationTypeName,
+        floorId:planData.FloorPlanId,
+        floorName:planData.FloorPlanName,
+        programDegreeId:planData.ProgramDegreeId,
+        programDegreeName:planData.ProgramDegreeName,
+        programStructureId:planData.StructureProgramId,
+        programStructureName:planData.StructureProgramName,
+        startTime:startTime.length===5?startTime+":00":startTime,
+        programType:planData.ProgramType,
+        programTypeName:planData.ProgramTypeName,
         crewMembers,
-        items:parseItems(),
+        items,
+        keywords,
       });
+      setIssuedProfileId(response.data.id);
+      revision=await persistDraft(6,response.data.id,revision);
+      if(expertRows.length||newAxes.length){
+        try{
+          await apiClient.put("/program-profiles/"+response.data.id+"/experts",{
+            profileId:response.data.id,
+            experts:expertRows.map(x=>({...x,duration:normalizeDuration(x.duration)})),
+            newTopicAxes:newAxes.map(axis=>({id:axis.id,title:axis.title}))
+          });
+        }catch(error){
+          setStep(6);setMessage("شناسنامه صادر شد، اما ثبت ارتباط کارشناسان ناموفق بود: "+apiErrorMessage(error));
+          return;
+        }
+      }
+      await persistDraft(6,response.data.id,revision,true);
       router.replace("/program-profiles/"+response.data.id);
     }catch(error){setMessage(apiErrorMessage(error,"صدور شناسنامه انجام نشد."));}
-    finally{setSaving(false);}
+    finally{operationLock.current=false;setSaving(false);}
+  }
+
+  function changeForecast(id:string){
+    if(id===forecastId)return;
+    if(draftReady&&!window.confirm("پیش از تغییر برنامه، تغییرات را با «ذخیره مرحله» ثبت کنید. برنامه تغییر کند؟"))return;
+    setReadyForecast("");setStep(0);setForecastId(id);
   }
 
   return <DashboardShell>
     <Breadcrumb items={[{label:"داشبورد",href:"/dashboard"},{label:"شناسنامه عملکرد",href:"/program-profiles"},{label:"صدور شناسنامه"}]}/>
     <div className="page-head"><div><h1 className="page-title">صدور شناسنامه عملکرد</h1><p className="page-description">فقط از پیش‌بینی تاییدشده صادر می‌شود.</p></div></div>
-    <form className="card" onSubmit={submit}>
-      <div className="form-grid">
-        <label className="field full"><span className="label">پیش‌بینی تاییدشده *</span><select className="select" value={forecastId} onChange={e=>setForecastId(e.target.value)} required><option value="">انتخاب کنید</option>{(forecasts??[]).map(x=><option key={x.id} value={x.id}>{x.mainTopic} — طرح {x.planId} — قسمت {x.episodeNumber}</option>)}</select></label>
-        <label className="field"><span className="label">مدت برنامه *</span><input className="input" name="duration" placeholder="01:00:00" required/></label>
-        <label className="field"><span className="label">نحوه تولید *</span><input className="input" name="productionMethod" required/></label>
-        <label className="field"><span className="label">مناسبت *</span><input className="input" name="occasion" required/></label>
-        <label className="field"><span className="label">شناسه طبقه *</span><input className="input" name="floorId" type="number" min="1" required/></label>
-        <label className="field"><span className="label">نام طبقه *</span><input className="input" name="floorName" required/></label>
-        <label className="field"><span className="label">شناسه درجه *</span><input className="input" name="programDegreeId" type="number" min="1" required/></label>
-        <label className="field"><span className="label">نام درجه *</span><input className="input" name="programDegreeName" required/></label>
-        <label className="field"><span className="label">ساختار برنامه *</span><select className="select" name="programStructureId" required><option value="">انتخاب کنید</option>{(structures?.Data??[]).map(x=><option key={x.Value} value={x.Value}>{x.Text}</option>)}</select></label>
-        <label className="field"><span className="label">نام ساختار *</span><input className="input" name="programStructureName" required/></label>
-        <label className="field"><span className="label">ساعت شروع *</span><input className="input" name="startTime" placeholder="20:00:00" required/></label>
-        <label className="field"><span className="label">نوع برنامه *</span><select className="select" name="programType" required><option value="10">زنده</option><option value="20">ضبطی</option></select></label>
-        <label className="field"><span className="label">نام نوع برنامه *</span><input className="input" name="programTypeName" defaultValue="زنده" required/></label>
-        <label className="field full"><span className="label">عوامل *</span><textarea className="input" style={{height:140,paddingTop:10}} value={crewText} onChange={e=>setCrewText(e.target.value)} placeholder="personnelId | نام | activityTypeId | عنوان فعالیت | true — هر عامل در یک خط"/></label>
-        <label className="field full"><span className="label">آیتم‌ها</span><textarea className="input" style={{height:120,paddingTop:10}} value={itemsText} onChange={e=>setItemsText(e.target.value)} placeholder="نام آیتم | نوع تولید | 00:10:00 — هر آیتم در یک خط"/></label>
+    {savedDrafts?.length?<section className="card mb-4"><h2 className="mb-3 font-semibold">ادامه پیش‌نویس‌های ذخیره‌شده</h2><div className="flex flex-wrap gap-2">{savedDrafts.map(draft=><button key={draft.forecastId} type="button" className="btn btn-outline" disabled={saving} onClick={()=>changeForecast(draft.forecastId)}>{draft.title} — {stepTitles[draft.step]}</button>)}</div></section>:null}
+    {draftsError?<p role="alert" className="alert alert-error">خواندن فهرست پیش‌نویس‌ها ناموفق بود. <button type="button" className="underline" onClick={()=>void refreshDrafts()}>تلاش مجدد</button></p>:null}
+    <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+    <nav aria-label="مراحل صدور شناسنامه" className="rounded-xl border border-default-200 bg-background p-3 lg:self-start">
+      <ol className="space-y-2">{stepTitles.map((title,index)=><li key={title}>
+        <button type="button" disabled={saving||!draftReady} onClick={()=>goToStep(index)} aria-current={step===index?"step":undefined}
+          className={"flex w-full items-center gap-3 rounded-lg px-3 py-3 text-right text-sm transition-colors "+(step===index?"bg-default-100 font-semibold text-default-900":"text-default-600 hover:bg-default-50")}>
+          <span className={"flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs "+(step===index?"border-green-600 bg-green-600 text-white":index<step?"border-green-500 text-green-700":"border-default-300")}>{index<step?<Check size={15}/>:index+1}</span>
+          {title}
+        </button>
+      </li>)}</ol>
+    </nav>
+    <form className="card min-w-0" onSubmit={submit} noValidate>
+      <p className="mb-3 text-sm text-default-500">با «ذخیره مرحله» یا رفتن به مرحله دیگر، اطلاعات روی سرور ذخیره می‌شود و پس از ورود مجدد قابل ادامه است.</p>
+      {savedAt&&draftReady?<p role="status" className="mb-3 text-sm text-green-700">آخرین ذخیره: {new Date(savedAt).toLocaleString("fa-IR")}</p>:null}
+      {planDetailError?<p className="alert alert-error">دریافت اطلاعات برنامه ناموفق بود. <button type="button" onClick={()=>void retryPlan()}>تلاش مجدد</button></p>:null}
+      {draftLoading?<p role="status">در حال خواندن پیش‌نویس...</p>:null}
+      {selected&&!draftReady&&!draftLoading?<button type="button" className="btn btn-outline" onClick={()=>setLoadAttempt(x=>x+1)}>تلاش مجدد برای خواندن پیش‌نویس</button>:null}
+      <fieldset disabled={saving}>
+
+      <div className={step===0?"grid grid-cols-1 gap-4 md:grid-cols-3":"hidden"}>
+        <label className="field md:col-span-3"><span className="label">پیش‌بینی تأییدشده *</span>
+          <select className="select" value={forecastId} onChange={e=>changeForecast(e.target.value)} required>
+            <option value="">انتخاب نام برنامه، موضوع و شماره قسمت</option>
+            {availableForecasts.map(x=><ForecastOption key={x.id} forecast={x}/>)}
+          </select>
+        </label>
+        <fieldset className="contents" disabled={!draftReady||!!issuedProfileId}>
+        <label className="field"><span className="label">مدت برنامه (ساعت:دقیقه)</span><input className={"input bg-default-50 "+(fieldErrors.duration?"border-red-500":"")} dir="ltr" value={programDuration} readOnly placeholder="از اطلاعات پایه طرح"/>{fieldErrors.duration?<span className="text-xs text-red-600">{fieldErrors.duration}</span>:null}</label>
+        <label className="field"><span className="label">نحوه تولید</span><input className="input bg-default-50" value={productionMethod} readOnly placeholder="از اطلاعات پایه طرح"/></label>
+        <label className="field"><span className="label">مناسبت</span><input className="input" value={occasion} onChange={e=>setOccasion(e.target.value)} placeholder={planData?.ApplicationTypeName||"اختیاری"}/></label>
+        <label className="field"><span className="label">طبقه</span><input className="input bg-default-50" readOnly value={planData?.FloorPlanName??""}/></label>
+        <label className="field"><span className="label">درجه برنامه</span><input className="input bg-default-50" readOnly value={planData?.ProgramDegreeName??""}/></label>
+        <label className="field"><span className="label">ساختار برنامه</span><input className="input bg-default-50" readOnly value={planData?.StructureProgramName??""}/></label>
+        <label className="field"><span className="label">نوع کاربرد</span><input className="input bg-default-50" readOnly value={planData?.ApplicationTypeName??""}/></label>
+        <label className="field"><span className="label">ساعت شروع *</span><input className={"input "+(fieldErrors.startTime?"border-red-500 ring-1 ring-red-500":"")} name="startTime" type="time" step="60" value={startTime} onChange={e=>setStartTime(e.target.value)} required/>{fieldErrors.startTime?<span className="text-xs text-red-600">{fieldErrors.startTime}</span>:null}</label>
+        <label className="field"><span className="label">نوع برنامه</span><input className="input bg-default-50" readOnly value={planData?.ProgramTypeName??""}/></label>
+        </fieldset>
       </div>
-      <div className="alert" style={{marginTop:16,background:"#eff6ff",border:"1px solid #bfdbfe",color:"#1e40af"}}>ساختار دقیق پاسخ planDetail / estimateDetail / planItems در مستند سرویس خارجی مشخص نشده؛ بنابراین در این مرحله داده ناشناخته به‌صورت حدسی تبدیل نمی‌شود و فیلدها قابل کنترل هستند.</div>
+      </fieldset>
+      <fieldset disabled={saving||!draftReady||!!issuedProfileId}>
+      <section className={"rounded-xl border border-default-200 bg-background p-5 "+(step===1?"":"hidden")} style={{marginTop:20}}>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3"><span className="rounded-lg border border-default-200 p-2 text-default-600"><Layers3 size={22}/></span><div><h2 className="font-semibold">آیتم‌های شناسنامه</h2><p className="mt-1 text-xs text-default-500">عنوان، موضوع و مدت آیتم‌ها قابل ویرایش است. بازخوانی، موارد حذف‌شده را بدون تغییر ویرایش‌های فعلی برمی‌گرداند.</p></div></div>
+          <div className="flex flex-wrap items-center gap-3"><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setAddItemOpen(value=>!value)}><Plus size={16}/> افزودن آیتم</button><button type="button" className="btn btn-outline" disabled={itemsLoading} onClick={()=>restoreExternal("items")}><RefreshCcw size={16}/>بازخوانی آیتم‌ها</button><div className={"rounded-lg border border-default-200 px-3 py-2 text-sm "+(overDuration?"text-red-700":"text-default-700")}><Clock3 size={15} className="ml-2 inline-block"/><span>زمان آیتم‌ها: </span><strong dir="ltr">{totalDuration(itemsDraft.map(x=>({Id:0,PlanId:0,ItemTitle:x.itemName,ItemSubject:x.subject,ItemPeriod:x.duration})))}</strong><span className="mx-2">/</span><span dir="ltr">{programDuration||"—"}</span></div></div>
+        </div>
+        {addItemOpen?<div className="mb-5 grid gap-3 rounded-xl border border-default-200 bg-background p-4 dark:border-default-700 md:grid-cols-[1fr_1.4fr_160px_auto]"><input className="input" aria-label="عنوان آیتم جدید" placeholder="عنوان آیتم" value={newItemName} onChange={e=>setNewItemName(e.target.value)}/><input className="input" aria-label="موضوع آیتم جدید" placeholder="موضوع آیتم" value={newItemSubject} onChange={e=>setNewItemSubject(e.target.value)}/><input className="input" dir="ltr" aria-label="مدت آیتم جدید" value={newItemDuration} onChange={e=>setNewItemDuration(e.target.value)}/><div className="flex gap-2"><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={addItem}><Check size={16}/> ثبت</button><button type="button" className="btn btn-outline" onClick={()=>setAddItemOpen(false)}><X size={16}/></button></div></div>:null}
+        {itemsError||planItems&&!planItems.IsSuccess?<p className="alert alert-error">دریافت آیتم‌های طرح ناموفق بود.</p>:null}
+        {fieldErrors.items?<p className="text-sm text-red-600">{fieldErrors.items}</p>:null}
+        {overDuration?<p className="alert alert-error mb-4">مجموع مدت آیتم‌ها از مدت برنامه بیشتر است. برای صدور شناسنامه، آیتم‌های اضافی را حذف کنید یا اطلاعات مدت برنامه را در سامانه مرجع بررسی کنید.</p>:null}
+        <div className="overflow-x-auto rounded-xl border border-default-200">
+          <table className="w-full text-right text-sm"><thead className="bg-default-50 text-default-600 dark:bg-default-100"><tr><th className="p-3">عنوان آیتم</th><th className="p-3">موضوع</th><th className="p-3">مدت</th><th className="w-16 p-3" aria-label="عملیات"></th></tr></thead>
+            <tbody className="divide-y divide-default-100">{itemsDraft.map(item=><tr key={item.rowId}>
+              <td className="p-3">{editingItemId===item.rowId&&itemEdit?<input className="input" aria-label="عنوان آیتم" value={itemEdit.itemName} onChange={e=>setItemEdit({...itemEdit,itemName:e.target.value})}/>:item.itemName}</td>
+              <td className="p-3">{editingItemId===item.rowId&&itemEdit?<input className="input" aria-label="موضوع آیتم" value={itemEdit.subject} onChange={e=>setItemEdit({...itemEdit,subject:e.target.value})}/>:item.subject}</td>
+              <td className="p-3" dir="ltr">{editingItemId===item.rowId&&itemEdit?<input className="input min-w-28" aria-label="مدت آیتم" value={itemEdit.duration} onChange={e=>setItemEdit({...itemEdit,duration:e.target.value})}/>:item.duration}</td>
+              <td className="p-3"><div className="flex gap-2">{editingItemId===item.rowId?<><button type="button" className="btn btn-primary" onClick={saveItemEdit}>ثبت ویرایش</button><button type="button" className="btn btn-outline" onClick={()=>{setEditingItemId(null);setItemEdit(null);}}>انصراف</button></>:<><button type="button" className="btn btn-outline" disabled={!!editingItemId} onClick={()=>{setEditingItemId(item.rowId);setItemEdit({...item});}}><PenLine size={16}/>ویرایش</button><button type="button" className="btn btn-outline text-red-600" aria-label={`حذف آیتم ${item.itemName}`} onClick={()=>setItemsDraft(rows=>rows.filter(x=>x.rowId!==item.rowId))}><Trash2 size={17}/></button></>}</div></td>
+            </tr>)}</tbody>
+          </table>
+          {itemsDraft.length===0?<p className="p-5 text-center text-default-500">آیتمی برای این شناسنامه باقی نمانده است.</p>:null}
+        </div>
+      </section>
+      <section className={"rounded-xl border border-default-200 bg-background p-5 "+(step===2?"":"hidden")} style={{marginTop:20}}>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3"><span className="rounded-lg border border-default-200 p-2 text-default-600"><Users size={22}/></span><div><h2 className="font-semibold">عوامل شناسنامه</h2><p className="mt-1 text-xs text-default-500">نام عامل از وب‌سرویس پرسنل قابل تغییر است؛ نوع فعالیت از اطلاعات پایه خوانده می‌شود.</p></div></div>
+        </div>
+        <button type="button" className="btn btn-outline mb-4" disabled={crewLoading} onClick={()=>restoreExternal("crew")}><RefreshCcw size={16}/>بازخوانی عوامل</button>
+        <p className="mb-3 text-xs text-default-500">صدابردارها نمایش داده نمی‌شوند. بازخوانی، عوامل حذف‌شده را برمی‌گرداند و ویرایش‌های فعلی را حفظ می‌کند.</p>
+        {crewLoading?<p role="status">در حال دریافت عوامل...</p>:null}
+        {estimateError||estimateDetail&&!estimateDetail.IsSuccess?<p className="alert alert-error">دریافت عوامل ناموفق بود.</p>:null}
+        <div className="overflow-x-auto rounded-xl border border-default-200">
+          <table className="w-full text-right text-sm"><thead className="bg-default-50 text-default-600 dark:bg-default-100"><tr><th className="p-3">عامل</th><th className="p-3">نوع فعالیت</th><th className="w-16 p-3" aria-label="عملیات"></th></tr></thead>
+            <tbody className="divide-y divide-default-100">{crewDraft.map(person=><tr key={person.rowId} className="hover:bg-default-50/50"><td className="min-w-56 p-3">{editingCrewId===person.rowId||!person.personnelId?
+            <div className="flex items-center gap-2"><div className="min-w-0 flex-1"><PersonnelPicker networkId={selected?.networkId??0} jobId={person.jobId} value={person.personnelId} onChange={(id,name)=>editCrew(person.rowId,{personnelId:id,personnelName:name})}/></div>{editingCrewId===person.rowId?<button type="button" className="rounded-lg p-2 text-default-500 hover:bg-default-100" aria-label="بستن ویرایش عامل" onClick={()=>setEditingCrewId(null)}><X size={16}/></button>:null}</div>
+            :<div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><span className="rounded-full border border-default-200 p-2 text-default-500"><UserRound size={16}/></span><span className="font-medium">{person.personnelName}</span></div><button type="button" className="inline-flex items-center gap-1 rounded-md border border-amber-300 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50" onClick={()=>setEditingCrewId(person.rowId)}><PenLine size={14}/> تغییر عامل</button></div>}</td><td className="p-3">{editingCrewId===person.rowId||!person.activityTypeId||!person.activityTypeName?<CrewActivityEditor person={person} onChange={patch=>editCrew(person.rowId,patch)}/>:<span className="text-sm text-default-700">{person.activityTypeName}</span>}</td><td className="p-3"><button type="button" title="حذف عامل" aria-label={`حذف عامل ${person.personnelName||"بدون نام"}`} className="rounded-md border border-red-200 px-2.5 py-1.5 text-red-600 hover:bg-red-50" onClick={()=>setCrewDraft(rows=>rows.filter(x=>x.rowId!==person.rowId))}><Trash2 size={17}/></button></td></tr>)}</tbody>
+          </table>
+          {crewDraft.length===0?<p className="p-5 text-center text-default-500">عاملی انتخاب نشده است.</p>:null}
+        </div>
+        {fieldErrors.crew?<p className="text-sm text-red-600">{fieldErrors.crew}</p>:null}
+        {crewDraft.some(x=>!x.personnelId||!x.activityTypeId)?<p className="mt-3 text-sm text-danger">ردیف‌های ناقص را حذف کنید یا اطلاعات آن‌ها را از وب‌سرویس تکمیل کنید.</p>:null}
+      </section>
+      </fieldset>
+      <fieldset disabled={saving||!draftReady}>
+      <section className={step===3?"rounded-xl border border-default-200 p-5":"hidden"}>
+        <h2 className="mb-2 font-semibold">محورهای موضوعی برنامه</h2>
+        <p className="mb-4 text-sm text-default-500">محورهای پیش‌بینی نمایش داده می‌شوند؛ می‌توانید برای این شناسنامه محور جدید تعریف کنید.</p>
+        <div className="space-y-2">{[...(selected?.topicAxes??[]),...newAxes].map(axis=><div key={axis.id} className="flex justify-between rounded-lg border border-default-200 px-4 py-3 text-sm"><span>{axis.title}</span>{newAxes.some(x=>x.id===axis.id)?<button type="button" className="text-red-600" onClick={()=>{setNewAxes(rows=>rows.filter(x=>x.id!==axis.id));setExpertRows(rows=>rows.map(x=>x.topicAxisId===axis.id?{...x,topicAxisId:""}:x));}}>حذف</button>:<span className="text-default-500">پیش‌بینی</span>}</div>)}</div>
+        <div className="mt-4 flex gap-2"><input className="input" placeholder="عنوان محور موضوعی جدید" value={axisTitle} onChange={e=>setAxisTitle(e.target.value)}/><button type="button" className="btn bg-green-600 text-white" onClick={()=>{if(!axisTitle.trim())return;setNewAxes(rows=>[...rows,{id:crypto.randomUUID(),title:axisTitle.trim()}]);setAxisTitle("");}}>افزودن محور</button></div>
+      </section>
+      <section className={step===4?"rounded-xl border border-default-200 p-5":"hidden"}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">کارشناسان و محورهای موضوعی</h2><p className="mt-1 text-sm text-default-500">کارشناسان پیش‌بینی بارگذاری شده‌اند. می‌توانید کارشناسی را که در پیش‌بینی نبوده نیز اضافه کنید.</p></div><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setExpertRows(rows=>[...rows,{expertId:"",topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}])}><Plus size={16}/> افزودن کارشناس</button></div>
+        <div className="space-y-3">{expertRows.map((x,i)=><div key={i} className="grid gap-3 rounded-lg border border-default-200 p-4 md:grid-cols-2">
+          <label className="field"><span className="label">کارشناس *</span><select className="select" value={x.expertId} onChange={e=>editExpert(i,{expertId:e.target.value})}><option value="">انتخاب کنید</option>{availableExperts.map(expert=><option key={expert.id} value={expert.id}>{expert.firstName} {expert.lastName} — {expert.specialty}</option>)}</select></label>
+          <label className="field"><span className="label">محور موضوعی *</span><select className="select" value={x.topicAxisId} onChange={e=>editExpert(i,{topicAxisId:e.target.value})}><option value="">انتخاب محور پیش‌بینی</option>{[...(selected?.topicAxes??[]),...newAxes].map(axis=><option value={axis.id} key={axis.id}>{axis.title}</option>)}</select></label>
+          <label className="field"><span className="label">مدت صحبت *</span><input className="input" dir="ltr" value={x.duration} placeholder="00:05:00" onChange={e=>editExpert(i,{duration:e.target.value})}/></label>
+          <label className="field"><span className="label">نوع حضور</span><select className="select" value={x.attendanceType} onChange={e=>editExpert(i,{attendanceType:Number(e.target.value)})}><option value={1}>حضوری</option><option value={2}>تلفنی</option><option value={3}>ضبطی</option><option value={4}>محل کار</option></select></label>
+          <div className="flex items-center justify-between md:col-span-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={x.hasPayment} onChange={e=>editExpert(i,{hasPayment:e.target.checked})}/> شامل پرداخت</label><button type="button" className="btn border border-red-200 text-red-600 hover:bg-red-50" onClick={()=>setExpertRows(rows=>rows.filter((_,j)=>i!==j))}><Trash2 size={15}/> حذف</button></div>
+        </div>)}{!expertRows.length?<p className="py-6 text-center text-default-500">کارشناسی اضافه نشده است. در صورت نیاز از «افزودن کارشناس» استفاده کنید.</p>:null}</div>
+      </section>
+      <fieldset disabled={!!issuedProfileId}>
+      <section className={step===5?"rounded-xl border border-default-200 p-5":"hidden"}>
+        <h2 className="mb-2 font-semibold">کلیدواژه‌های شناسنامه *</h2>
+        <p className="mb-4 text-sm text-default-500">حداقل ۵ کلیدواژه الزامی است. موارد جدید پس از ثبت برای همان شبکه نیز قابل استفاده خواهند بود.</p>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {(keywordOptions??[]).map(item=>{
+            const active=keywords.some(x=>x.toLocaleLowerCase("fa")===item.title.toLocaleLowerCase("fa"));
+            return <button type="button" key={item.id} onClick={()=>active?setKeywords(rows=>rows.filter(x=>x.toLocaleLowerCase("fa")!==item.title.toLocaleLowerCase("fa"))):addKeyword(item.title)}
+              className={`rounded-full border px-3 py-1.5 text-sm ${active?"border-green-500 bg-green-50 text-green-700":"border-default-200 hover:bg-default-50"}`}>
+              {item.title}{item.isGlobal?" · سراسری":""}
+            </button>;
+          })}
+        </div>
+        <div className="flex gap-2"><input className="input" value={keywordInput} onChange={e=>setKeywordInput(e.target.value)} placeholder="کلیدواژه جدید"/><button type="button" className="btn btn-outline" onClick={()=>addKeyword(keywordInput)}><Plus size={15}/>افزودن</button></div>
+        <div className="mt-4 flex flex-wrap gap-2">{keywords.map(title=><span key={title} className="inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1.5 text-sm text-green-800">{title}<button type="button" onClick={()=>setKeywords(rows=>rows.filter(x=>x!==title))}><X size={13}/></button></span>)}</div>
+        <div className={`mt-3 text-sm ${keywords.length>=5?"text-green-700":"text-red-600"}`}>{keywords.length} از حداقل ۵ کلیدواژه انتخاب شده است.</div>
+      </section>
+      </fieldset>
+      <section className={step===6?"rounded-xl border border-default-200 p-5":"hidden"}>
+        <h2 className="mb-4 font-semibold">بازبینی و صدور شناسنامه</h2>
+        <div className="grid gap-3 text-sm md:grid-cols-2"><p>برنامه: {selected?.planName||selected?.mainTopic||"انتخاب نشده"}</p><p>مدت: {programDuration||"وارد نشده"}</p><p>آیتم‌ها: {itemsDraft.length} مورد</p><p>عوامل: {crewDraft.length} نفر</p><p>کارشناسان: {expertRows.length} ارتباط</p><p>کلیدواژه‌ها: {keywords.length} مورد</p><p>ساعت شروع: {startTime||"وارد نشده"}</p></div>
+      </section>
+      </fieldset>
+      {issuedProfileId?<p className="alert">شناسنامه ایجاد شده است؛ در صورت خطای کارشناسان، دکمهٔ تکمیل را دوباره بزنید. <a className="underline" href={`/program-profiles/${issuedProfileId}`}>مشاهده شناسنامه</a></p>:null}
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
-      <div style={{display:"flex",justifyContent:"flex-end",marginTop:18}}><button className="btn btn-primary" disabled={saving}>{saving?<Loader2 size={17}/>:<Save size={17}/>}صدور شناسنامه</button></div>
+      <div className="mt-6 flex items-center justify-between border-t border-default-200 pt-4">
+        <button type="button" className="btn btn-outline" disabled={step===0||saving||!draftReady||!!issuedProfileId} onClick={()=>goToStep(Math.max(0,step-1))}><ChevronUp size={16}/> مرحله قبل</button>
+        <button type="button" className="btn btn-outline" disabled={saving||!draftReady} onClick={()=>goToStep(step)}><Save size={16}/>ذخیره مرحله</button>
+        {step<6?<button type="button" className="btn bg-green-600 text-white hover:bg-green-700" disabled={saving||!draftReady} onClick={()=>goToStep(Math.min(6,step+1))}>ذخیره و مرحله بعد <ChevronDown size={16}/></button>
+        :<button className="btn btn-primary" disabled={saving||!draftReady}>{saving?<Loader2 size={17}/>:<Save size={17}/>}{issuedProfileId?"تکمیل ثبت کارشناسان":"صدور شناسنامه"}</button>}
+      </div>
     </form>
+    </div>
   </DashboardShell>;
 }

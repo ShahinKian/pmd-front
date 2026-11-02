@@ -14,6 +14,7 @@ interface SampleNode {
   subWorkflowDefinitionId?: string | null;
   x: number;
   y: number;
+  rules?: { field: string; operator: string; value: string; join: string }[];
 }
 
 interface SampleTransition {
@@ -35,11 +36,12 @@ interface CreatedNode {
   id: string;
 }
 
-function designerMetadata(x: number, y: number) {
+function designerMetadata(x: number, y: number, rules?: SampleNode["rules"]) {
   return JSON.stringify({
     designer: {
       position: { x, y },
     },
+    ...(rules ? { genericRules: { rules, trueOutcome: "yes", falseOutcome: "no" } } : {}),
   });
 }
 
@@ -64,7 +66,7 @@ async function createWorkflowSample(sample: WorkflowSample): Promise<WorkflowDef
       sortOrder: node.sortOrder,
       decisionKey: node.decisionKey ?? null,
       subWorkflowDefinitionId: node.subWorkflowDefinitionId ?? null,
-      metadataJson: designerMetadata(node.x, node.y),
+      metadataJson: designerMetadata(node.x, node.y, node.rules),
     });
 
     created.set(node.key, response.data.id);
@@ -144,28 +146,28 @@ export function createForecastWorkflowSample() {
         from: "producer-submit",
         to: "group-manager-review",
         name: "ارسال به مدیر گروه",
-        outcome: "Submitted",
+        outcome: "submit",
         priority: 0,
       },
       {
         from: "group-manager-review",
         to: "forecast-approved",
         name: "تأیید",
-        outcome: "Approved",
+        outcome: "approve",
         priority: 0,
       },
       {
         from: "group-manager-review",
         to: "producer-submit",
         name: "برگشت برای ویرایش",
-        outcome: "ReturnForEdit",
+        outcome: "return-for-edit",
         priority: 1,
       },
       {
         from: "group-manager-review",
         to: "forecast-rejected",
         name: "رد",
-        outcome: "Rejected",
+        outcome: "reject",
         priority: 2,
       },
     ],
@@ -279,21 +281,21 @@ export function createProgramProfileWorkflowSample() {
         from: "producer-submit-profile",
         to: "group-manager-profile-review",
         name: "ارسال به مدیر گروه",
-        outcome: "Submitted",
+        outcome: "submit",
         priority: 0,
       },
       {
         from: "group-manager-profile-review",
         to: "program-type-routing",
         name: "تأیید مدیر گروه",
-        outcome: "Approved",
+        outcome: "approve",
         priority: 0,
       },
       {
         from: "group-manager-profile-review",
         to: "producer-submit-profile",
         name: "برگشت به تهیه‌کننده",
-        outcome: "ReturnForEdit",
+        outcome: "return-for-edit",
         priority: 1,
       },
       {
@@ -328,14 +330,14 @@ export function createProgramProfileWorkflowSample() {
         from: "broadcast-manager-review",
         to: "plan-manager-final-review",
         name: "تأیید مدیر پخش",
-        outcome: "Approved",
+        outcome: "approve",
         priority: 0,
       },
       {
         from: "broadcast-manager-review",
         to: "group-manager-correction",
         name: "برگشت برای اصلاح",
-        outcome: "ReturnForEdit",
+        outcome: "return-for-edit",
         priority: 1,
       },
       {
@@ -356,9 +358,41 @@ export function createProgramProfileWorkflowSample() {
         from: "plan-manager-final-review",
         to: "program-profile-final-approved",
         name: "تأیید نهایی",
-        outcome: "Approved",
+        outcome: "approve",
         priority: 0,
       },
     ],
+  });
+}
+
+export const programProfileNoCodeSampleName = "شناسنامه برنامه - نمونه شرط‌گذاری بدون کدنویسی";
+
+// Independent DRAFT: deliberately does not replace the active profile assignment.
+export function createProgramProfileNoCodeSample() {
+  return createWorkflowSample({
+    name: programProfileNoCodeSampleName,
+    description: "نسخه آزمایشی: تأیید مدیر گروه، تصمیم عمومی بر اساس نوع برنامه و مسیر جداگانه زنده/ضبطی. این نمونه تا زمان اعتبارسنجی و تخصیص دستی، روی شناسنامه‌های واقعی اثر نمی‌گذارد.",
+    nodes: [
+      {key:"profile-producer",name:"ثبت و ارسال شناسنامه",type:1,assignedRole:"Providers",isStart:true,sortOrder:1,x:1250,y:280},
+      {key:"profile-manager",name:"بررسی مدیر گروه",type:2,assignedRole:"NetworkGroupManager",allowBacktrack:true,sortOrder:2,x:960,y:280},
+      {key:"profile-type-condition",name:"شرط نوع برنامه: زنده است؟",type:3,decisionKey:"generic-rules",sortOrder:3,x:690,y:280,rules:[{field:"programType",operator:"eq",value:"10",join:"and"}]},
+      {key:"profile-live-review",name:"بررسی ناظر زنده",type:1,assignedRole:"LiveSupervisor",sortOrder:4,x:390,y:60},
+      {key:"profile-recorded-review",name:"بررسی ناظر ضبطی",type:1,assignedRole:"Supervisor",sortOrder:5,x:390,y:470},
+      {key:"profile-broadcast",name:"بررسی مدیر پخش",type:2,assignedRole:"BroadcastManager",allowBacktrack:true,sortOrder:6,x:70,y:280},
+      {key:"profile-planning",name:"تأیید مدیر طرح و برنامه",type:1,assignedRole:"PlanManager",sortOrder:7,x:-230,y:280},
+      {key:"profile-done",name:"پایان فرآیند شناسنامه",type:1,sortOrder:8,x:-520,y:280}
+    ],
+    transitions: [
+      {from:"profile-producer",to:"profile-manager",name:"ارسال",outcome:"submit",priority:0},
+      {from:"profile-manager",to:"profile-type-condition",name:"تأیید مدیر گروه",outcome:"approve",priority:0},
+      {from:"profile-manager",to:"profile-producer",name:"بازگشت برای اصلاح",outcome:"return-for-edit",priority:1},
+      {from:"profile-type-condition",to:"profile-live-review",name:"بله، زنده است",outcome:"yes",priority:0},
+      {from:"profile-type-condition",to:"profile-recorded-review",name:"خیر، ضبطی است",outcome:"no",priority:1},
+      {from:"profile-live-review",to:"profile-broadcast",name:"تأیید ناظر زنده",outcome:"approve",priority:0},
+      {from:"profile-recorded-review",to:"profile-broadcast",name:"تأیید ناظر ضبطی",outcome:"approve",priority:0},
+      {from:"profile-broadcast",to:"profile-planning",name:"تأیید مدیر پخش",outcome:"approve",priority:0},
+      {from:"profile-broadcast",to:"profile-manager",name:"بازگشت به مدیر گروه",outcome:"return-for-edit",priority:1},
+      {from:"profile-planning",to:"profile-done",name:"تأیید نهایی",outcome:"approve",priority:0}
+    ]
   });
 }

@@ -19,12 +19,12 @@ const DashBoardLayoutProvider = ({ children }: { children: React.ReactNode }) =>
   }
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       <Header handleOpenSearch={() => {}} trans={{}} />
       <Sidebar trans={{}} />
 
       <div
-        className={cn("content-wrapper transition-all duration-150", {
+        className={cn("content-wrapper transition-all duration-150 flex-1", {
           "ltr:xl:ml-[300px] rtl:xl:mr-[300px]": !collapsed,
           "ltr:xl:ml-[72px] rtl:xl:mr-[72px]": collapsed,
         })}
@@ -43,7 +43,7 @@ const DashBoardLayoutProvider = ({ children }: { children: React.ReactNode }) =>
       </div>
 
       <Footer />
-    </>
+    </div>
   );
 };
 

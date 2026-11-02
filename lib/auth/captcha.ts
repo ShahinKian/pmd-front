@@ -76,21 +76,21 @@ export function verifyCaptcha(request: NextRequest, answer: string): boolean {
   }
 }
 
-export function applyCaptchaCookie(response: NextResponse, value: string): void {
+export function applyCaptchaCookie(response: NextResponse, value: string, secure: boolean): void {
   response.cookies.set(CAPTCHA_COOKIE, value, {
     httpOnly: true,
     sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
+    secure,
     path: "/api/auth",
     maxAge: CAPTCHA_TTL_SECONDS,
   });
 }
 
-export function clearCaptchaCookie(response: NextResponse): void {
+export function clearCaptchaCookie(response: NextResponse, secure = process.env.NODE_ENV === "production"): void {
   response.cookies.set(CAPTCHA_COOKIE, "", {
     httpOnly: true,
     sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
+    secure,
     path: "/api/auth",
     expires: new Date(0),
   });

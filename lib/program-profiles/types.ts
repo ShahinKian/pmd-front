@@ -46,12 +46,14 @@ export interface ProgramProfileResponse {
   programTypeName: string;
   status: number;
   statusDisplayName: string;
+  lastReturnReason?: string | null;
   crewMembers: ProfileCrewMember[];
   items: ProfileItem[];
   experts: ProfileExpert[];
   createdByUserId: string;
   createdByUserName: string;
   createdDate: string;
+  keywords?: string[];
 }
 
 export interface SupervisorComment {
@@ -73,9 +75,10 @@ export const PROFILE_STATUS = {
 } as const;
 
 export function profileStatusLabel(status: number, displayName?: string): string {
+  if (status === 0) return "تهیه‌کننده (پیش‌نویس)";
   if (displayName?.trim()) return displayName;
   switch (status) {
-    case 0: return "پیش‌نویس";
+    case 0: return "نزد تهیه‌کننده (پیش‌نویس)";
     case 10: return "منتظر تایید مدیر گروه";
     case 20: return "منتظر تایید ناظر";
     case 30: return "منتظر تایید مدیر پخش";

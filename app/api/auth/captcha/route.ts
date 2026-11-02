@@ -1,9 +1,11 @@
 import { randomInt } from "node:crypto";
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
   applyCaptchaCookie,
   createCaptchaChallenge,
 } from "@/lib/auth/captcha";
+import { isSecureRequest } from "@/lib/auth/security";
 
 function escapeXml(value: string): string {
   return value
@@ -13,7 +15,7 @@ function escapeXml(value: string): string {
     .replaceAll('"', "&quot;");
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const challenge = createCaptchaChallenge();
 
   const rotations = [-8, 6, -3, 7, -5, 4, -6, 3, -4, 5];
@@ -70,6 +72,6 @@ export async function GET() {
     },
   });
 
-  applyCaptchaCookie(response, challenge.cookieValue);
+  applyCaptchaCookie(response, challenge.cookieValue, isSecureRequest(request));
   return response;
 }

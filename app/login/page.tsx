@@ -17,9 +17,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [captchaVersion, setCaptchaVersion] = useState(1);
+  const [captchaFailed, setCaptchaFailed] = useState(false);
 
   function refreshCaptcha() {
-    setCaptchaVersion((value) => value + 1);
+    setCaptchaFailed(false);
+    setCaptchaVersion(Date.now());
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -27,7 +29,8 @@ export default function LoginPage() {
     setLoading(true);
     setMessage("");
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
 
     try {
       await apiClient.post("/auth/login", {
@@ -46,8 +49,9 @@ export default function LoginPage() {
     } catch (error) {
       setMessage(apiErrorMessage(error, "ورود به سامانه انجام نشد."));
       refreshCaptcha();
-      const captchaInput = event.currentTarget.elements.namedItem("captcha");
+      const captchaInput = formElement.elements.namedItem("captcha");
       if (captchaInput instanceof HTMLInputElement) captchaInput.value = "";
+    } finally {
       setLoading(false);
     }
   }
@@ -139,13 +143,18 @@ export default function LoginPage() {
                   <div className="rounded-xl border bg-default-50 p-3">
                     <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1 overflow-hidden rounded-lg border bg-white">
-                        <img
+                        {!captchaFailed ? <img
                           key={captchaVersion}
                           src={"/api/auth/captcha?v=" + captchaVersion}
                           alt="کد امنیتی"
                           className="h-[66px] w-full object-cover"
                           draggable={false}
-                        />
+                          onError={() => setCaptchaFailed(true)}
+                        /> : captchaFailed ? (
+                          <div className="flex h-[66px] items-center justify-center px-3 text-center text-xs text-red-600">
+                            دریافت کد امنیتی ناموفق بود
+                          </div>
+                        ) : null}
                       </div>
 
                       <Button

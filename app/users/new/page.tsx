@@ -7,6 +7,7 @@ import { Camera, Loader2, Save, ShieldAlert, UserPlus, UsersRound } from "lucide
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
+import { showToast } from "@/lib/ui/toast";
 import type { RoleResponse } from "@/lib/auth/types";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { roleLabel } from "@/lib/auth/roles";
@@ -14,6 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+import { ProviderPicker } from "@/components/providers/provider-picker";
 
 const PROVIDERS_ROLE = "Providers";
 const NETWORK_GROUP_MANAGER_ROLE = "NetworkGroupManager";
@@ -55,7 +58,7 @@ export default function NewUserPage() {
         : null,
     );
 
-  const { data: providers, isLoading: providersLoading } =
+  const { data: providers, isLoading: providersLoading, error: providersError } =
     useSWR<BaseInfoListResponse>(
       isProvider ? "/base-info/providers" : null,
     );
@@ -205,22 +208,13 @@ export default function NewUserPage() {
         | null
         | undefined;
 
-      setMessage({
-        type: warning ? "error" : "success",
-        text: warning
-          ? `کاربر «${createdName}» ایجاد شد. ${warning}`
-          : `کاربر «${createdName}» با موفقیت ایجاد شد.`,
-      });
+      const successText = warning
+        ? `کاربر «${createdName}» با موفقیت ایجاد شد. ${warning}`
+        : `کاربر «${createdName}» با موفقیت ایجاد شد.`;
 
-      event.currentTarget.reset();
-      setSelectedRoles([]);
-      setSelectedNetworkIds([]);
-      setGroupNetworkId(null);
-      setNetworkGroupId(null);
-      setProviderId(null);
-      setPicture(null);
-      if (picturePreview) URL.revokeObjectURL(picturePreview);
-      setPicturePreview(null);
+      // ایجاد کاربر موفق است حتی اگر بارگذاری عکس هشدار جداگانه داشته باشد.
+      showToast({ type: "success", message: successText }, true);
+      router.push("/users");
     } catch (error) {
       setMessage({
         type: "error",
@@ -378,45 +372,13 @@ export default function NewUserPage() {
               <CardHeader>
                 <CardTitle>انتخاب تهیه‌کننده</CardTitle>
                 <CardDescription>
-                  همه تهیه‌کننده‌ها نمایش داده می‌شوند. شبکه یا گروه روی حساب
+                  تهیه‌کننده را با جست‌وجوی نام انتخاب کنید. شبکه یا گروه روی حساب
                   تهیه‌کننده ذخیره نمی‌شود و دسترسی طرح‌ها از PlanProvider
                   تعیین خواهد شد.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <label className="field">
-                  <span className="label">تهیه‌کننده *</span>
-                  <select
-                    className="select"
-                    value={providerId ?? ""}
-                    onChange={(event) =>
-                      setProviderId(toPositiveInt(event.target.value))
-                    }
-                    disabled={providersLoading}
-                    required
-                  >
-                    <option value="">
-                      {providersLoading
-                        ? "در حال دریافت همه تهیه‌کننده‌ها..."
-                        : "انتخاب تهیه‌کننده"}
-                    </option>
-                    {(providers?.Data ?? []).map((provider) => {
-                      const id = toPositiveInt(provider.Value);
-                      return id ? (
-                        <option
-                          key={id}
-                          value={id}
-                          disabled={provider.Disabled}
-                        >
-                          {provider.Text}
-                        </option>
-                      ) : null;
-                    })}
-                  </select>
-                  <small className="muted">
-                    providerId همان Value پرسنل در سرویس اطلاعات پایه است.
-                  </small>
-                </label>
+                <ProviderPicker data={providers} value={providerId} onChange={setProviderId} loading={providersLoading} error={providersError} />
               </CardContent>
             </Card>
           ) : (

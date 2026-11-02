@@ -6,4 +6,6 @@ export interface PlanProviderLink {
 
 export interface EnrichedProviderPlan extends PlanProviderLink {
   title: string;
+  networkId: number | null;
+  networkGroupId: number | null;
 }

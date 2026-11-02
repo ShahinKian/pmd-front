@@ -7,6 +7,9 @@ export interface ForecastTopicAxis {
 export interface ForecastResponse {
   id: string;
   planId: number;
+  planName?: string | null;
+  lastActionReason?: string | null;
+  workflow?: { workflowName: string; currentNodeName: string | null; currentNodeRole: string | null; lastAction: string | null } | null;
   networkId: number;
   networkGroupId: number;
   episodeNumber: number;
@@ -19,6 +22,7 @@ export interface ForecastResponse {
   userCreatorId: string;
   userCreatorName: string;
   createdDate: string;
+  hasProfile: boolean;
 }
 
 export interface PaginationMeta {
