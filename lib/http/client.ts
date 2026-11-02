@@ -75,6 +75,13 @@ export function apiErrorMessage(error: unknown, fallback = "خطایی رخ دا
     if (typeof data.title === "string" && data.title.trim()) return data.title;
   }
 
+  if (typeof body === "string" && body.trim()) {
+    const text = body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (text) return `خطای HTTP ${axiosError.response?.status ?? ""}: ${text.slice(0, 220)}`;
+  }
+
   if (axiosError.code === "ECONNABORTED") return "زمان پاسخ سرویس به پایان رسید.";
+  if (axiosError.response?.status) return `${fallback} (HTTP ${axiosError.response.status})`;
+  if (axiosError.code) return `${fallback} (${axiosError.code})`;
   return fallback;
 }
