@@ -33,6 +33,11 @@ export default function UsersPage() {
     session?.isSystemAdmin ? "/base-info/providers" : null,
   );
 
+  const { data: networks, error: networksError } = useSWR<BaseInfoListResponse>(
+    session?.isSystemAdmin ? "/base-info/networks" : null,
+  );
+  const networkNames = new Map((networks?.Data ?? []).map(item => [Number(item.Value), item.Text]));
+
   const providerOptions = useMemo(
     () => (providers?.Data ?? [])
       .map(x => ({ id: Number(x.Value), text: x.Text, disabled: x.Disabled }))
@@ -127,6 +132,7 @@ export default function UsersPage() {
                   <th className="p-3">نام و نام خانوادگی</th>
                   <th className="p-3">نام کاربری</th>
                   <th className="p-3">نقش‌ها</th>
+                  <th className="p-3">شبکه‌های دارای دسترسی</th>
                   <th className="p-3">شماره تماس</th>
                   <th className="p-3">تهیه‌کننده</th>
                   <th className="p-3">وضعیت</th>
@@ -144,6 +150,12 @@ export default function UsersPage() {
                       </td>
                       <td className="p-3" dir="ltr">{user.userName}</td>
                       <td className="p-3">{user.roles.map(roleLabel).join("، ") || "—"}</td>
+                      <td className="p-3 min-w-48">
+                        {user.roles.includes("Admin") ? "همه شبکه‌ها" : <>
+                          {(user.networkIds ?? []).map(id => networkNames.get(id) ?? `شبکه ${id}`).join("، ") || (user.roles.includes("Providers") ? "" : "شبکه‌ای تخصیص داده نشده")}
+                          {user.roles.includes("Providers") ? <div className="muted">دسترسی تهیه‌کننده بر اساس برنامه‌های تخصیص‌یافته</div> : null}
+                        </>}
+                      </td>
                       <td className="p-3">
                         {editing ? <input className="input min-w-36" dir="ltr" value={draft.phoneNumber} onChange={e=>setDraft(x=>({...x,phoneNumber:e.target.value}))}/> : (user.phoneNumber || "—")}
                       </td>
@@ -187,6 +199,7 @@ export default function UsersPage() {
             </table>
           </div>
           {isLoading ? <div className="p-6 muted">در حال دریافت کاربران...</div> : null}
+          {networksError ? <div className="alert alert-error m-4">دریافت نام شبکه‌ها انجام نشد؛ شناسه شبکه نمایش داده می‌شود.</div> : null}
           {error ? <div className="alert alert-error m-4">دریافت کاربران انجام نشد.</div> : null}
           {!isLoading && !error && (users?.length ?? 0) === 0 ? <div className="p-8 text-center muted">کاربری برای نمایش وجود ندارد.</div> : null}
         </section>

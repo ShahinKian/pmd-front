@@ -16,6 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { ProviderPicker } from "@/components/providers/provider-picker";
+
 const PROVIDERS_ROLE = "Providers";
 const NETWORK_GROUP_MANAGER_ROLE = "NetworkGroupManager";
 
@@ -56,7 +58,7 @@ export default function NewUserPage() {
         : null,
     );
 
-  const { data: providers, isLoading: providersLoading } =
+  const { data: providers, isLoading: providersLoading, error: providersError } =
     useSWR<BaseInfoListResponse>(
       isProvider ? "/base-info/providers" : null,
     );
@@ -370,45 +372,13 @@ export default function NewUserPage() {
               <CardHeader>
                 <CardTitle>انتخاب تهیه‌کننده</CardTitle>
                 <CardDescription>
-                  همه تهیه‌کننده‌ها نمایش داده می‌شوند. شبکه یا گروه روی حساب
+                  تهیه‌کننده را با جست‌وجوی نام انتخاب کنید. شبکه یا گروه روی حساب
                   تهیه‌کننده ذخیره نمی‌شود و دسترسی طرح‌ها از PlanProvider
                   تعیین خواهد شد.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <label className="field">
-                  <span className="label">تهیه‌کننده *</span>
-                  <select
-                    className="select"
-                    value={providerId ?? ""}
-                    onChange={(event) =>
-                      setProviderId(toPositiveInt(event.target.value))
-                    }
-                    disabled={providersLoading}
-                    required
-                  >
-                    <option value="">
-                      {providersLoading
-                        ? "در حال دریافت همه تهیه‌کننده‌ها..."
-                        : "انتخاب تهیه‌کننده"}
-                    </option>
-                    {(providers?.Data ?? []).map((provider) => {
-                      const id = toPositiveInt(provider.Value);
-                      return id ? (
-                        <option
-                          key={id}
-                          value={id}
-                          disabled={provider.Disabled}
-                        >
-                          {provider.Text}
-                        </option>
-                      ) : null;
-                    })}
-                  </select>
-                  <small className="muted">
-                    providerId همان Value پرسنل در سرویس اطلاعات پایه است.
-                  </small>
-                </label>
+                <ProviderPicker data={providers} value={providerId} onChange={setProviderId} loading={providersLoading} error={providersError} />
               </CardContent>
             </Card>
           ) : (

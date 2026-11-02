@@ -11,6 +11,8 @@ import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import type { PlanProviderLink } from "@/lib/plan-providers/types";
 import { Switch } from "@/components/ui/switch";
 
+import { normalizeSearch } from "@/lib/base-info/search";
+
 function toPositiveInt(value: string): number | null {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
@@ -30,6 +32,7 @@ export default function PlanProvidersPage() {
   const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
   const [planId, setPlanId] = useState<number | null>(null);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
+  const [providerSearch, setProviderSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [deletingProviderId, setDeletingProviderId] = useState<number | null>(null);
 
@@ -88,6 +91,10 @@ export default function PlanProvidersPage() {
     [providers],
   );
 
+  const search = normalizeSearch(providerSearch);
+  const matchingProviders = search ? providerOptions.filter(provider => normalizeSearch(provider.label).includes(search)) : [];
+  const visibleProviders = providerOptions.filter(provider => selectedProviderIds.includes(provider.id) || matchingProviders.slice(0, 30).some(match => match.id === provider.id));
+
   const assignedIds = useMemo(
     () => new Set((assignments ?? []).map((item) => item.providerId)),
     [assignments],
@@ -96,17 +103,20 @@ export default function PlanProvidersPage() {
   function changeNetwork(value: string) {
     setNetworkId(toPositiveInt(value));
     setNetworkGroupId(null);
+    setProviderSearch("");
     setPlanId(null);
     setSelectedProviderIds([]);
   }
 
   function changeGroup(value: string) {
     setNetworkGroupId(toPositiveInt(value));
+    setProviderSearch("");
     setPlanId(null);
     setSelectedProviderIds([]);
   }
 
   function changePlan(value: string) {
+    setProviderSearch("");
     setPlanId(toPositiveInt(value));
     setSelectedProviderIds([]);
   }
@@ -286,8 +296,11 @@ export default function PlanProvidersPage() {
                   <div className="muted">در حال دریافت تهیه‌کننده‌ها...</div>
                 ) : null}
 
+                <input className="input mb-3" aria-label="جست‌وجوی تهیه‌کننده" placeholder="نام تهیه‌کننده را جست‌وجو کنید..." value={providerSearch} onChange={event => setProviderSearch(event.target.value)} />
+                {!search ? <p className="muted mb-3">برای نمایش تهیه‌کنندگان، نام را جست‌وجو کنید.</p> : !providersLoading && !providersError && !matchingProviders.length ? <p className="muted mb-3">تهیه‌کننده‌ای یافت نشد.</p> : null}
+                {matchingProviders.length > 30 ? <p className="muted mb-3">۳۰ نتیجه از {matchingProviders.length}؛ جست‌وجو را دقیق‌تر کنید.</p> : null}
                 <div className="role-grid">
-                  {providerOptions.map((provider) => {
+                  {visibleProviders.map((provider) => {
                     const alreadyAssigned = assignedIds.has(provider.id);
                     const active =
                       alreadyAssigned || selectedProviderIds.includes(provider.id);
