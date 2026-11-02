@@ -1237,3 +1237,9 @@ When a new requirement changes an existing rule, update both implementation and 
 The documented plans lookup uses `GET /plans?networkId={networkId}&networkGroupId={networkGroupId}` and returns `Data` as a `Text`/`Value` option list. The plan-management UI must choose network, then network group, then plan; changing a parent selection clears its descendants. Current-user plan ownership and PlanProvider assignments remain backend-owned and must not be altered by this lookup integration.
 
 The user registration screen may show the complete provider roster by querying `personelProgramMaker` for each active network with the resolved provider job ID, deduplicating on the numeric external `Value`. A failed upstream request must not be disguised as an empty or complete roster.
+
+## Program-profile editor checkpoints (2026-11)
+
+The issue wizard saves incomplete editor checkpoints on the Next.js server, scoped to the authenticated PMD user and an authorized forecast. These checkpoints are temporary form input, not ProgramProfile records or workflow states. Issuance, validation of business rules, permissions and workflow remain owned by `pmd-api`. Only the existing `/program-profiles/issue` call creates a profile. See `docs/profile-drafts.md` for persistent storage configuration.
+
+Explicit source reload restores missing external row IDs without overwriting edited/manual rows. Background revalidation must never reset a loaded draft. Exclude sound-operator business/activity labels from the new-profile crew editor. Existing source items may be edited. Preserve drafts on upstream errors and never report a successful save before the server confirms it.
