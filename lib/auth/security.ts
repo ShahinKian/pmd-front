@@ -5,6 +5,15 @@ function normalizeHost(value: string | null): string | null {
   return host || null;
 }
 
+function hostFromUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).host.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
 function requestHosts(request: NextRequest): string[] {
   const hosts = [
     normalizeHost(request.headers.get("x-forwarded-host")),
@@ -17,26 +26,23 @@ function requestHosts(request: NextRequest): string[] {
 export function isSameOriginRequest(request: NextRequest): boolean {
   const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
 
-  // Browser-generated same-origin requests are safe even when IIS/ARR rewrites
-  // the upstream scheme/host to 127.0.0.1:3000.
   if (fetchSite === "same-origin") return true;
   if (fetchSite === "cross-site") return false;
 
-  const origin = request.headers.get("origin");
-  if (!origin) return true;
+  const originHost = hostFromUrl(request.headers.get("origin"));
+  const refererHost = hostFromUrl(request.headers.get("referer"));
+  const hosts = requestHosts(request);
 
-  try {
-    const originHost = new URL(origin).host.toLowerCase();
-    const hosts = requestHosts(request);
+  if (originHost && hosts.includes(originHost)) return true;
 
-    if (hosts.includes(originHost)) return true;
+  // IIS/ARR can rewrite Host before the request reaches Next.js. In that case,
+  // Origin and Referer still reflect the browser-facing address (IP/domain).
+  if (originHost && refererHost && originHost === refererHost) return true;
 
-    // If the browser reports same-site, still require an explicit host match.
-    // This prevents a sibling subdomain from being treated as same-origin.
-    return false;
-  } catch {
-    return false;
-  }
+  // Non-browser/internal requests may omit Origin entirely.
+  if (!originHost) return true;
+
+  return false;
 }
 
 export function isSecureRequest(request: NextRequest): boolean {
@@ -48,7 +54,6 @@ export function isSecureRequest(request: NextRequest): boolean {
 
   if (forwardedProto) return forwardedProto === "https";
 
-  // IIS ARR commonly adds X-ARR-SSL for HTTPS requests terminated at IIS.
   if (request.headers.get("x-arr-ssl")) return true;
 
   const origin = request.headers.get("origin");
