@@ -31,13 +31,24 @@ export async function POST(request: NextRequest) {
     return response;
   }
 
-  const upstream = await pmdFetch("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({
-      userName: data.userName,
-      password: data.password,
-    }),
-  });
+  let upstream: Response;
+  try {
+    upstream = await pmdFetch("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        userName: data.userName,
+        password: data.password,
+      }),
+    });
+  } catch (error) {
+    console.error("PMD login upstream request failed", error);
+    const response = NextResponse.json(
+      { message: "ارتباط فرانت با سرویس ورود برقرار نشد. API_BASE_URL و اجرای سرویس API را بررسی کنید." },
+      { status: 502 },
+    );
+    clearCaptchaCookie(response, isSecureRequest(request));
+    return response;
+  }
 
   const payload = await readUpstreamBody(upstream);
   if (!upstream.ok) {
