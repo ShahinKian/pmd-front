@@ -7,6 +7,26 @@ export interface PaymentPeriod {
   paymentYear: number;
   paymentMonth: number;
   issuedAt: string | null;
+  isActive: boolean;
+}
+
+export type ManagedPaymentPeriod = Omit<PaymentPeriod, "issuedAt"> & {
+  hasIssuance: boolean;
+  legacyNetworkId: number | null;
+  version: string;
+};
+
+export interface PermitIssuePreparation {
+  alreadyIssued: boolean;
+  planIds: number[];
+  profiles: {
+    profileId: string;
+    planId: number;
+    episodeNumber: number;
+    broadcastDate: string;
+    productionMethod: string;
+    eligible: boolean;
+  }[];
 }
 
 export interface PermitSummary {

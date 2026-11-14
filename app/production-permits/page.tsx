@@ -8,7 +8,7 @@ import { NetworkSelect } from "@/components/certificate/network-select";
 import { useSession } from "@/hooks/use-session";
 import { certificateAccess } from "@/lib/certificate/access";
 import { amountExceeds, displayDate, displayNumber, parseDeduction, paymentMonths } from "@/lib/certificate/format";
-import type { Money, PaymentPeriod, PermitDetail, PermitSummary, PersonnelPayment } from "@/lib/certificate/types";
+import type { Money, PaymentPeriod, PermitDetail, PermitIssuePreparation, PermitSummary, PersonnelPayment } from "@/lib/certificate/types";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 
@@ -33,6 +33,8 @@ export default function ProductionPermitsPage() {
   const planTitles = new Map(Array.isArray(plans.data?.Data) ? plans.data.Data.map((plan) => [Number(plan.Value), plan.Text]) : []);
   const planTitle = (id: number) => planTitles.get(id) || `برنامه با شناسه طرح ${displayNumber(id)}`;
   const period = periods.data?.find((item) => item.id === periodId);
+  const preparation = useSWR<PermitIssuePreparation>(
+    base && access.canIssue && period?.isActive && !period.issuedAt ? `${base}/periods/${period.id}/issue` : null);
 
   async function run(label: string, action: () => Promise<void>, success: string) {
     if (busy) return;
@@ -43,14 +45,14 @@ export default function ProductionPermitsPage() {
       setMessage({ text: success });
     } catch (cause) {
       setMessage({ text: apiErrorMessage(cause, "عملیات انجام نشد."), error: true });
-      await Promise.allSettled([periods.mutate(), permits.mutate(), detail.mutate()]);
+      await Promise.allSettled([periods.mutate(), permits.mutate(), detail.mutate(), preparation.mutate()]);
     } finally {
       setBusy("");
     }
   }
 
   function issue() {
-    if (!base || !period) return;
+    if (!base || !period?.isActive || !preparation.data?.planIds.length) return;
     void run("issue", async () => {
       const { data: issued } = await apiClient.post<PermitSummary[]>(
         `${base}/periods/${period.id}/issue`, undefined, { timeout: 125_000 });
@@ -85,7 +87,7 @@ export default function ProductionPermitsPage() {
       {access.financeOnly && <p className="page-description">اسناد ارسالی به کارتابل مالی</p>}
     </div>
       {session && access.canCreatePeriod &&
-        <Link href="/production-permits/periods/new" className="btn btn-primary">تعریف دوره پرداخت</Link>}
+        <Link href="/production-permits/periods" className="btn btn-primary">دوره‌های پرداخت</Link>}
     </div>
     {sessionLoading && <p role="status">در حال بررسی دسترسی…</p>}
     {session && access.canRead && !access.canIssue && !access.financeOnly &&
@@ -108,19 +110,44 @@ export default function ProductionPermitsPage() {
               <option value="">{periods.isLoading ? "در حال بارگذاری…" : periods.data?.length === 0 ? "دوره‌ای ثبت نشده است" : "انتخاب دوره"}</option>
               {periods.data?.map((item) => <option key={item.id} value={item.id}>
                 {paymentMonths[item.paymentMonth - 1]} {displayNumber(item.paymentYear)} · {displayDate(item.fromDate)} تا {displayDate(item.toDate)}
+                {!item.isActive && " · غیرفعال"}
               </option>)}
             </select>
           </label>}
         </div>
-        {base && access.canIssue && period && !period.issuedAt &&
-          <div><button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={issue}>
-            {busy === "issue" ? "در حال محاسبه برنامه‌های شبکه…" : "صدور پیش‌نویس مجوز قطعی"}
-          </button></div>}
+        {access.canIssue && period?.issuedAt && <p>صدور این دوره برای شبکهٔ انتخاب‌شده انجام شده است.</p>}
+        {access.canIssue && period && !period.isActive && !period.issuedAt &&
+          <p>این دوره غیرفعال است. مدیر سیستم می‌تواند آن را دوباره فعال کند.</p>}
       </section>
+      {access.canIssue && period?.isActive && !period.issuedAt && <section className="card grid gap-3">
+        <h2 className="font-semibold">بررسی شناسنامه‌ها برای صدور</h2>
+        {preparation.isLoading && <p role="status">در حال بررسی شناسنامه‌ها…</p>}
+        {preparation.error && <p role="alert" className="alert alert-error">
+          {apiErrorMessage(preparation.error, "بررسی شناسنامه‌ها انجام نشد.")}
+        </p>}
+        {preparation.data?.alreadyIssued && <p>صدور این دوره برای شبکهٔ انتخاب‌شده انجام شده است.</p>}
+        {preparation.data && !preparation.data.alreadyIssued && <>
+          {preparation.data.profiles.length === 0
+            ? <p>در این شبکه، شناسنامه‌ای با وضعیت «تأیید نهایی» و تاریخ پخش داخل بازهٔ این دوره پیدا نشد.</p>
+            : <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
+                <thead><tr><th>برنامه</th><th>قسمت</th><th>تاریخ پخش</th><th>نحوه تولید</th><th>وضعیت صدور</th></tr></thead>
+                <tbody>{preparation.data.profiles.map((profile) => <tr key={profile.profileId} className="border-t">
+                  <td>{planTitle(profile.planId)}</td><td>{displayNumber(profile.episodeNumber)}</td>
+                  <td>{displayDate(profile.broadcastDate)}</td><td>{profile.productionMethod || "ثبت نشده"}</td>
+                  <td>{profile.eligible ? "واجد شرایط" : "نیاز به نحوه تولید «تولیدی»"}</td>
+                </tr>)}</tbody>
+              </table></div>}
+          {preparation.data.planIds.length > 0 && <div>
+            <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={issue}>
+              {busy === "issue" ? "در حال محاسبه برنامه‌های شبکه…" : "صدور پیش‌نویس مجوز قطعی"}
+            </button>
+          </div>}
+        </>}
+      </section>}
       {period && <section className="card grid gap-3">
         <h2 className="font-semibold">اسناد برنامه‌ها</h2>
         {permits.isLoading && <p role="status">در حال بارگذاری اسناد…</p>}
-        {permits.data?.length === 0 && <p>برای این دوره سندی در دسترس نیست.</p>}
+        {permits.data?.length === 0 && <p>برای این دوره سند مجوزی ثبت نشده است.</p>}
         {Boolean(permits.data?.length) && <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
           <thead><tr><th>برنامه</th><th>قسمت‌ها</th><th>وضعیت</th><th>ناخالص</th><th>کسورات</th><th>قابل پرداخت</th><th>سند</th></tr></thead>
           <tbody>{permits.data?.map((permit) => <tr key={permit.id} className="border-t">

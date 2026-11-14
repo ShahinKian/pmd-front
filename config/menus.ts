@@ -54,7 +54,10 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       child: [
         { title: "مجوز قطعی برنامه‌های تولیدی", href: "/production-permits", icon: ClipBoard },
         ...(certificate.canCreatePeriod
-          ? [{ title: "تعریف دوره پرداخت", href: "/production-permits/periods/new", icon: ClipBoard }]
+          ? [
+              { title: "دوره‌های پرداخت", href: "/production-permits/periods", icon: ClipBoard },
+              { title: "تعریف دوره پرداخت", href: "/production-permits/periods/new", icon: ClipBoard },
+            ]
           : []),
       ],
     }] : []),

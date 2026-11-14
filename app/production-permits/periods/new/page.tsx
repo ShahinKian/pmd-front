@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { mutate } from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
-import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import { PaymentPeriodForm, refreshPaymentPeriods } from "@/components/certificate/payment-period-form";
 import { useSession } from "@/hooks/use-session";
 import { certificateAccess } from "@/lib/certificate/access";
 import { displayDate, displayNumber, paymentMonths } from "@/lib/certificate/format";
@@ -14,42 +13,12 @@ import { apiClient, apiErrorMessage } from "@/lib/http/client";
 export default function NewPaymentPeriodPage() {
   const { data: session, error: sessionError, isLoading } = useSession();
   const { canCreatePeriod } = certificateAccess(session);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const [saved, setSaved] = useState<PaymentPeriod | null>(null);
-  const currentYear = new Intl.DateTimeFormat("en-u-ca-persian", { year: "numeric", timeZone: "Asia/Tehran" })
-    .formatToParts(new Date()).find((part) => part.type === "year")?.value;
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!canCreatePeriod || busy) return;
-    setError("");
-    if (!fromDate || !toDate || fromDate > toDate) {
-      setError("تاریخ شروع و پایان دوره را بررسی کنید.");
-      return;
-    }
-
-    const data = new FormData(event.currentTarget);
-    setBusy(true);
-    try {
-      const response = await apiClient.post<PaymentPeriod>("/certificate/periods", {
-        fromDate, toDate, paymentYear: Number(data.get("year")), paymentMonth: Number(data.get("month")),
-      });
-      setSaved(response.data);
-      void mutate((key) => typeof key === "string" && /^\/certificate\/networks\/\d+\/periods$/.test(key));
-    } catch (cause) {
-      setError(apiErrorMessage(cause, "ثبت دورهٔ پرداخت انجام نشد."));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return <DashboardShell>
     <Breadcrumb items={[
       { label: "داشبورد", href: "/dashboard" },
-      { label: "مجوز قطعی برنامه‌های تولیدی", href: "/production-permits" },
+      { label: "دوره‌های پرداخت", href: "/production-permits/periods" },
       { label: "تعریف دوره پرداخت" },
     ]} />
     <div className="page-head"><h1 className="page-title">تعریف دوره پرداخت</h1></div>
@@ -60,33 +29,14 @@ export default function NewPaymentPeriodPage() {
       ? <section className="card grid gap-3">
         <p role="status" className="alert alert-success">دوره پرداخت برای همه شبکه‌ها ثبت شد.</p>
         <p>{paymentMonths[saved.paymentMonth - 1]} {displayNumber(saved.paymentYear)} · {displayDate(saved.fromDate)} تا {displayDate(saved.toDate)}</p>
-        <div><Link href="/production-permits" className="btn btn-primary">مشاهده دوره‌ها و مجوزها</Link></div>
+        <div><Link href="/production-permits/periods" className="btn btn-primary">مشاهده دوره‌های پرداخت</Link></div>
       </section>
-      : <form className="card grid gap-4" onSubmit={submit}>
-        <div className="form-grid">
-          <label className="field"><span className="label">ماه پرداخت</span>
-            <select className="select" name="month" required disabled={busy}>
-              <option value="">انتخاب ماه</option>
-              {paymentMonths.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
-            </select>
-          </label>
-          <div className="field"><span className="label">از تاریخ</span>
-            <PersianDatePicker value={fromDate} onChange={setFromDate} placeholder="تاریخ شروع" disabled={busy} />
-          </div>
-          <div className="field"><span className="label">تا تاریخ</span>
-            <PersianDatePicker value={toDate} onChange={setToDate} placeholder="تاریخ پایان" disabled={busy} />
-          </div>
-          <label className="field"><span className="label">سال شمسی پرداخت</span>
-            <input className="input" type="number" name="year" min="1300" max="1600" defaultValue={currentYear} required disabled={busy} />
-          </label>
-        </div>
-        {error && <p className="alert alert-error" role="alert">{error}</p>}
-        <div className="flex flex-wrap gap-2">
-          <button className="btn btn-primary" disabled={busy}>
-            {busy ? "در حال ثبت…" : "ثبت دوره پرداخت"}
-          </button>
-          <Link href="/production-permits" className="btn btn-outline">بازگشت به مجوزها</Link>
-        </div>
-      </form>)}
+      : <PaymentPeriodForm saveLabel="ثبت دوره پرداخت" onSave={async (input) => {
+        const { data } = await apiClient.post<PaymentPeriod>("/certificate/periods", input);
+        setSaved(data);
+        refreshPaymentPeriods();
+      }}>
+        <Link href="/production-permits/periods" className="btn btn-outline">بازگشت به دوره‌ها</Link>
+      </PaymentPeriodForm>)}
   </DashboardShell>;
 }
