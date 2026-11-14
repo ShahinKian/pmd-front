@@ -84,12 +84,12 @@ export default function ProductionPermitsPage() {
       <h1 className="page-title">{title}</h1>
       {access.financeOnly && <p className="page-description">اسناد ارسالی به کارتابل مالی</p>}
     </div>
-      {session && access.canIssue &&
+      {session && access.canCreatePeriod &&
         <Link href="/production-permits/periods/new" className="btn btn-primary">تعریف دوره پرداخت</Link>}
     </div>
     {sessionLoading && <p role="status">در حال بررسی دسترسی…</p>}
     {session && access.canRead && !access.canIssue && !access.financeOnly &&
-      <p className="page-description mb-4">تعریف دوره و صدور پیش‌نویس در دسترسی نقش «اطلاعات برنامه‌ریزی» است.</p>}
+      <p className="page-description mb-4">صدور پیش‌نویس در دسترسی نقش «اطلاعات برنامه‌ریزی» است.</p>}
     {session && !access.canRead && <p role="alert">دسترسی مشاهده مجوزهای تولیدی را ندارید.</p>}
     {loadError && <p className="alert alert-error" role="alert">{apiErrorMessage(loadError, "دریافت اطلاعات مجوز انجام نشد.")}</p>}
     {message && <p className={`alert mb-4 ${message.error ? "alert-error" : "alert-success"}`}

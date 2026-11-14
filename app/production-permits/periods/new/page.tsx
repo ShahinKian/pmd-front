@@ -14,7 +14,7 @@ import { apiClient, apiErrorMessage } from "@/lib/http/client";
 
 export default function NewPaymentPeriodPage() {
   const { data: session, error: sessionError, isLoading } = useSession();
-  const { canIssue } = certificateAccess(session);
+  const { canCreatePeriod } = certificateAccess(session);
   const [network, setNetwork] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -26,7 +26,7 @@ export default function NewPaymentPeriodPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canIssue || !network || busy) return;
+    if (!canCreatePeriod || !network || busy) return;
     setError("");
     if (!fromDate || !toDate || fromDate > toDate) {
       setError("تاریخ شروع و پایان دوره را بررسی کنید.");
@@ -58,8 +58,8 @@ export default function NewPaymentPeriodPage() {
     <div className="page-head"><h1 className="page-title">تعریف دوره پرداخت</h1></div>
     {isLoading && <p role="status">در حال بررسی دسترسی…</p>}
     {sessionError && <p role="alert" className="alert alert-error">{apiErrorMessage(sessionError, "دسترسی کاربر دریافت نشد.")}</p>}
-    {session && !canIssue && <p className="alert alert-error" role="alert">تعریف دورهٔ پرداخت در دسترسی نقش «اطلاعات برنامه‌ریزی» است.</p>}
-    {session && canIssue && (saved
+    {session && !canCreatePeriod && <p className="alert alert-error" role="alert">تعریف دورهٔ پرداخت فقط در دسترسی «مدیر سیستم» است.</p>}
+    {session && canCreatePeriod && (saved
       ? <section className="card grid gap-3">
         <p role="status" className="alert alert-success">دوره پرداخت ثبت شد.</p>
         <p>{paymentMonths[saved.paymentMonth - 1]} {displayNumber(saved.paymentYear)} · {displayDate(saved.fromDate)} تا {displayDate(saved.toDate)}</p>

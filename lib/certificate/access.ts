@@ -10,6 +10,7 @@ export function certificateAccess(session?: SessionPayload | null) {
 
   return {
     canRead: isAdmin || canIssue || canApprove || finance,
+    canCreatePeriod: isAdmin,
     canIssue,
     canApprove,
     canDeduct: canIssue || canApprove,

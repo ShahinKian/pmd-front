@@ -53,7 +53,7 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       icon: Files,
       child: [
         { title: "مجوز قطعی برنامه‌های تولیدی", href: "/production-permits", icon: ClipBoard },
-        ...(certificate.canIssue
+        ...(certificate.canCreatePeriod
           ? [{ title: "تعریف دوره پرداخت", href: "/production-permits/periods/new", icon: ClipBoard }]
           : []),
       ],
