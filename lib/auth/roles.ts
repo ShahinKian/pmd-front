@@ -7,6 +7,8 @@ export const SYSTEM_ROLES = {
   BroadcastManager: "BroadcastManager",
   LiveSupervisor: "LiveSupervisor",
   Supervisor: "Supervisor",
+  PlanningInformation: "PlanningInformation",
+  Finance: "Finance",
 } as const;
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -18,6 +20,8 @@ export const ROLE_LABELS: Record<string, string> = {
   BroadcastManager: "مدیر پخش",
   LiveSupervisor: "ناظر برنامه زنده",
   Supervisor: "ناظر برنامه ضبطی",
+  PlanningInformation: "اطلاعات برنامه‌ریزی",
+  Finance: "مالی",
 };
 
 export function isSystemAdmin(roles: readonly string[] | null | undefined): boolean {

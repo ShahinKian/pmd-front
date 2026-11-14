@@ -14,5 +14,6 @@ export const baseInfoEndpoints = {
   plans: () => "plans",
   planDetail: (planId: number) => `planDetail/${positiveId(planId, "planId")}`,
   planItems: (planId: number) => `planItems/${positiveId(planId, "planId")}`,
+  estimate: (planId: number) => `estimate/${positiveId(planId, "planId")}`,
   estimateDetail: (planId: number) => `estimateDetail/${positiveId(planId, "planId")}`,
 } as const;

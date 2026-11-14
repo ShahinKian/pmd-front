@@ -72,6 +72,7 @@ export function apiErrorMessage(error: unknown, fallback = "خطایی رخ دا
     const data = body as Record<string, unknown>;
     if (typeof data.errors === "string" && data.errors.trim()) return data.errors;
     if (typeof data.message === "string" && data.message.trim()) return data.message;
+    if (typeof data.description === "string" && data.description.trim()) return data.description;
     if (typeof data.title === "string" && data.title.trim()) return data.title;
   }
 

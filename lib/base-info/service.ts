@@ -39,6 +39,9 @@ export const baseInfoService = {
   getPlanItems(planId: number): Promise<BaseInfoResponse<unknown>> {
     return baseInfoGet(baseInfoEndpoints.planItems(planId), undefined, isRecords);
   },
+  getEstimate(planId: number): Promise<BaseInfoResponse<unknown>> {
+    return baseInfoGet(baseInfoEndpoints.estimate(planId));
+  },
   getEstimateDetail(planId: number): Promise<BaseInfoResponse<unknown>> {
     return baseInfoGet(baseInfoEndpoints.estimateDetail(planId), undefined, isRecords);
   },

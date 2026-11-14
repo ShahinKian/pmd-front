@@ -8,6 +8,7 @@ import {
   Building,
   Building2,
 } from "@/components/svg";
+import { certificateAccess } from "@/lib/certificate/access";
 import type { SessionPayload } from "@/hooks/use-session";
 
 export interface PmdMenuItem {
@@ -31,6 +32,8 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       || roles.includes("NetworkManager"),
   );
 
+  const certificate = certificateAccess(session);
+
   return [
     {
       title: "صفحه اصلی",
@@ -45,6 +48,16 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
         { title: "شناسنامه برنامه", href: "/program-profiles", icon: Files },
       ],
     },
+    ...(certificate.canRead ? [{
+      title: certificate.financeOnly ? "کارتابل مالی" : "مجوزهای قطعی",
+      icon: Files,
+      child: [
+        { title: "مجوز قطعی برنامه‌های تولیدی", href: "/production-permits", icon: ClipBoard },
+        ...(certificate.canIssue
+          ? [{ title: "تعریف دوره پرداخت", href: "/production-permits/periods/new", icon: ClipBoard }]
+          : []),
+      ],
+    }] : []),
     {
       title: "گزارشات",
       icon: Graph,
@@ -58,6 +71,9 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       icon: Building2,
       child: [
         { title: "کارشناسان", href: "/experts", icon: Users },
+        ...(certificate.canManageDutyCrew
+          ? [{ title: "عوامل موظفی", href: "/duty-crew", icon: Users }]
+          : []),
         ...(canManagePrograms
           ? [{ title: "برنامه‌های شبکه", href: "/plan-providers", icon: Building }]
           : []),

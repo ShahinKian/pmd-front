@@ -6,13 +6,15 @@ export async function pmdFetch(
   path: string,
   init: RequestInit = {},
   accessToken?: string,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<Response> {
   if (!path.startsWith("/api/")) {
     throw new Error("PMD API path must start with /api/.");
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(new DOMException("PMD request timed out", "TimeoutError")), timeoutMs);
+  const signal = init.signal ? AbortSignal.any([controller.signal, init.signal]) : controller.signal;
   const headers = new Headers(init.headers);
 
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
@@ -28,7 +30,7 @@ export async function pmdFetch(
       ...init,
       headers,
       cache: "no-store",
-      signal: controller.signal,
+      signal,
     });
   } finally {
     clearTimeout(timeout);

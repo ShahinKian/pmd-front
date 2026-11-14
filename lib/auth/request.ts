@@ -10,6 +10,7 @@ export async function authenticatedPmdFetch(
   request: NextRequest,
   path: string,
   init: RequestInit = {},
+  timeoutMs?: number,
 ): Promise<AuthenticatedFetchResult> {
   const accessToken = request.cookies.get(ACCESS_TOKEN_COOKIE)?.value;
 
@@ -18,6 +19,6 @@ export async function authenticatedPmdFetch(
   }
 
   return {
-    response: await pmdFetch(path, init, accessToken),
+    response: await pmdFetch(path, init, accessToken, timeoutMs),
   };
 }
