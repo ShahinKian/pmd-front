@@ -4,7 +4,6 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { mutate } from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
-import { NetworkSelect } from "@/components/certificate/network-select";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { useSession } from "@/hooks/use-session";
 import { certificateAccess } from "@/lib/certificate/access";
@@ -15,7 +14,6 @@ import { apiClient, apiErrorMessage } from "@/lib/http/client";
 export default function NewPaymentPeriodPage() {
   const { data: session, error: sessionError, isLoading } = useSession();
   const { canCreatePeriod } = certificateAccess(session);
-  const [network, setNetwork] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [busy, setBusy] = useState(false);
@@ -26,7 +24,7 @@ export default function NewPaymentPeriodPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canCreatePeriod || !network || busy) return;
+    if (!canCreatePeriod || busy) return;
     setError("");
     if (!fromDate || !toDate || fromDate > toDate) {
       setError("تاریخ شروع و پایان دوره را بررسی کنید.");
@@ -34,14 +32,13 @@ export default function NewPaymentPeriodPage() {
     }
 
     const data = new FormData(event.currentTarget);
-    const path = `/certificate/networks/${network}/periods`;
     setBusy(true);
     try {
-      const response = await apiClient.post<PaymentPeriod>(path, {
+      const response = await apiClient.post<PaymentPeriod>("/certificate/periods", {
         fromDate, toDate, paymentYear: Number(data.get("year")), paymentMonth: Number(data.get("month")),
       });
       setSaved(response.data);
-      void mutate(path);
+      void mutate((key) => typeof key === "string" && /^\/certificate\/networks\/\d+\/periods$/.test(key));
     } catch (cause) {
       setError(apiErrorMessage(cause, "ثبت دورهٔ پرداخت انجام نشد."));
     } finally {
@@ -61,13 +58,12 @@ export default function NewPaymentPeriodPage() {
     {session && !canCreatePeriod && <p className="alert alert-error" role="alert">تعریف دورهٔ پرداخت فقط در دسترسی «مدیر سیستم» است.</p>}
     {session && canCreatePeriod && (saved
       ? <section className="card grid gap-3">
-        <p role="status" className="alert alert-success">دوره پرداخت ثبت شد.</p>
+        <p role="status" className="alert alert-success">دوره پرداخت برای همه شبکه‌ها ثبت شد.</p>
         <p>{paymentMonths[saved.paymentMonth - 1]} {displayNumber(saved.paymentYear)} · {displayDate(saved.fromDate)} تا {displayDate(saved.toDate)}</p>
         <div><Link href="/production-permits" className="btn btn-primary">مشاهده دوره‌ها و مجوزها</Link></div>
       </section>
       : <form className="card grid gap-4" onSubmit={submit}>
         <div className="form-grid">
-          <NetworkSelect session={session} value={network} disabled={busy} onChange={setNetwork} />
           <label className="field"><span className="label">ماه پرداخت</span>
             <select className="select" name="month" required disabled={busy}>
               <option value="">انتخاب ماه</option>
@@ -86,7 +82,7 @@ export default function NewPaymentPeriodPage() {
         </div>
         {error && <p className="alert alert-error" role="alert">{error}</p>}
         <div className="flex flex-wrap gap-2">
-          <button className="btn btn-primary" disabled={busy || !network}>
+          <button className="btn btn-primary" disabled={busy}>
             {busy ? "در حال ثبت…" : "ثبت دوره پرداخت"}
           </button>
           <Link href="/production-permits" className="btn btn-outline">بازگشت به مجوزها</Link>
