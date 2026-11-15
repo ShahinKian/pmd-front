@@ -12,7 +12,7 @@ import type { Money, PaymentPeriod, PermitDetail, PermitIssuePreparation, Permit
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 
-const title = "مجوز قطعی برنامه‌های تولیدی";
+const title = "مجوز قطعی برنامه‌ها";
 const statusLabels: Record<PermitSummary["status"], string> = {
   Draft: "پیش‌نویس", Approved: "تأییدشده", SentToFinance: "ارسال‌شده به مالی",
 };
@@ -33,8 +33,9 @@ export default function ProductionPermitsPage() {
   const planTitles = new Map(Array.isArray(plans.data?.Data) ? plans.data.Data.map((plan) => [Number(plan.Value), plan.Text]) : []);
   const planTitle = (id: number) => planTitles.get(id) || `برنامه با شناسه طرح ${displayNumber(id)}`;
   const period = periods.data?.find((item) => item.id === periodId);
-  const preparation = useSWR<PermitIssuePreparation>(
-    base && access.canIssue && period?.isActive && !period.issuedAt ? `${base}/periods/${period.id}/issue` : null);
+  const canPrepare = Boolean(base && access.canIssue && period?.isActive && !period.issuedAt);
+  const preparation = useSWR<PermitIssuePreparation>(canPrepare ? `${base}/periods/${periodId}/issue` : null);
+  const readyPlans = preparation.data?.planIds.length ?? 0;
 
   async function run(label: string, action: () => Promise<void>, success: string) {
     if (busy) return;
@@ -52,10 +53,10 @@ export default function ProductionPermitsPage() {
   }
 
   function issue() {
-    if (!base || !period?.isActive || !preparation.data?.planIds.length) return;
+    if (!base || !canPrepare || preparation.error || !readyPlans) return;
     void run("issue", async () => {
       const { data: issued } = await apiClient.post<PermitSummary[]>(
-        `${base}/periods/${period.id}/issue`, undefined, { timeout: 125_000 });
+        `${base}/periods/${periodId}/issue`, undefined, { timeout: 125_000 });
       await Promise.all([periods.mutate(), permits.mutate(issued, { revalidate: false })]);
     }, "پیش‌نویس مجوز برنامه‌ها ثبت شد.");
   }
@@ -90,9 +91,7 @@ export default function ProductionPermitsPage() {
         <Link href="/production-permits/periods" className="btn btn-primary">دوره‌های پرداخت</Link>}
     </div>
     {sessionLoading && <p role="status">در حال بررسی دسترسی…</p>}
-    {session && access.canRead && !access.canIssue && !access.financeOnly &&
-      <p className="page-description mb-4">صدور پیش‌نویس در دسترسی نقش «اطلاعات برنامه‌ریزی» است.</p>}
-    {session && !access.canRead && <p role="alert">دسترسی مشاهده مجوزهای تولیدی را ندارید.</p>}
+    {session && !access.canRead && <p role="alert">دسترسی مشاهده مجوزهای قطعی را ندارید.</p>}
     {loadError && <p className="alert alert-error" role="alert">{apiErrorMessage(loadError, "دریافت اطلاعات مجوز انجام نشد.")}</p>}
     {message && <p className={`alert mb-4 ${message.error ? "alert-error" : "alert-success"}`}
       role={message.error ? "alert" : "status"}>{message.text}</p>}
@@ -115,39 +114,44 @@ export default function ProductionPermitsPage() {
             </select>
           </label>}
         </div>
+        {period && !access.canIssue && !access.financeOnly &&
+          <p role="status">برای صدور مجوز این شبکه، با حساب دارای نقش «اطلاعات برنامه‌ریزی» وارد شوید.</p>}
         {access.canIssue && period?.issuedAt && <p>صدور این دوره برای شبکهٔ انتخاب‌شده انجام شده است.</p>}
         {access.canIssue && period && !period.isActive && !period.issuedAt &&
           <p>این دوره غیرفعال است. مدیر سیستم می‌تواند آن را دوباره فعال کند.</p>}
       </section>
-      {access.canIssue && period?.isActive && !period.issuedAt && <section className="card grid gap-3">
-        <h2 className="font-semibold">بررسی شناسنامه‌ها برای صدور</h2>
+      {canPrepare && <section className="card grid gap-3">
+        <h2 className="font-semibold">صدور مجوز از شناسنامه‌های تأیید نهایی</h2>
         {preparation.isLoading && <p role="status">در حال بررسی شناسنامه‌ها…</p>}
         {preparation.error && <p role="alert" className="alert alert-error">
           {apiErrorMessage(preparation.error, "بررسی شناسنامه‌ها انجام نشد.")}
         </p>}
         {preparation.data?.alreadyIssued && <p>صدور این دوره برای شبکهٔ انتخاب‌شده انجام شده است.</p>}
-        {preparation.data && !preparation.data.alreadyIssued && <>
-          {preparation.data.profiles.length === 0
-            ? <p>در این شبکه، شناسنامه‌ای با وضعیت «تأیید نهایی» و تاریخ پخش داخل بازهٔ این دوره پیدا نشد.</p>
-            : <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
-                <thead><tr><th>برنامه</th><th>قسمت</th><th>تاریخ پخش</th><th>نحوه تولید</th><th>وضعیت صدور</th></tr></thead>
-                <tbody>{preparation.data.profiles.map((profile) => <tr key={profile.profileId} className="border-t">
-                  <td>{planTitle(profile.planId)}</td><td>{displayNumber(profile.episodeNumber)}</td>
-                  <td>{displayDate(profile.broadcastDate)}</td><td>{profile.productionMethod || "ثبت نشده"}</td>
-                  <td>{profile.eligible ? "واجد شرایط" : "نیاز به نحوه تولید «تولیدی»"}</td>
-                </tr>)}</tbody>
-              </table></div>}
-          {preparation.data.planIds.length > 0 && <div>
+        {preparation.data && !preparation.error && !preparation.data.alreadyIssued && <>
+          {readyPlans > 0 && <div className="flex flex-wrap items-center gap-3">
             <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={issue}>
               {busy === "issue" ? "در حال محاسبه برنامه‌های شبکه…" : "صدور پیش‌نویس مجوز قطعی"}
             </button>
+            <p>{displayNumber(readyPlans)} برنامه آماده صدور است.</p>
           </div>}
+          {preparation.data.profiles.length === 0
+            ? <p>در این شبکه، شناسنامه‌ای با وضعیت «تأیید نهایی» و تاریخ پخش داخل بازهٔ این دوره پیدا نشد.</p>
+            : <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
+                <thead><tr><th>برنامه</th><th>قسمت</th><th>تاریخ پخش</th></tr></thead>
+                <tbody>{preparation.data.profiles.map((profile) => <tr key={profile.profileId} className="border-t">
+                  <td>{planTitle(profile.planId)}</td>
+                  <td>{displayNumber(profile.episodeNumber)}</td>
+                  <td>{displayDate(profile.broadcastDate)}</td>
+                </tr>)}</tbody>
+              </table></div>}
         </>}
       </section>}
       {period && <section className="card grid gap-3">
         <h2 className="font-semibold">اسناد برنامه‌ها</h2>
         {permits.isLoading && <p role="status">در حال بارگذاری اسناد…</p>}
-        {permits.data?.length === 0 && <p>برای این دوره سند مجوزی ثبت نشده است.</p>}
+        {permits.data?.length === 0 && <p>{canPrepare && readyPlans > 0 && !preparation.error
+          ? "پیش‌نویس‌ها پس از صدور در این جدول ظاهر می‌شوند."
+          : "در شبکه و دورهٔ انتخاب‌شده سند مجوزی برای نمایش وجود ندارد."}</p>}
         {Boolean(permits.data?.length) && <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
           <thead><tr><th>برنامه</th><th>قسمت‌ها</th><th>وضعیت</th><th>ناخالص</th><th>کسورات</th><th>قابل پرداخت</th><th>سند</th></tr></thead>
           <tbody>{permits.data?.map((permit) => <tr key={permit.id} className="border-t">

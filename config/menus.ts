@@ -52,7 +52,7 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       title: certificate.financeOnly ? "کارتابل مالی" : "مجوزهای قطعی",
       icon: Files,
       child: [
-        { title: "مجوز قطعی برنامه‌های تولیدی", href: "/production-permits", icon: ClipBoard },
+        { title: "مجوز قطعی برنامه‌ها", href: "/production-permits", icon: ClipBoard },
         ...(certificate.canCreatePeriod
           ? [
               { title: "دوره‌های پرداخت", href: "/production-permits/periods", icon: ClipBoard },
