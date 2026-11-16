@@ -9,11 +9,12 @@ import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { roleLabel } from "@/lib/auth/roles";
+import type { RoleResponse } from "@/lib/auth/types";
 import { Switch } from "@/components/ui/switch";
 
 interface UserRolesResponse {
   userId: string;
-  roles: Array<{ id: string; name: string }>;
+  roles: RoleResponse[];
   selectedRoleIds: string[];
 }
 
@@ -192,7 +193,7 @@ export default function ManageUserPage() {
                     return (
                       <div className={`role-card ${active ? "active" : ""}`} key={role.id}>
                         <div className="role-title">
-                          <strong>{roleLabel(role.name)}</strong>
+                          <strong>{roleLabel(role)}</strong>
                           <small>{role.name}</small>
                         </div>
                         <Switch

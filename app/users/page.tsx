@@ -10,7 +10,8 @@ import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import { showToast } from "@/lib/ui/toast";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
-import { roleLabel } from "@/lib/auth/roles";
+import { roleLabelForName } from "@/lib/auth/roles";
+import type { RoleResponse } from "@/lib/auth/types";
 
 interface AdminUser {
   id: string;
@@ -30,6 +31,7 @@ export default function UsersPage() {
   const { data: users, error, isLoading, mutate } = useSWR<AdminUser[]>(
     session?.isSystemAdmin ? "/auth/users" : null,
   );
+  const { data: roleCatalog } = useSWR<RoleResponse[]>(session?.isSystemAdmin ? "/auth/roles" : null);
   const { data: providers } = useSWR<BaseInfoListResponse>(
     session?.isSystemAdmin ? "/base-info/providers" : null,
   );
@@ -150,7 +152,7 @@ export default function UsersPage() {
                         {editing ? <input className="input min-w-48" value={draft.fullName} onChange={e=>setDraft(x=>({...x,fullName:e.target.value}))}/> : <strong>{user.fullName}</strong>}
                       </td>
                       <td className="p-3" dir="ltr">{user.userName}</td>
-                      <td className="p-3">{user.roles.map(roleLabel).join("، ") || "—"}</td>
+                      <td className="p-3">{user.roles.map((name) => roleLabelForName(name, roleCatalog)).join("، ") || "—"}</td>
                       <td className="p-3 min-w-48">
                         {user.roles.includes("Admin") ? "همه شبکه‌ها" : <>
                           {(user.networkIds ?? []).map(id => networkNames.get(id) ?? `شبکه ${id}`).join("، ") || (user.roles.includes("Providers") ? "" : "شبکه‌ای تخصیص داده نشده")}

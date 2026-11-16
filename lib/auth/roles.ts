@@ -1,3 +1,5 @@
+import type { RoleResponse } from "./types";
+
 export const SYSTEM_ROLES = {
   Admin: "Admin",
   NetworkManager: "NetworkManager",
@@ -11,24 +13,15 @@ export const SYSTEM_ROLES = {
   Finance: "Finance",
 } as const;
 
-export const ROLE_LABELS: Record<string, string> = {
-  Admin: "مدیر سیستم",
-  NetworkManager: "مدیر شبکه",
-  NetworkGroupManager: "مدیر گروه برنامه‌ساز",
-  Providers: "تهیه‌کننده",
-  PlanManager: "مدیر طرح و برنامه‌ریزی",
-  BroadcastManager: "مدیر پخش",
-  LiveSupervisor: "ناظر برنامه زنده",
-  Supervisor: "ناظر برنامه ضبطی",
-  PlanningInformation: "اطلاعات برنامه‌ریزی",
-  Finance: "مالی",
-  User: "کاربر",
-};
-
 export function isSystemAdmin(roles: readonly string[] | null | undefined): boolean {
   return Boolean(roles?.includes(SYSTEM_ROLES.Admin));
 }
 
-export function roleLabel(role: string): string {
-  return Object.hasOwn(ROLE_LABELS, role) ? ROLE_LABELS[role] : role;
+export function roleLabel(role: Pick<RoleResponse, "name" | "displayName">): string {
+  return role.displayName?.trim() || role.name;
+}
+
+export function roleLabelForName(name: string, catalog: readonly RoleResponse[] | undefined): string {
+  const role = catalog?.find((item) => item.name.toUpperCase() === name.toUpperCase());
+  return role ? roleLabel(role) : name;
 }

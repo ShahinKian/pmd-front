@@ -352,7 +352,7 @@ export default function NewUserPage() {
                       key={role.id}
                     >
                       <div className="role-title">
-                        <strong>{roleLabel(role.name)}</strong>
+                        <strong>{roleLabel(role)}</strong>
                         <small>{role.name}</small>
                       </div>
                       <Switch

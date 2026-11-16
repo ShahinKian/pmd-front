@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { clearAuthCookies } from "@/lib/auth/cookies";
 import { authenticatedPmdFetch } from "@/lib/auth/request";
-import { isSystemAdmin, roleLabel } from "@/lib/auth/roles";
+import { isSystemAdmin } from "@/lib/auth/roles";
 import type { UserProfileResponse } from "@/lib/auth/types";
 import { readUpstreamBody } from "@/lib/auth/upstream";
 import { isSecureRequest } from "@/lib/auth/security";
@@ -21,6 +21,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     user: profile,
     isSystemAdmin: isSystemAdmin(profile.roles),
-    roleLabels: profile.roles.map(roleLabel),
+    roleLabels: profile.roles.map((name, index) => profile.roleLabels?.[index] || name),
   });
 }

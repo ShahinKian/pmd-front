@@ -36,7 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { RoleResponse } from "@/lib/auth/types";
-import { roleLabel } from "@/lib/auth/role-labels";
+import { roleLabel, roleLabelForName } from "@/lib/auth/roles";
 import {
   WorkflowNodeType,
   workflowNodeTypeLabels,
@@ -156,13 +156,13 @@ function nodePayload(node: WorkflowNode, metadataJson = node.metadataJson) {
   };
 }
 
-function graphNodes(definition: WorkflowDefinition, draft: boolean): Node[] {
+function graphNodes(definition: WorkflowDefinition, draft: boolean, roles: RoleResponse[]): Node[] {
   const auto = buildAutoLayout(definition);
   return definition.nodes.map((workflowNode) => ({
     id: workflowNode.id,
     type: "workflowNode",
     position: getNodePosition(workflowNode) ?? auto.get(workflowNode.id) ?? { x: 0, y: 0 },
-    data: { workflowNode, draft },
+    data: { workflowNode, draft, assignedRoleLabel: workflowNode.assignedRole ? roleLabelForName(workflowNode.assignedRole, roles) : null },
     draggable: draft,
   }));
 }
@@ -190,7 +190,7 @@ export default function WorkflowCanvas({
   draft,
   onChanged,
 }: WorkflowCanvasProps) {
-  const [nodes, setNodes, onNodesChange] = useNodesState(graphNodes(definition, draft));
+  const [nodes, setNodes, onNodesChange] = useNodesState(graphNodes(definition, draft, roles));
   const [edges, setEdges, onEdgesChange] = useEdgesState(graphEdges(definition));
   const { screenToFlowPosition, fitView } = useReactFlow();
 
@@ -203,9 +203,9 @@ export default function WorkflowCanvas({
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   useEffect(() => {
-    setNodes(graphNodes(definition, draft));
+    setNodes(graphNodes(definition, draft, roles));
     setEdges(graphEdges(definition));
-  }, [definition, draft, setNodes, setEdges]);
+  }, [definition, draft, roles, setNodes, setEdges]);
 
   const selectedNode = useMemo(
     () => definition.nodes.find((node) => node.id === selectedNodeId) ?? null,
@@ -755,7 +755,7 @@ function NodeForm({
           className="h-10 w-full rounded-md border border-default-300 bg-background px-3 text-sm"
         >
           <option value="">بدون نقش مشخص</option>
-          {roles.map((role) => <option key={role.id} value={role.name}>{roleLabel(role.name)}</option>)}
+          {roles.map((role) => <option key={role.id} value={role.name}>{roleLabel(role)}</option>)}
         </SearchableSelect>
       </div>
       <div>

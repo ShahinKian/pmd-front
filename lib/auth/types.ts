@@ -23,6 +23,7 @@ export interface UserProfileResponse {
   phoneNumber: string | null;
   profilePictureUrl: string | null;
   roles: string[];
+  roleLabels?: string[];
   networkIds: number[];
   networkGroupId: number | null;
   providerId: number | null;
@@ -31,6 +32,8 @@ export interface UserProfileResponse {
 export interface RoleResponse {
   id: string;
   name: string;
+  displayName: string;
+  isSystemRole: boolean;
 }
 
 export interface RegisterRequest {

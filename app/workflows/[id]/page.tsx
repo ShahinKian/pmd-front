@@ -26,6 +26,8 @@ import {
 
 type DesignerTab = "designer" | "mermaid";
 
+const emptyRoles: RoleResponse[] = [];
+
 export default function WorkflowDesignerPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -197,7 +199,7 @@ export default function WorkflowDesignerPage() {
             <ReactFlowProvider>
               <WorkflowCanvas
                 definition={data}
-                roles={roles ?? []}
+                roles={roles ?? emptyRoles}
                 definitions={definitions ?? []}
                 draft={draft}
                 onChanged={changed}
