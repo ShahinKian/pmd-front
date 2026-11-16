@@ -23,6 +23,7 @@ export interface PermitIssuePreparation {
     profileId: string;
     planId: number;
     episodeNumber: number;
+    mainTopic?: string | null;
     broadcastDate: string;
     productionMethod: string;
     eligible: boolean;
@@ -33,6 +34,7 @@ export interface PermitSummary {
   id: string;
   periodId: string;
   planId: number;
+  planName?: string | null;
   status: "Draft" | "Approved" | "SentToFinance";
   episodeCount: number;
   grossAmount: Money;

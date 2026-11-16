@@ -9,7 +9,6 @@ import { useSession } from "@/hooks/use-session";
 import { certificateAccess } from "@/lib/certificate/access";
 import { amountExceeds, displayDate, displayNumber, parseDeduction, paymentMonths } from "@/lib/certificate/format";
 import type { Money, PaymentPeriod, PermitDetail, PermitIssuePreparation, PermitSummary, PersonnelPayment } from "@/lib/certificate/types";
-import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 
 const title = "مجوز قطعی برنامه‌ها";
@@ -29,11 +28,9 @@ export default function ProductionPermitsPage() {
   const periods = useSWR<PaymentPeriod[]>(base ? `${base}/periods` : null);
   const permits = useSWR<PermitSummary[]>(base && periodId ? `${base}/periods/${periodId}/permits` : null);
   const detail = useSWR<PermitDetail>(base && periodId && permitId ? `${base}/permits/${permitId}` : null);
-  const plans = useSWR<BaseInfoListResponse>(base ? `/base-info/plans/${network}` : null);
-  const planTitles = new Map(Array.isArray(plans.data?.Data) ? plans.data.Data.map((plan) => [Number(plan.Value), plan.Text]) : []);
-  const planTitle = (id: number) => planTitles.get(id) || `برنامه با شناسه طرح ${displayNumber(id)}`;
+  const planTitle = (id: number, name?: string | null) => name?.trim() || `برنامه با شناسه طرح ${displayNumber(id)}`;
   const period = periods.data?.find((item) => item.id === periodId);
-  const canPrepare = Boolean(base && access.canIssue && period?.isActive && !period.issuedAt);
+  const canPrepare = Boolean(base && (access.canIssue || access.canApprove) && period?.isActive && !period.issuedAt);
   const preparation = useSWR<PermitIssuePreparation>(canPrepare ? `${base}/periods/${periodId}/issue` : null);
   const readyPlans = preparation.data?.planIds.length ?? 0;
 
@@ -53,7 +50,7 @@ export default function ProductionPermitsPage() {
   }
 
   function issue() {
-    if (!base || !canPrepare || preparation.error || !readyPlans) return;
+    if (!base || !access.canIssue || !canPrepare || preparation.error || !readyPlans) return;
     void run("issue", async () => {
       const { data: issued } = await apiClient.post<PermitSummary[]>(
         `${base}/periods/${periodId}/issue`, undefined, { timeout: 125_000 });
@@ -114,14 +111,12 @@ export default function ProductionPermitsPage() {
             </select>
           </label>}
         </div>
-        {period && !access.canIssue && !access.financeOnly &&
-          <p role="status">برای صدور مجوز این شبکه، با حساب دارای نقش «اطلاعات برنامه‌ریزی» وارد شوید.</p>}
-        {access.canIssue && period?.issuedAt && <p>صدور این دوره برای شبکهٔ انتخاب‌شده انجام شده است.</p>}
-        {access.canIssue && period && !period.isActive && !period.issuedAt &&
+        {(access.canIssue || access.canApprove) && period?.issuedAt && <p>صدور این دوره برای شبکهٔ انتخاب‌شده انجام شده است.</p>}
+        {(access.canIssue || access.canApprove) && period && !period.isActive && !period.issuedAt &&
           <p>این دوره غیرفعال است. مدیر سیستم می‌تواند آن را دوباره فعال کند.</p>}
       </section>
       {canPrepare && <section className="card grid gap-3">
-        <h2 className="font-semibold">صدور مجوز از شناسنامه‌های تأیید نهایی</h2>
+        <h2 className="font-semibold">شناسنامه‌های تأیید نهایی برای صدور مجوز</h2>
         {preparation.isLoading && <p role="status">در حال بررسی شناسنامه‌ها…</p>}
         {preparation.error && <p role="alert" className="alert alert-error">
           {apiErrorMessage(preparation.error, "بررسی شناسنامه‌ها انجام نشد.")}
@@ -129,17 +124,18 @@ export default function ProductionPermitsPage() {
         {preparation.data?.alreadyIssued && <p>صدور این دوره برای شبکهٔ انتخاب‌شده انجام شده است.</p>}
         {preparation.data && !preparation.error && !preparation.data.alreadyIssued && <>
           {readyPlans > 0 && <div className="flex flex-wrap items-center gap-3">
-            <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={issue}>
+            {access.canIssue && <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={issue}>
               {busy === "issue" ? "در حال محاسبه برنامه‌های شبکه…" : "صدور پیش‌نویس مجوز قطعی"}
-            </button>
+            </button>}
             <p>{displayNumber(readyPlans)} برنامه آماده صدور است.</p>
+            {!access.canIssue && <p>پس از صدور پیش‌نویس توسط «اطلاعات برنامه‌ریزی»، سند برای تأیید و ارسال به مالی در دسترس شما قرار می‌گیرد.</p>}
           </div>}
           {preparation.data.profiles.length === 0
             ? <p>در این شبکه، شناسنامه‌ای با وضعیت «تأیید نهایی» و تاریخ پخش داخل بازهٔ این دوره پیدا نشد.</p>
             : <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
                 <thead><tr><th>برنامه</th><th>قسمت</th><th>تاریخ پخش</th></tr></thead>
                 <tbody>{preparation.data.profiles.map((profile) => <tr key={profile.profileId} className="border-t">
-                  <td>{planTitle(profile.planId)}</td>
+                  <td>{planTitle(profile.planId)}{profile.mainTopic?.trim() && <div>موضوع {profile.mainTopic}</div>}</td>
                   <td>{displayNumber(profile.episodeNumber)}</td>
                   <td>{displayDate(profile.broadcastDate)}</td>
                 </tr>)}</tbody>
@@ -150,12 +146,12 @@ export default function ProductionPermitsPage() {
         <h2 className="font-semibold">اسناد برنامه‌ها</h2>
         {permits.isLoading && <p role="status">در حال بارگذاری اسناد…</p>}
         {permits.data?.length === 0 && <p>{canPrepare && readyPlans > 0 && !preparation.error
-          ? "پیش‌نویس‌ها پس از صدور در این جدول ظاهر می‌شوند."
+          ? "پیش‌نویس‌ها پس از صدور توسط «اطلاعات برنامه‌ریزی» در این جدول ظاهر می‌شوند."
           : "در شبکه و دورهٔ انتخاب‌شده سند مجوزی برای نمایش وجود ندارد."}</p>}
         {Boolean(permits.data?.length) && <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
           <thead><tr><th>برنامه</th><th>قسمت‌ها</th><th>وضعیت</th><th>ناخالص</th><th>کسورات</th><th>قابل پرداخت</th><th>سند</th></tr></thead>
           <tbody>{permits.data?.map((permit) => <tr key={permit.id} className="border-t">
-            <td>{planTitle(permit.planId)}</td><td>{displayNumber(permit.episodeCount)}</td><td>{statusLabels[permit.status]}</td>
+            <td>{planTitle(permit.planId, permit.planName)}</td><td>{displayNumber(permit.episodeCount)}</td><td>{statusLabels[permit.status]}</td>
             <td>{displayNumber(permit.grossAmount)}</td><td>{displayNumber(permit.deductionAmount)}</td><td>{displayNumber(permit.netAmount)}</td>
             <td><button className="btn btn-outline whitespace-nowrap" type="button" disabled={Boolean(busy)} aria-pressed={permitId === permit.id}
               onClick={() => { setPermitId(permit.id); setMessage(null); }}>مشاهده سند</button></td>
@@ -165,7 +161,7 @@ export default function ProductionPermitsPage() {
       {detail.isLoading && <p role="status">در حال بارگذاری سند…</p>}
       {detail.data && <section className="card grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><h2 className="font-semibold">{planTitle(detail.data.permit.planId)}</h2>
+          <div><h2 className="font-semibold">{planTitle(detail.data.permit.planId, detail.data.permit.planName)}</h2>
             <p>{statusLabels[detail.data.permit.status]} · قابل پرداخت {displayNumber(detail.data.permit.netAmount)}</p></div>
           {access.canApprove && detail.data.permit.status !== "SentToFinance" &&
             <button className="btn btn-primary" type="button" disabled={Boolean(busy)} onClick={() =>

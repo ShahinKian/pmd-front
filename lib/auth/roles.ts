@@ -22,6 +22,7 @@ export const ROLE_LABELS: Record<string, string> = {
   Supervisor: "ناظر برنامه ضبطی",
   PlanningInformation: "اطلاعات برنامه‌ریزی",
   Finance: "مالی",
+  User: "کاربر",
 };
 
 export function isSystemAdmin(roles: readonly string[] | null | undefined): boolean {
@@ -29,5 +30,5 @@ export function isSystemAdmin(roles: readonly string[] | null | undefined): bool
 }
 
 export function roleLabel(role: string): string {
-  return ROLE_LABELS[role] ?? role;
+  return Object.hasOwn(ROLE_LABELS, role) ? ROLE_LABELS[role] : role;
 }

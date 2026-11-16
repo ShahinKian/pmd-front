@@ -105,6 +105,7 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
           child: [
             { title: "کاربران", href: "/users", icon: Users },
             { title: "تعریف کاربر", href: "/users/new", icon: Users },
+            { title: "مدیریت نقش‌ها", href: "/roles", icon: Settings },
           ],
         }]
       : []),
