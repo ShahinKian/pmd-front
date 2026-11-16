@@ -718,8 +718,9 @@ function NodeForm({
 }) {
   const [type, setType] = useState<WorkflowNodeType>(node?.type ?? initialType);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
-  const existingRoleId = node?.assignedRoleId ?? roles.find((role) =>
-    role.name.toUpperCase() === node?.assignedRole?.toUpperCase())?.id;
+  const legacyRoleName = node?.assignedRole?.toUpperCase();
+  const existingRoleId = node?.assignedRoleId ?? (legacyRoleName ? roles.find((role) =>
+    role.systemKey?.toUpperCase() === legacyRoleName || role.name.toUpperCase() === legacyRoleName)?.id : undefined);
   const effectiveRoleId = selectedRoleId ?? existingRoleId ?? "";
   const legacyRole = selectedRoleId === null && !existingRoleId ? node?.assignedRole : null;
   const [isStart, setIsStart] = useState(node?.isStart ?? false);

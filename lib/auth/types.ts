@@ -33,6 +33,7 @@ export interface RoleResponse {
   id: string;
   name: string;
   displayName: string;
+  systemKey?: string | null;
   isSystemRole: boolean;
 }
 

@@ -51,7 +51,7 @@ export default function ManageUserPage() {
     useSWR<BaseInfoListResponse>(providerUrl);
 
   const providerRole = useMemo(
-    () => roleData?.roles.find((role) => role.name === "Providers"),
+    () => roleData?.roles.find((role) => (role.systemKey ?? role.name) === "Providers"),
     [roleData],
   );
   const providerRoleSelected = Boolean(

@@ -345,7 +345,8 @@ export default function NewUserPage() {
 
               <div className="role-grid">
                 {(roles ?? []).map((role) => {
-                  const active = selectedRoles.includes(role.name);
+                  const key = role.systemKey ?? role.name;
+                  const active = selectedRoles.includes(key);
                   return (
                     <div
                       className={`role-card ${active ? "active" : ""}`}
@@ -358,7 +359,7 @@ export default function NewUserPage() {
                       <Switch
                         checked={active}
                         onCheckedChange={(checked) =>
-                          setRole(role.name, checked)
+                          setRole(key, checked)
                         }
                       />
                     </div>

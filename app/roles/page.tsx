@@ -89,8 +89,7 @@ export default function RolesPage() {
           <label className="field">
             <span className="label">نام فنی نقش</span>
             <input className="input" dir="auto" value={name} required maxLength={256}
-              readOnly={Boolean(editing?.isSystemRole)} disabled={busy} onChange={(event) => setName(event.target.value)} />
-            {editing?.isSystemRole && <small className="muted">نام فنی این نقش در دسترسی‌های سامانه استفاده می‌شود.</small>}
+              disabled={busy} onChange={(event) => setName(event.target.value)} />
           </label>
           <label className="field">
             <span className="label">نام نمایشی فارسی</span>

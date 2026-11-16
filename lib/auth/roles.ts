@@ -22,6 +22,8 @@ export function roleLabel(role: Pick<RoleResponse, "name" | "displayName">): str
 }
 
 export function roleLabelForName(name: string, catalog: readonly RoleResponse[] | undefined): string {
-  const role = catalog?.find((item) => item.name.toUpperCase() === name.toUpperCase());
+  const normalized = name.toUpperCase();
+  const role = catalog?.find((item) => item.systemKey?.toUpperCase() === normalized ||
+    item.name.toUpperCase() === normalized);
   return role ? roleLabel(role) : name;
 }
