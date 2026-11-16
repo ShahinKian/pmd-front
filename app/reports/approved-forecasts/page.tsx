@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { Filter, RefreshCcw } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
@@ -20,10 +21,10 @@ interface Row {
 }
 
 function ProgramName({row}:{row:Row}) {
-  const {data}=useSWR<{Data?:Array<{Value:string;Text:string}>}>(
-    `/base-info/plans/${row.networkId}?networkGroupId=${row.networkGroupId}`,
+  const {data,isLoading}=useSWR<{Data?:Array<{Value:string;Text:string}>}>(
+    row.networkId > 0 && row.networkGroupId > 0 ? `/base-info/plans/${row.networkId}?networkGroupId=${row.networkGroupId}` : null,
   );
-  return <>{data?.Data?.find(x=>Number(x.Value)===row.planId)?.Text ?? "در حال دریافت..."}</>;
+  return <>{data?.Data?.find(x=>Number(x.Value)===row.planId)?.Text ?? (isLoading ? "در حال دریافت…" : `طرح ${row.planId}`)}</>;
 }
 
 function GroupName({row}:{row:Row}) {
@@ -46,10 +47,11 @@ export default function ApprovedForecastReportPage() {
     if(fromDate)p.set("fromDate",fromDate+"T00:00:00");
     if(toDate)p.set("toDate",toDate+"T23:59:59");
     if(topic.trim())p.set("topic",topic.trim());
+    if(networkId)p.set("networkId",networkId);
     if(groupId)p.set("networkGroupId",groupId);
     if(planId)p.set("planId",planId);
     return "/reports/approved-forecasts?"+p.toString();
-  },[fromDate,toDate,topic,groupId,planId]);
+  },[fromDate,toDate,topic,networkId,groupId,planId]);
 
   const {data,error,isLoading,mutate}=useSWR<Row[]>(url);
 
@@ -58,9 +60,9 @@ export default function ApprovedForecastReportPage() {
   }
 
   return <DashboardShell>
-    <Breadcrumb items={[{label:"داشبورد",href:"/dashboard"},{label:"گزارشات"},{label:"پیش‌بینی‌های تاییدشده"}]}/>
+    <Breadcrumb items={[{label:"داشبورد",href:"/dashboard"},{label:"گزارشات"},{label:"پیش‌بینی‌های تأییدشده"}]}/>
     <div className="page-head">
-      <div><h1 className="page-title">گزارش پیش‌بینی‌های تاییدشده</h1><p className="page-description">نمایش فقط موارد تاییدشده در محدوده دسترسی سازمانی کاربر</p></div>
+      <div><h1 className="page-title">گزارش پیش‌بینی‌های تأییدشده</h1><p className="page-description">نمایش فقط موارد تأییدشده در محدوده دسترسی سازمانی کاربر</p></div>
     </div>
 
     <section className="form-section mb-5">
@@ -90,12 +92,12 @@ export default function ApprovedForecastReportPage() {
           </tr></thead>
           <tbody className="divide-y divide-default-100">
             {(data??[]).map(row=><tr key={row.id}>
-              <td className="p-3 font-semibold">{row.mainTopic}</td>
+              <td className="p-3 font-semibold"><Link className="underline" href={`/forecasts/${row.id}`}>{row.mainTopic || "مشاهده پیش‌بینی"}</Link></td>
               <td className="p-3"><ProgramName row={row}/></td>
               <td className="p-3"><GroupName row={row}/></td>
               <td className="p-3">{row.episodeNumber}</td>
               <td className="p-3">{new Date(row.broadcastDate).toLocaleDateString("fa-IR-u-ca-persian")}</td>
-              <td className="p-3"><span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">تاییدشده</span></td>
+              <td className="p-3"><span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">تأییدشده</span></td>
             </tr>)}
           </tbody>
         </table>

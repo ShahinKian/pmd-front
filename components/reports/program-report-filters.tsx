@@ -21,7 +21,7 @@ export function ProgramReportFilters({
     networkId ? `/base-info/network-groups/${networkId}` : null,
   );
   const { data: plans } = useSWR<BaseInfoListResponse>(
-    networkId ? `/base-info/plans/${networkId}${groupId ? `?networkGroupId=${groupId}` : ""}` : null,
+    networkId && groupId ? `/base-info/plans/${networkId}?networkGroupId=${groupId}` : null,
   );
 
   return (
@@ -49,8 +49,8 @@ export function ProgramReportFilters({
       </label>
       <label className="field">
         <span className="label">برنامه</span>
-        <select className="select" value={planId} disabled={!networkId} onChange={e => onPlanChange(e.target.value)}>
-          <option value="">همه برنامه‌ها</option>
+        <select className="select" value={planId} disabled={!networkId || !groupId} onChange={e => onPlanChange(e.target.value)}>
+          <option value="">{groupId ? "همه برنامه‌ها" : "ابتدا گروه را انتخاب کنید"}</option>
           {(plans?.Data ?? []).map(x => <option key={x.Value} value={x.Value} disabled={x.Disabled}>{x.Text}</option>)}
         </select>
       </label>

@@ -52,7 +52,8 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       title: certificate.financeOnly ? "کارتابل مالی" : "مجوزهای قطعی",
       icon: Files,
       child: [
-        { title: "مجوز قطعی برنامه‌ها", href: "/production-permits", icon: ClipBoard },
+        ...(certificate.canIssue ? [{ title: "صدور مجوز قطعی", href: "/production-permits", icon: ClipBoard }] : []),
+        { title: "مجوزهای صادرشده", href: "/production-permits/issued", icon: Files },
         ...(certificate.canCreatePeriod
           ? [
               { title: "دوره‌های پرداخت", href: "/production-permits/periods", icon: ClipBoard },
@@ -65,7 +66,8 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       title: "گزارشات",
       icon: Graph,
       child: [
-        { title: "پیش‌بینی‌های تاییدشده", href: "/reports/approved-forecasts", icon: ClipBoard },
+        { title: "پیش‌بینی‌های تأییدشده", href: "/reports/approved-forecasts", icon: ClipBoard },
+        { title: "شناسنامه‌های تأییدشده", href: "/reports/approved-profiles", icon: Files },
         { title: "گزارش شناسنامه‌ها", href: "/reports/program-profiles", icon: Files },
       ],
     },
