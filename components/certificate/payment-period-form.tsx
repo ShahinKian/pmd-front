@@ -1,5 +1,7 @@
 "use client";
 
+import { GroupedNumberInput } from "@/components/ui/grouped-number-input";
+
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { LoaderCircle, Save } from "lucide-react";
@@ -66,7 +68,7 @@ export function PaymentPeriodForm({ period, saveLabel, onSave, children }: {
         <PersianDatePicker value={toDate} onChange={setToDate} placeholder="تاریخ پایان" disabled={busy} />
       </div>
       <label className="field"><span className="label">سال شمسی پرداخت</span>
-        <input className="input" type="number" name="year" min="1300" max="1600"
+        <GroupedNumberInput name="year" min={1300} max={1600}
           defaultValue={period?.paymentYear ?? currentYear} required disabled={busy} />
       </label>
     </div>

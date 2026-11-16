@@ -1,5 +1,7 @@
 "use client";
 
+import { GroupedNumberInput } from "@/components/ui/grouped-number-input";
+
 import { useNetworkScope } from "@/hooks/use-network-scope";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent } from "react";
@@ -245,8 +247,8 @@ function DeductionForm({ payment, busy, save }: {
     save(payment.personnelId, amount);
   }}>
     <div className="flex gap-1">
-      <input className="input" inputMode="decimal" aria-label={`مبلغ کسورات موظفی ${payment.personnelName}`} aria-invalid={invalid}
-        value={value} disabled={busy} onChange={(event) => { setValue(event.target.value); setInvalid(false); }} />
+      <GroupedNumberInput decimalPlaces={2} min={0} aria-label={`مبلغ کسورات موظفی ${payment.personnelName}`} aria-invalid={invalid}
+        value={value} disabled={busy} onValueChange={(next) => { setValue(next); setInvalid(false); }} />
       <button className="btn btn-success" disabled={busy}><Save size={15} aria-hidden />ثبت کسورات</button>
     </div>
     {suggested != null && applicable != null && applicable !== payment.deduction && <div className="flex flex-wrap items-center gap-2">

@@ -1,5 +1,7 @@
 "use client";
 
+import { GroupedNumberInput } from "@/components/ui/grouped-number-input";
+
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Background,
@@ -91,6 +93,24 @@ const conditionFields = [
   {key:"occasion",label:"مناسبت"},
 ] as const;
 type ConditionRule={field:string;operator:string;value:string;join:string};
+
+const numericConditionFields = new Set(["programType", "networkId", "networkGroupId", "planId", "durationMinutes", "episodeNumber"]);
+const numericConditionTypes = new Set(["number", "integer", "int", "decimal", "float", "double"]);
+
+function ConditionValueInput({ rule, fieldType, name, placeholder, onValueChange }: {
+  rule: ConditionRule;
+  fieldType?: string;
+  name?: string;
+  placeholder: string;
+  onValueChange: (value: string) => void;
+}) {
+  const numeric = numericConditionFields.has(rule.field) || numericConditionTypes.has(fieldType?.toLowerCase() ?? "");
+  return numeric && rule.operator !== "contains"
+    ? <GroupedNumberInput name={name} value={rule.value} decimalPlaces={28} placeholder={placeholder}
+        onValueChange={onValueChange} />
+    : <Input name={name} value={rule.value} placeholder={placeholder} onChange={(event) => onValueChange(event.target.value)} />;
+}
+
 function readGenericRules(json:string|null):{rules:ConditionRule[];trueOutcome:string;falseOutcome:string}{
   try{
     const x=JSON.parse(json||"{}").genericRules;
@@ -740,7 +760,7 @@ function NodeForm({
       </div>
       <div>
         <Label className="mb-2 text-default-600">ترتیب</Label>
-        <Input name="sortOrder" type="number" min="0" defaultValue={node?.sortOrder ?? 1} />
+        <GroupedNumberInput name="sortOrder" min={0} defaultValue={node?.sortOrder ?? 1} />
       </div>
 
       {type === WorkflowNodeType.Decision ? (
@@ -751,12 +771,15 @@ function NodeForm({
             {node?.decisionKey&&node.decisionKey!=="generic-rules"?<option value="legacy">تصمیم قبلی (حفظ سازگاری)</option>:null}
           </SearchableSelect>
           <input type="hidden" name="decisionKey" value={multiMode?"multi-branch":genericDecision?"generic-rules":node?.decisionKey??""} />
-          {multiMode?<div className="space-y-3"><p className="text-xs text-default-500">برای هر مسیر یک شرط و نتیجه تعریف کنید. مسیر پیش‌فرض اجباری است.</p>{branchConfig.branches.map((b:{outcome:string;priority:number;rules:ConditionRule[]},i:number)=><div key={i} className="space-y-2 rounded-lg border bg-card p-3"><Input value={b.outcome} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,outcome:e.target.value}:x)}))} placeholder="شناسه مسیر (مثلاً live)"/><SearchableSelect className="w-full rounded-md border p-2" value={b.rules[0]?.field||"programType"} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,rules:[{...x.rules[0],field:e.target.value}]}:x)}))}>{availableFields.map(f=><option key={f.key} value={f.key}>{f.label}</option>)}</SearchableSelect><SearchableSelect className="w-full rounded-md border p-2" value={b.rules[0]?.operator||"eq"} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,rules:[{...x.rules[0],operator:e.target.value}]}:x)}))}><option value="eq">برابر</option><option value="ne">نابرابر</option><option value="gt">بزرگ‌تر</option><option value="lt">کوچک‌تر</option><option value="contains">شامل</option></SearchableSelect><Input value={b.rules[0]?.value||""} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,rules:[{...x.rules[0],value:e.target.value}]}:x)}))} placeholder="مقدار"/><button type="button" className="text-xs text-red-600" onClick={()=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.filter((_:typeof b,j:number)=>j!==i)}))}>حذف مسیر</button></div>)}<button type="button" className="text-sm text-primary" onClick={()=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:[...c.branches,{outcome:"route-"+(c.branches.length+1),priority:c.branches.length,rules:[{field:"programType",operator:"eq",value:"10",join:"and"}]}]}))}>+ مسیر جدید</button><Label>خروجی پیش‌فرض</Label><Input value={branchConfig.defaultOutcome} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,defaultOutcome:e.target.value}))}/><input type="hidden" name="multiBranchConfig" value={JSON.stringify(branchConfig)}/></div>:genericDecision?<div className="space-y-3">
+          {multiMode?<div className="space-y-3"><p className="text-xs text-default-500">برای هر مسیر یک شرط و نتیجه تعریف کنید. مسیر پیش‌فرض اجباری است.</p>{branchConfig.branches.map((b:{outcome:string;priority:number;rules:ConditionRule[]},i:number)=><div key={i} className="space-y-2 rounded-lg border bg-card p-3"><Input value={b.outcome} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,outcome:e.target.value}:x)}))} placeholder="شناسه مسیر (مثلاً live)"/><SearchableSelect className="w-full rounded-md border p-2" value={b.rules[0]?.field||"programType"} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,rules:[{...x.rules[0],field:e.target.value}]}:x)}))}>{availableFields.map(f=><option key={f.key} value={f.key}>{f.label}</option>)}</SearchableSelect><SearchableSelect className="w-full rounded-md border p-2" value={b.rules[0]?.operator||"eq"} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,rules:[{...x.rules[0],operator:e.target.value}]}:x)}))}><option value="eq">برابر</option><option value="ne">نابرابر</option><option value="gt">بزرگ‌تر</option><option value="lt">کوچک‌تر</option><option value="contains">شامل</option></SearchableSelect>{b.rules[0] && <ConditionValueInput rule={b.rules[0]} fieldType={serverFields?.find(f=>f.key===b.rules[0].field)?.type}
+                onValueChange={value=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.map((x:typeof b,j:number)=>j===i?{...x,rules:[{...x.rules[0],value}]}:x)}))}
+                placeholder="مقدار" />}<button type="button" className="text-xs text-red-600" onClick={()=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:c.branches.filter((_:typeof b,j:number)=>j!==i)}))}>حذف مسیر</button></div>)}<button type="button" className="text-sm text-primary" onClick={()=>setBranchConfig((c:typeof branchConfig)=>({...c,branches:[...c.branches,{outcome:"route-"+(c.branches.length+1),priority:c.branches.length,rules:[{field:"programType",operator:"eq",value:"10",join:"and"}]}]}))}>+ مسیر جدید</button><Label>خروجی پیش‌فرض</Label><Input value={branchConfig.defaultOutcome} onChange={e=>setBranchConfig((c:typeof branchConfig)=>({...c,defaultOutcome:e.target.value}))}/><input type="hidden" name="multiBranchConfig" value={JSON.stringify(branchConfig)}/></div>:genericDecision?<div className="space-y-3">
             {ruleConfig.rules.map((rule,i)=><div key={i} className="space-y-2 rounded-lg border bg-card p-3 shadow-sm">
               {i>0?<SearchableSelect name="ruleJoin" value={rule.join||"and"} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,join:e.target.value}:x)}))} className="w-full rounded-md border p-2"><option value="and">و (AND)</option><option value="or">یا (OR)</option></SearchableSelect>:<input type="hidden" name="ruleJoin" value="and"/>}
               <SearchableSelect name="ruleField" className="w-full rounded-md border p-2" value={rule.field} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,field:e.target.value,value:""}:x)}))}>{availableFields.map(f=><option key={f.key} value={f.key}>{f.label}</option>)}</SearchableSelect>
               <SearchableSelect name="ruleOperator" className="w-full rounded-md border p-2" value={rule.operator} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,operator:e.target.value}:x)}))}><option value="eq">برابر</option><option value="ne">نابرابر</option><option value="gt">بزرگ‌تر از</option><option value="lt">کوچک‌تر از</option><option value="contains">شامل</option></SearchableSelect>
-              {availableFields.find(f=>f.key===rule.field&&"values" in f && f.values) ? <SearchableSelect name="ruleValue" className="w-full rounded-md border p-2" value={rule.value} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))}><option value="">انتخاب مقدار</option>{(availableFields.find(f=>f.key===rule.field) as {values:readonly (readonly [string,string])[]}).values.map(v=><option key={v[0]} value={v[0]}>{v[1]}</option>)}</SearchableSelect>:<Input name="ruleValue" value={rule.value} placeholder="مقدار مقایسه" onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))} />}
+              {availableFields.find(f=>f.key===rule.field&&"values" in f && f.values) ? <SearchableSelect name="ruleValue" className="w-full rounded-md border p-2" value={rule.value} onChange={e=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value:e.target.value}:x)}))}><option value="">انتخاب مقدار</option>{(availableFields.find(f=>f.key===rule.field) as {values:readonly (readonly [string,string])[]}).values.map(v=><option key={v[0]} value={v[0]}>{v[1]}</option>)}</SearchableSelect>:<ConditionValueInput name="ruleValue" rule={rule} fieldType={serverFields?.find(f=>f.key===rule.field)?.type}
+                placeholder="مقدار مقایسه" onValueChange={value=>setRuleConfig(c=>({...c,rules:c.rules.map((x,j)=>j===i?{...x,value}:x)}))} />}
               {ruleConfig.rules.length>1?<button type="button" className="text-xs text-red-600" onClick={()=>setRuleConfig(c=>({...c,rules:c.rules.filter((_,j)=>j!==i)}))}>حذف شرط</button>:null}
             </div>)}
             <button type="button" className="text-sm text-primary" onClick={()=>setRuleConfig(c=>({...c,rules:[...c.rules,{field:"programType",operator:"eq",value:"10",join:"and"}]}))}>+ افزودن شرط</button>
@@ -883,7 +906,7 @@ function TransitionForm({
       </div>
       <div>
         <Label className="mb-2 text-default-600">اولویت</Label>
-        <Input name="priority" type="number" min="0" defaultValue={transition?.priority ?? 0} />
+        <GroupedNumberInput name="priority" min={0} defaultValue={transition?.priority ?? 0} />
       </div>
 
       <div className="flex gap-2 pt-2">

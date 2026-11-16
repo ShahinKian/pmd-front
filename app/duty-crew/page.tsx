@@ -1,5 +1,7 @@
 "use client";
 
+import { GroupedNumberInput } from "@/components/ui/grouped-number-input";
+
 import { useMemo, useState, type FormEvent } from "react";
 import { CircleCheck, Coins, Pencil, Plus, Save, Trash2, Users, X } from "lucide-react";
 import useSWR from "swr";
@@ -114,8 +116,8 @@ export default function DutyCrewPage() {
               </label>
               <label className="field">
                 <span className="label flex items-center gap-1.5"><Coins size={15} aria-hidden />مبلغ موظفی</span>
-                <input className="input tabular-nums" inputMode="decimal" type="text" dir="ltr" value={amount}
-                  onChange={(event) => setAmount(event.target.value)} disabled={busy} required />
+                <GroupedNumberInput decimalPlaces={2} min={0} value={amount}
+                  onValueChange={setAmount} disabled={busy} required />
               </label>
             </>}
           </div>
@@ -144,9 +146,9 @@ export default function DutyCrewPage() {
             <td className="whitespace-nowrap tabular-nums">{member.defaultDeduction == null ? "تعیین نشده" : displayNumber(member.defaultDeduction)}</td>
             <td>{editing?.id === member.personnelId
               ? <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => saveAmount(event, member, editing.value)}>
-                <input className="input max-w-32 tabular-nums" aria-label={`مبلغ موظفی ${member.personnelName}`} disabled={busy}
-                  value={editing.value} inputMode="decimal" dir="ltr" autoFocus required
-                  onChange={(event) => setEditing({ id: member.personnelId, value: event.target.value })} />
+                <GroupedNumberInput className="max-w-40" decimalPlaces={2} min={0} aria-label={`مبلغ موظفی ${member.personnelName}`} disabled={busy}
+                  value={editing.value} autoFocus required
+                  onValueChange={(value) => setEditing({ id: member.personnelId, value })} />
                 <button className="btn btn-success" disabled={busy}><Save size={15} aria-hidden />ذخیره</button>
                 <button type="button" className="btn btn-outline" disabled={busy} onClick={() => setEditing(null)}><X size={15} aria-hidden />انصراف</button>
               </form>
