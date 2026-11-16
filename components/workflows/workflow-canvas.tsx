@@ -147,6 +147,7 @@ function nodePayload(node: WorkflowNode, metadataJson = node.metadataJson) {
     type: node.type,
     description: node.description,
     assignedRole: node.assignedRole,
+    assignedRoleId: node.assignedRoleId ?? null,
     isStart: node.isStart,
     allowBacktrack: node.allowBacktrack,
     sortOrder: node.sortOrder,
@@ -162,7 +163,9 @@ function graphNodes(definition: WorkflowDefinition, draft: boolean, roles: RoleR
     id: workflowNode.id,
     type: "workflowNode",
     position: getNodePosition(workflowNode) ?? auto.get(workflowNode.id) ?? { x: 0, y: 0 },
-    data: { workflowNode, draft, assignedRoleLabel: workflowNode.assignedRole ? roleLabelForName(workflowNode.assignedRole, roles) : null },
+    data: { workflowNode, draft, assignedRoleLabel: workflowNode.assignedRoleId
+      ? roleLabel(roles.find((role) => role.id === workflowNode.assignedRoleId) ?? { name: "نقش نامشخص", displayName: "" })
+      : workflowNode.assignedRole ? roleLabelForName(workflowNode.assignedRole, roles) : null },
     draggable: draft,
   }));
 }
@@ -337,6 +340,7 @@ export default function WorkflowCanvas({
         type,
         description: String(form.get("description") ?? "").trim() || null,
         assignedRole: String(form.get("assignedRole") ?? "").trim() || null,
+        assignedRoleId: String(form.get("assignedRoleId") ?? "").trim() || null,
         isStart: form.get("isStart") === "on",
         allowBacktrack: form.get("allowBacktrack") === "on",
         sortOrder: Number(form.get("sortOrder") ?? definition.nodes.length + 1),
@@ -378,6 +382,7 @@ export default function WorkflowCanvas({
         type,
         description: String(form.get("description") ?? "").trim() || null,
         assignedRole: String(form.get("assignedRole") ?? "").trim() || null,
+        assignedRoleId: String(form.get("assignedRoleId") ?? "").trim() || null,
         isStart: form.get("isStart") === "on",
         allowBacktrack: form.get("allowBacktrack") === "on",
         sortOrder: Number(form.get("sortOrder") ?? selectedNode.sortOrder),
@@ -712,6 +717,11 @@ function NodeForm({
   onDelete: (() => void) | null;
 }) {
   const [type, setType] = useState<WorkflowNodeType>(node?.type ?? initialType);
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const existingRoleId = node?.assignedRoleId ?? roles.find((role) =>
+    role.name.toUpperCase() === node?.assignedRole?.toUpperCase())?.id;
+  const effectiveRoleId = selectedRoleId ?? existingRoleId ?? "";
+  const legacyRole = selectedRoleId === null && !existingRoleId ? node?.assignedRole : null;
   const [isStart, setIsStart] = useState(node?.isStart ?? false);
   const [allowBacktrack, setAllowBacktrack] = useState(node?.allowBacktrack ?? false);
   const {data:serverFields}=useSWR<{key:string;label:string;type:string;source:string;operators:string[]}[]>("/workflows/actions?fields=1");
@@ -750,13 +760,17 @@ function NodeForm({
       <div>
         <Label className="mb-2 text-default-600">نقش مسئول</Label>
         <SearchableSelect
-          name="assignedRole"
-          defaultValue={node?.assignedRole ?? ""}
+          name="assignedRoleId"
+          value={effectiveRoleId}
+          onChange={(event) => setSelectedRoleId(event.target.value)}
           className="h-10 w-full rounded-md border border-default-300 bg-background px-3 text-sm"
         >
           <option value="">بدون نقش مشخص</option>
-          {roles.map((role) => <option key={role.id} value={role.name}>{roleLabel(role)}</option>)}
+          {effectiveRoleId && !roles.some((role) => role.id === effectiveRoleId) &&
+            <option value={effectiveRoleId}>نقش فعلی</option>}
+          {roles.map((role) => <option key={role.id} value={role.id}>{roleLabel(role)}</option>)}
         </SearchableSelect>
+        {legacyRole && <input type="hidden" name="assignedRole" value={legacyRole} />}
       </div>
       <div>
         <Label className="mb-2 text-default-600">ترتیب</Label>

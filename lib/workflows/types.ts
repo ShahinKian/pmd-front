@@ -31,6 +31,7 @@ export interface WorkflowNode {
   type: WorkflowNodeType;
   description: string | null;
   assignedRole: string | null;
+  assignedRoleId?: string | null;
   isStart: boolean;
   allowBacktrack: boolean;
   sortOrder: number;

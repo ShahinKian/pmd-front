@@ -41,7 +41,7 @@ export default function RolesPage() {
     setNotice(null);
     try {
       const { data: saved } = editing
-        ? await apiClient.put<RoleResponse>(`${rolesPath}/${editing.id}`, { displayName: title })
+        ? await apiClient.put<RoleResponse>(`${rolesPath}/${editing.id}`, { name: trimmed, displayName: title })
         : await apiClient.post<RoleResponse>(rolesPath, { name: trimmed, displayName: title });
       await roles.mutate((current = []) => [...current.filter((role) => role.id !== saved.id), saved]);
       void mutate("/auth/session");
@@ -89,7 +89,8 @@ export default function RolesPage() {
           <label className="field">
             <span className="label">نام فنی نقش</span>
             <input className="input" dir="auto" value={name} required maxLength={256}
-              readOnly={Boolean(editing)} disabled={busy} onChange={(event) => setName(event.target.value)} />
+              readOnly={Boolean(editing?.isSystemRole)} disabled={busy} onChange={(event) => setName(event.target.value)} />
+            {editing?.isSystemRole && <small className="muted">نام فنی این نقش در دسترسی‌های سامانه استفاده می‌شود.</small>}
           </label>
           <label className="field">
             <span className="label">نام نمایشی فارسی</span>

@@ -62,7 +62,7 @@ export default function WorkflowFlowNode({ data, selected }: NodeProps) {
           <div className="mt-1 text-[11px] text-default-500">
             {workflowNodeTypeLabels[node.type]} · {node.key}
           </div>
-          {node.assignedRole ? (
+          {assignedRoleLabel ? (
             <div className="mt-2 inline-flex rounded-md bg-default-100 px-2 py-1 text-[11px] text-default-600">
               {assignedRoleLabel ?? node.assignedRole}
             </div>
