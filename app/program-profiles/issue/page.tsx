@@ -1,5 +1,9 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { useSession } from "@/hooks/use-session";
+import { NetworkSelect } from "@/components/ui/network-field";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {FormEvent,useEffect,useMemo,useRef,useState} from "react";
 import {useRouter} from "next/navigation";
 import useSWR from "swr";
@@ -29,33 +33,33 @@ type PersonnelResponse={IsSuccess:boolean;Data:{Value:string;Text:string;Disable
 function PersonnelPicker({networkId,jobId,value,onChange}:{networkId:number;jobId:number;value:number;onChange:(id:number,name:string)=>void}){
   const {data,error,isLoading,mutate}=useSWR<PersonnelResponse>(jobId>0&&networkId>0?`/base-info/program-makers?jobId=${jobId}&networkId=${networkId}`:null);
   const options=data?.IsSuccess?data.Data:[];
-  return <div><select className="select" value={value||""} disabled={!jobId||isLoading} onChange={e=>{
+  return <div><SearchableSelect className="select" value={value||""} disabled={!jobId||isLoading} onChange={e=>{
     const id=Number(e.target.value);const selected=options.find(x=>Number(x.Value)===id);
     onChange(id,selected?.Text??"");
   }}>
     <option value="">{isLoading?"در حال دریافت...":"انتخاب عامل"}</option>
     {value>0&&!options.some(x=>Number(x.Value)===value)?<option value={value}>عامل فعلی (شناسه {value})</option>:null}
     {options.map(x=><option key={x.Value} value={x.Value} disabled={x.Disabled}>{x.Text}</option>)}
-  </select>{error||data&&!data.IsSuccess?<div><small className="text-destructive">دریافت فهرست پرسنل ناموفق بود.</small><button type="button" className="btn btn-outline" onClick={()=>void mutate()}>تلاش مجدد</button></div>:null}</div>;
+  </SearchableSelect>{error||data&&!data.IsSuccess?<div><small className="text-destructive">دریافت فهرست پرسنل ناموفق بود.</small><button type="button" className="btn btn-outline" onClick={()=>void mutate()}>تلاش مجدد</button></div>:null}</div>;
 }
 function CrewActivityEditor({person,onChange}:{person:EditableCrew;onChange:(patch:Partial<EditableCrew>)=>void}){
   const {data:jobs,error:jobsError,mutate:retryJobs}=useSWR<PersonnelResponse>("/base-info/business-types");
   const {data:activities,error:activitiesError,mutate:retryActivities}=useSWR<PersonnelResponse>(person.jobId>0?`/base-info/activity-types/${person.jobId}`:null);
   return <div className="space-y-2 min-w-48">
-    <select className="select" aria-label="سمت عامل" value={person.jobId||""} onChange={event=>{
+    <SearchableSelect className="select" aria-label="سمت عامل" value={person.jobId||""} onChange={event=>{
       const job=jobs?.Data.find(row=>row.Value===event.target.value);
       onChange({jobId:Number(event.target.value),jobName:job?.Text??"",activityTypeId:0,activityTypeName:"",personnelId:0,personnelName:""});
     }}><option value="">انتخاب سمت</option>
       {person.jobId>0&&!jobs?.Data.some(row=>Number(row.Value)===person.jobId)?<option value={person.jobId}>{person.jobName||"سمت فعلی"}</option>:null}
       {(jobs?.Data??[]).filter(row=>!isSoundOperator(row.Text)).map(row=><option key={row.Value} value={row.Value} disabled={row.Disabled}>{row.Text}</option>)}
-    </select>
-    <select className="select" aria-label="فعالیت عامل" value={person.activityTypeId||""} disabled={!person.jobId} onChange={event=>{
+    </SearchableSelect>
+    <SearchableSelect className="select" aria-label="فعالیت عامل" value={person.activityTypeId||""} disabled={!person.jobId} onChange={event=>{
       const activity=activities?.Data.find(row=>row.Value===event.target.value);
       onChange({activityTypeId:Number(event.target.value),activityTypeName:activity?.Text??""});
     }}><option value="">انتخاب فعالیت</option>
       {person.activityTypeId>0&&!activities?.Data.some(row=>Number(row.Value)===person.activityTypeId)?<option value={person.activityTypeId}>{person.activityTypeName||"فعالیت فعلی"}</option>:null}
       {(activities?.Data??[]).filter(row=>!isSoundOperator(row.Text)).map(row=><option key={row.Value} value={row.Value} disabled={row.Disabled}>{row.Text}</option>)}
-    </select>
+    </SearchableSelect>
     {jobsError||activitiesError?<button type="button" className="btn btn-outline" onClick={()=>{void retryJobs();void retryActivities();}}>خطای دریافت سمت و فعالیت؛ تلاش مجدد</button>:null}
   </div>;
 }
@@ -88,7 +92,12 @@ type PlanDetailResponse={IsSuccess:boolean;Data:PlanDetail|null;Message:string|n
 
 export default function IssueProfilePage(){
   const router=useRouter();
-  const {data:forecasts}=useSWR<ForecastResponse[]>("/forecasts?status=3&pageNumber=1&pageSize=100");
+  const { data: session } = useSession();
+  const [selectedNetwork, setSelectedNetwork] = useState("");
+  const { networkId, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
+  const forecastList = session && !networkLoading
+    ? `/forecasts?status=3&pageNumber=1&pageSize=100${networkId ? `&networkId=${networkId}` : ""}` : null;
+  const {data:forecasts}=useSWR<ForecastResponse[]>(forecastList);
   const [forecastId,setForecastId]=useState("");
   const {data:savedDrafts,mutate:refreshDrafts,error:draftsError}=useSWR<DraftSummary[]>("/program-profiles/drafts");
   const {data:restoredForecast}=useSWR<ForecastResponse>(forecastId?`/forecasts/${forecastId}`:null);
@@ -334,15 +343,16 @@ export default function IssueProfilePage(){
   }
 
   function changeForecast(id:string){
-    if(id===forecastId)return;
-    if(draftReady&&!window.confirm("پیش از تغییر برنامه، تغییرات را با «ذخیره مرحله» ثبت کنید. برنامه تغییر کند؟"))return;
+    if(id===forecastId)return true;
+    if(draftReady&&!window.confirm("پیش از تغییر برنامه، تغییرات را با «ذخیره مرحله» ثبت کنید. برنامه تغییر کند؟"))return false;
     setReadyForecast("");setStep(0);setForecastId(id);
+    return true;
   }
 
   return <DashboardShell>
     <Breadcrumb items={[{label:"داشبورد",href:"/dashboard"},{label:"شناسنامه عملکرد",href:"/program-profiles"},{label:"صدور شناسنامه"}]}/>
     <div className="page-head"><div><h1 className="page-title">صدور شناسنامه عملکرد</h1><p className="page-description">فقط از پیش‌بینی تاییدشده صادر می‌شود.</p></div></div>
-    {savedDrafts?.length?<section className="card mb-4"><h2 className="mb-3 font-semibold">ادامه پیش‌نویس‌های ذخیره‌شده</h2><div className="flex flex-wrap gap-2">{savedDrafts.map(draft=><button key={draft.forecastId} type="button" className="btn btn-outline" disabled={saving} onClick={()=>changeForecast(draft.forecastId)}>{draft.title} — {stepTitles[draft.step]}</button>)}</div></section>:null}
+    {savedDrafts?.length?<section className="card mb-4"><h2 className="mb-3 font-semibold">ادامه پیش‌نویس‌های ذخیره‌شده</h2><div className="flex flex-wrap gap-2">{savedDrafts.map(draft=><button key={draft.forecastId} type="button" className="btn btn-outline" disabled={saving} onClick={()=>{if(changeForecast(draft.forecastId))setSelectedNetwork("");}}>{draft.title} — {stepTitles[draft.step]}</button>)}</div></section>:null}
     {draftsError?<p role="alert" className="alert alert-error">خواندن فهرست پیش‌نویس‌ها ناموفق بود. <button type="button" className="underline" onClick={()=>void refreshDrafts()}>تلاش مجدد</button></p>:null}
     <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
     <nav aria-label="مراحل صدور شناسنامه" className="rounded-xl border border-default-200 bg-background p-3 lg:self-start">
@@ -363,11 +373,13 @@ export default function IssueProfilePage(){
       <fieldset disabled={saving}>
 
       <div className={step===0?"grid grid-cols-1 gap-4 md:grid-cols-3":"hidden"}>
+        <NetworkSelect session={session} value={networkId} loading={networkLoading} disabled={saving}
+          allLabel="همه شبکه‌های مجاز" onChange={value=>{if(changeForecast(""))setSelectedNetwork(value);}} />
         <label className="field md:col-span-3"><span className="label">پیش‌بینی تأییدشده *</span>
-          <select className="select" value={forecastId} onChange={e=>changeForecast(e.target.value)} required>
+          <SearchableSelect className="select" value={forecastId} onChange={e=>changeForecast(e.target.value)} required>
             <option value="">انتخاب نام برنامه، موضوع و شماره قسمت</option>
             {availableForecasts.map(x=><ForecastOption key={x.id} forecast={x}/>)}
-          </select>
+          </SearchableSelect>
         </label>
         <fieldset className="contents" disabled={!draftReady||!!issuedProfileId}>
         <label className="field"><span className="label">مدت برنامه (ساعت:دقیقه)</span><input className={"input bg-default-50 "+(fieldErrors.duration?"border-red-500":"")} dir="ltr" value={programDuration} readOnly placeholder="از اطلاعات پایه طرح"/>{fieldErrors.duration?<span className="text-xs text-red-600">{fieldErrors.duration}</span>:null}</label>
@@ -434,10 +446,10 @@ export default function IssueProfilePage(){
       <section className={step===4?"rounded-xl border border-default-200 p-5":"hidden"}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">کارشناسان و محورهای موضوعی</h2><p className="mt-1 text-sm text-default-500">کارشناسان پیش‌بینی بارگذاری شده‌اند. می‌توانید کارشناسی را که در پیش‌بینی نبوده نیز اضافه کنید.</p></div><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setExpertRows(rows=>[...rows,{expertId:"",topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}])}><Plus size={16}/> افزودن کارشناس</button></div>
         <div className="space-y-3">{expertRows.map((x,i)=><div key={i} className="grid gap-3 rounded-lg border border-default-200 p-4 md:grid-cols-2">
-          <label className="field"><span className="label">کارشناس *</span><select className="select" value={x.expertId} onChange={e=>editExpert(i,{expertId:e.target.value})}><option value="">انتخاب کنید</option>{availableExperts.map(expert=><option key={expert.id} value={expert.id}>{expert.firstName} {expert.lastName} — {expert.specialty}</option>)}</select></label>
-          <label className="field"><span className="label">محور موضوعی *</span><select className="select" value={x.topicAxisId} onChange={e=>editExpert(i,{topicAxisId:e.target.value})}><option value="">انتخاب محور پیش‌بینی</option>{[...(selected?.topicAxes??[]),...newAxes].map(axis=><option value={axis.id} key={axis.id}>{axis.title}</option>)}</select></label>
+          <label className="field"><span className="label">کارشناس *</span><SearchableSelect className="select" value={x.expertId} onChange={e=>editExpert(i,{expertId:e.target.value})}><option value="">انتخاب کنید</option>{availableExperts.map(expert=><option key={expert.id} value={expert.id}>{expert.firstName} {expert.lastName} — {expert.specialty}</option>)}</SearchableSelect></label>
+          <label className="field"><span className="label">محور موضوعی *</span><SearchableSelect className="select" value={x.topicAxisId} onChange={e=>editExpert(i,{topicAxisId:e.target.value})}><option value="">انتخاب محور پیش‌بینی</option>{[...(selected?.topicAxes??[]),...newAxes].map(axis=><option value={axis.id} key={axis.id}>{axis.title}</option>)}</SearchableSelect></label>
           <label className="field"><span className="label">مدت صحبت *</span><input className="input" dir="ltr" value={x.duration} placeholder="00:05:00" onChange={e=>editExpert(i,{duration:e.target.value})}/></label>
-          <label className="field"><span className="label">نوع حضور</span><select className="select" value={x.attendanceType} onChange={e=>editExpert(i,{attendanceType:Number(e.target.value)})}><option value={1}>حضوری</option><option value={2}>تلفنی</option><option value={3}>ضبطی</option><option value={4}>محل کار</option></select></label>
+          <label className="field"><span className="label">نوع حضور</span><SearchableSelect className="select" value={x.attendanceType} onChange={e=>editExpert(i,{attendanceType:Number(e.target.value)})}><option value={1}>حضوری</option><option value={2}>تلفنی</option><option value={3}>ضبطی</option><option value={4}>محل کار</option></SearchableSelect></label>
           <div className="flex items-center justify-between md:col-span-2"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={x.hasPayment} onChange={e=>editExpert(i,{hasPayment:e.target.checked})}/> شامل پرداخت</label><button type="button" className="btn border border-red-200 text-red-600 hover:bg-red-50" onClick={()=>setExpertRows(rows=>rows.filter((_,j)=>i!==j))}><Trash2 size={15}/> حذف</button></div>
         </div>)}{!expertRows.length?<p className="py-6 text-center text-default-500">کارشناسی اضافه نشده است. در صورت نیاز از «افزودن کارشناس» استفاده کنید.</p>:null}</div>
       </section>

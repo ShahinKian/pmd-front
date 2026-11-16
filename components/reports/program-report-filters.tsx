@@ -1,9 +1,14 @@
 "use client";
 
+import { NetworkSelect } from "@/components/ui/network-field";
+import { type SessionPayload } from "@/hooks/use-session";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import useSWR from "swr";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 
 type Props = {
+  session?: SessionPayload | null;
+  networkLoading?: boolean;
   networkId: string;
   groupId: string;
   planId: string;
@@ -13,10 +18,9 @@ type Props = {
 };
 
 export function ProgramReportFilters({
-  networkId, groupId, planId,
+  session, networkLoading, networkId, groupId, planId,
   onNetworkChange, onGroupChange, onPlanChange,
 }: Props) {
-  const { data: networks } = useSWR<BaseInfoListResponse>("/base-info/networks");
   const { data: groups } = useSWR<BaseInfoListResponse>(
     networkId ? `/base-info/network-groups/${networkId}` : null,
   );
@@ -26,33 +30,28 @@ export function ProgramReportFilters({
 
   return (
     <>
-      <label className="field">
-        <span className="label">شبکه</span>
-        <select className="select" value={networkId} onChange={e => {
-          onNetworkChange(e.target.value);
+      <NetworkSelect session={session} value={networkId} loading={networkLoading} allLabel="همه شبکه‌های مجاز"
+        onChange={(value) => {
+          onNetworkChange(value);
           onGroupChange("");
           onPlanChange("");
-        }}>
-          <option value="">همه شبکه‌های مجاز</option>
-          {(networks?.Data ?? []).map(x => <option key={x.Value} value={x.Value} disabled={x.Disabled}>{x.Text}</option>)}
-        </select>
-      </label>
+        }} />
       <label className="field">
         <span className="label">گروه</span>
-        <select className="select" value={groupId} disabled={!networkId} onChange={e => {
+        <SearchableSelect className="select" value={groupId} disabled={!networkId} onChange={e => {
           onGroupChange(e.target.value);
           onPlanChange("");
         }}>
           <option value="">همه گروه‌ها</option>
           {(groups?.Data ?? []).map(x => <option key={x.Value} value={x.Value} disabled={x.Disabled}>{x.Text}</option>)}
-        </select>
+        </SearchableSelect>
       </label>
       <label className="field">
         <span className="label">برنامه</span>
-        <select className="select" value={planId} disabled={!networkId || !groupId} onChange={e => onPlanChange(e.target.value)}>
+        <SearchableSelect className="select" value={planId} disabled={!networkId || !groupId} onChange={e => onPlanChange(e.target.value)}>
           <option value="">{groupId ? "همه برنامه‌ها" : "ابتدا گروه را انتخاب کنید"}</option>
           {(plans?.Data ?? []).map(x => <option key={x.Value} value={x.Value} disabled={x.Disabled}>{x.Text}</option>)}
-        </select>
+        </SearchableSelect>
       </label>
     </>
   );

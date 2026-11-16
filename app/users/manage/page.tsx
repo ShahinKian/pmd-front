@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormEvent, useMemo, useState } from "react";
 import useSWR from "swr";
 import { KeyRound, Loader2, Save, Search, ShieldAlert, UserCog } from "lucide-react";
@@ -235,7 +236,7 @@ export default function ManageUserPage() {
 
                 <label className="field">
                   <span className="label">شبکه برای فیلتر تهیه‌کنندگان</span>
-                  <select
+                  <SearchableSelect
                     className="select"
                     value={providerNetworkId ?? ""}
                     onChange={(e) => {
@@ -248,7 +249,7 @@ export default function ManageUserPage() {
                       const id = toPositiveInt(network.Value);
                       return id ? <option key={id} value={id}>{network.Text}</option> : null;
                     })}
-                  </select>
+                  </SearchableSelect>
                   <small className="muted">
                     این انتخاب فقط برای یافتن پرسنل تهیه‌کننده است و network assignment کاربر را تغییر نمی‌دهد.
                   </small>
@@ -256,7 +257,7 @@ export default function ManageUserPage() {
 
                 <label className="field" style={{marginTop:14}}>
                   <span className="label">تهیه‌کننده</span>
-                  <select
+                  <SearchableSelect
                     className="select"
                     value={providerId ?? ""}
                     onChange={(e) => setProviderId(toPositiveInt(e.target.value))}
@@ -269,7 +270,7 @@ export default function ManageUserPage() {
                       const id = toPositiveInt(provider.Value);
                       return id ? <option key={id} value={id}>{provider.Text}</option> : null;
                     })}
-                  </select>
+                  </SearchableSelect>
                 </label>
 
                 <button

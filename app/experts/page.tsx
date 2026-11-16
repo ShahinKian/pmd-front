@@ -1,5 +1,9 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { NetworkSelect } from "@/components/ui/network-field";
+import { useSession } from "@/hooks/use-session";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -17,8 +21,11 @@ function toPositiveInt(value: string): number | null {
 }
 
 export default function ExpertsPage() {
+  const { data: session } = useSession();
   const [searchTerm, setSearchTerm] = useState("");
-  const [networkId, setNetworkId] = useState<number | null>(null);
+  const [selectedNetwork, setNetworkId] = useState<number | null>(null);
+  const networkScope = useNetworkScope(session, selectedNetwork?.toString());
+  const networkId = toPositiveInt(networkScope.networkId);
   const [activeFilter, setActiveFilter] = useState<"" | "true" | "false">("");
 
   const query = new URLSearchParams();
@@ -28,7 +35,7 @@ export default function ExpertsPage() {
   query.set("pageNumber", "1");
   query.set("pageSize", "100");
 
-  const { data, error, isLoading } = useSWR<ExpertResponse[]>(`/experts?${query.toString()}`);
+  const { data, error, isLoading } = useSWR<ExpertResponse[]>(session && !networkScope.loading ? `/experts?${query.toString()}` : null);
   const { data: networks } = useSWR<BaseInfoListResponse>("/base-info/networks");
 
   const networkOptions = useMemo(
@@ -70,17 +77,9 @@ export default function ExpertsPage() {
               className="pr-9"
             />
           </div>
-          <select
-            value={networkId ?? ""}
-            onChange={(event) => setNetworkId(toPositiveInt(event.target.value))}
-            className="h-10 rounded-md border border-default-300 bg-background px-3 text-sm text-default-700 focus:border-primary focus:outline-none"
-          >
-            <option value="">همه شبکه‌ها</option>
-            {networkOptions.map((network) => (
-              <option key={network.id} value={network.id}>{network.label}</option>
-            ))}
-          </select>
-          <select
+          <NetworkSelect session={session} value={networkScope.networkId} loading={networkScope.loading}
+            allLabel="همه شبکه‌های مجاز" onChange={(value) => setNetworkId(toPositiveInt(value))} />
+          <SearchableSelect
             value={activeFilter}
             onChange={(event) => setActiveFilter(event.target.value as "" | "true" | "false")}
             className="h-10 rounded-md border border-default-300 bg-background px-3 text-sm text-default-700 focus:border-primary focus:outline-none"
@@ -88,7 +87,7 @@ export default function ExpertsPage() {
             <option value="">همه وضعیت‌ها</option>
             <option value="true">فعال</option>
             <option value="false">غیرفعال</option>
-          </select>
+          </SearchableSelect>
         </div>
       </div>
 

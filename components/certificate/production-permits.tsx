@@ -1,11 +1,13 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
-import { NetworkSelect } from "@/components/certificate/network-select";
+import { NetworkSelect } from "@/components/ui/network-field";
 import { useSession } from "@/hooks/use-session";
 import { certificateAccess } from "@/lib/certificate/access";
 import { amountExceeds, displayDate, displayNumber, parseDeduction, paymentMonths } from "@/lib/certificate/format";
@@ -26,8 +28,10 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
   const title = issuedMode ? "مجوزهای صادرشده" : "صدور مجوز قطعی";
   const { data: session, error: sessionError, isLoading: sessionLoading } = useSession();
   const access = certificateAccess(session);
-  const [network, setNetwork] = useState(initialNetwork);
-  const [periodId, setPeriodId] = useState(initialPeriod);
+  const [selectedNetwork, setNetwork] = useState(initialNetwork);
+  const { networkId: network, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
+  const [paymentPeriod, setPaymentPeriod] = useState({ network: initialNetwork, id: initialPeriod });
+  const periodId = Number(paymentPeriod.network) === Number(network) ? paymentPeriod.id : "";
   const [status, setStatus] = useState<PermitSummary["status"] | "">("");
   const [permitId, setPermitId] = useState("");
   const [busy, setBusy] = useState("");
@@ -110,29 +114,29 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
     {session && (issuedMode ? access.canRead : access.canIssue) && <div className="grid gap-4">
       <section className="card grid gap-4">
         <div className="form-grid">
-          <NetworkSelect session={session} value={network} disabled={Boolean(busy)} onChange={(value) => {
-            setNetwork(value); setPeriodId(""); setStatus(""); setPermitId(""); setMessage(null);
+          <NetworkSelect session={session} value={network} loading={networkLoading} disabled={Boolean(busy)} onChange={(value) => {
+            setNetwork(value); setPaymentPeriod({ network: value, id: "" }); setStatus(""); setPermitId(""); setMessage(null);
           }} />
           {base && <label className="field">
             <span className="label">دوره پرداخت</span>
-            <select className="select" value={periodId} disabled={Boolean(busy) || periods.isLoading} onChange={(event) => {
-              setPeriodId(event.target.value); setStatus(""); setPermitId(""); setMessage(null);
+            <SearchableSelect className="select" value={periodId} disabled={Boolean(busy) || periods.isLoading} onChange={(event) => {
+              setPaymentPeriod({ network, id: event.target.value }); setStatus(""); setPermitId(""); setMessage(null);
             }}>
               <option value="">{periods.isLoading ? "در حال بارگذاری…" : periods.data?.length === 0 ? "دوره‌ای ثبت نشده است" : "انتخاب دوره"}</option>
               {periods.data?.map((item) => <option key={item.id} value={item.id}>
                 {paymentMonths[item.paymentMonth - 1]} {displayNumber(item.paymentYear)} · {displayDate(item.fromDate)} تا {displayDate(item.toDate)}
                 {!item.isActive && " · غیرفعال"}
               </option>)}
-            </select>
+            </SearchableSelect>
           </label>}
           {issuedMode && period && !access.financeOnly && <label className="field">
             <span className="label">وضعیت سند</span>
-            <select className="select" value={status} disabled={Boolean(busy)} onChange={(event) => {
+            <SearchableSelect className="select" value={status} disabled={Boolean(busy)} onChange={(event) => {
               setStatus(event.target.value as PermitSummary["status"] | ""); setPermitId(""); setMessage(null);
             }}>
               <option value="">همه وضعیت‌ها</option>
               {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            </SearchableSelect>
           </label>}
         </div>
         {!issuedMode && access.canIssue && period?.issuedAt && <p>صدور این دوره انجام شده است. <Link className="underline" href={issuedHref}>مشاهده مجوزهای این دوره</Link></p>}

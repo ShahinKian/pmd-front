@@ -1,5 +1,8 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { NetworkSelect } from "@/components/ui/network-field";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { Plus, Save } from "lucide-react";
@@ -19,11 +22,15 @@ interface KeywordRow{
 
 export default function KeywordsPage(){
   const {data:session}=useSession();
-  const {data:keywords,mutate,isLoading,error}=useSWR<KeywordRow[]>("/keywords");
   const {data:networks}=useSWR<BaseInfoListResponse>("/base-info/networks");
   const [title,setTitle]=useState("");
   const [isGlobal,setIsGlobal]=useState(false);
-  const [networkId,setNetworkId]=useState("");
+  const [selectedNetwork,setNetworkId]=useState("");
+  const { networkId, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
+  const keywordsUrl = session && !networkLoading
+    ? !session.isSystemAdmin && networkId ? `/keywords?networkId=${networkId}` : "/keywords"
+    : null;
+  const {data:keywords,mutate,isLoading,error}=useSWR<KeywordRow[]>(keywordsUrl);
   const [saving,setSaving]=useState(false);
 
   const allowedNetworks=useMemo(()=>{
@@ -67,8 +74,8 @@ export default function KeywordsPage(){
       <h2 className="mb-4 font-semibold">تعریف کلیدواژه جدید</h2>
       <div className="form-grid">
         <label className="field"><span className="label">عنوان</span><input className="input" value={title} onChange={e=>setTitle(e.target.value)} maxLength={120}/></label>
-        {session?.isSystemAdmin?<label className="field"><span className="label">نوع</span><select className="select" value={isGlobal?"global":"network"} onChange={e=>{const global=e.target.value==="global";setIsGlobal(global);if(global)setNetworkId("");}}><option value="network">شبکه‌ای</option><option value="global">سراسری</option></select></label>:null}
-        {!isGlobal?<label className="field"><span className="label">شبکه</span><select className="select" value={networkId} onChange={e=>setNetworkId(e.target.value)}><option value="">انتخاب شبکه</option>{allowedNetworks.map(x=><option key={x.id} value={x.id} disabled={x.disabled}>{x.text}</option>)}</select></label>:null}
+        {session?.isSystemAdmin?<label className="field"><span className="label">نوع</span><SearchableSelect className="select" value={isGlobal?"global":"network"} onChange={e=>{const global=e.target.value==="global";setIsGlobal(global);if(global)setNetworkId("");}}><option value="network">شبکه‌ای</option><option value="global">سراسری</option></SearchableSelect></label>:null}
+        {!isGlobal && <NetworkSelect session={session} value={networkId} loading={networkLoading} onChange={setNetworkId} />}
       </div>
       <button className="btn btn-primary mt-4" disabled={saving} onClick={addKeyword}><Plus size={16}/>ثبت کلیدواژه</button>
     </section>

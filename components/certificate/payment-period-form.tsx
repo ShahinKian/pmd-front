@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { mutate } from "swr";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
@@ -52,10 +53,10 @@ export function PaymentPeriodForm({ period, saveLabel, onSave, children }: {
   return <form className="card grid gap-4" onSubmit={submit}>
     <div className="form-grid">
       <label className="field"><span className="label">ماه پرداخت</span>
-        <select className="select" name="month" defaultValue={period?.paymentMonth ?? ""} required disabled={busy}>
+        <SearchableSelect className="select" name="month" defaultValue={period?.paymentMonth ?? ""} required disabled={busy}>
           <option value="">انتخاب ماه</option>
           {paymentMonths.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
-        </select>
+        </SearchableSelect>
       </label>
       <div className="field"><span className="label">از تاریخ</span>
         <PersianDatePicker value={fromDate} onChange={setFromDate} placeholder="تاریخ شروع" disabled={busy} />

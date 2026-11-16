@@ -1,5 +1,8 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { NetworkSelect } from "@/components/ui/network-field";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
@@ -47,6 +50,8 @@ function ProgramNameCell({ forecast }: { forecast: ForecastResponse }) {
 export default function ForecastsPage() {
   const {data:session}=useSession();
   const isStarter = session?.user.roles.includes("Providers") ?? false;
+  const [selectedNetwork, setNetworkId] = useState("");
+  const { networkId, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
   const [status, setStatus] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -55,18 +60,19 @@ export default function ForecastsPage() {
   const query = useMemo(() => {
     const params = new URLSearchParams();
     if (status) params.set("status", status);
+    if (networkId) params.set("networkId", networkId);
     if (fromDate) params.set("fromDate", `${fromDate}T00:00:00`);
     if (toDate) params.set("toDate", `${toDate}T23:59:59`);
     params.set("pageNumber", String(page));
     params.set("pageSize", "20");
     return "/forecasts?" + params.toString();
-  }, [status, fromDate, toDate, page]);
+  }, [status, fromDate, toDate, networkId, page]);
 
   const { data, error, isLoading, mutate } =
-    useSWR<ForecastListPayload>(query, forecastListFetcher);
+    useSWR<ForecastListPayload>(session && !networkLoading ? query : null, forecastListFetcher);
 
   function resetFilters() {
-    setStatus(""); setFromDate(""); setToDate(""); setPage(1);
+    setNetworkId(""); setStatus(""); setFromDate(""); setToDate(""); setPage(1);
   }
 
   return (
@@ -91,12 +97,14 @@ export default function ForecastsPage() {
         </div>
         <div className="form-section-body">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <NetworkSelect session={session} value={networkId} loading={networkLoading} allLabel="همه شبکه‌های مجاز"
+              onChange={(value) => { setNetworkId(value); setPage(1); }} />
             <label className="field">
               <span className="label">وضعیت</span>
-              <select className="select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+              <SearchableSelect className="select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
                 <option value="">همه وضعیت‌ها</option>
                 {Object.values(FORECAST_STATUS).map((value) => <option key={value} value={value}>{forecastStatusLabel(value)}</option>)}
-              </select>
+              </SearchableSelect>
             </label>
             <div className="field"><span className="label">از تاریخ</span><PersianDatePicker value={fromDate} onChange={(value) => { setFromDate(value); setPage(1); }} /></div>
             <div className="field"><span className="label">تا تاریخ</span><PersianDatePicker value={toDate} onChange={(value) => { setToDate(value); setPage(1); }} /></div>

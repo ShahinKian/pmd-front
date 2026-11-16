@@ -1,5 +1,8 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { NetworkSelect } from "@/components/ui/network-field";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { Link2, Loader2, Save, Trash2, UsersRound } from "lucide-react";
@@ -25,10 +28,10 @@ export default function PlanProvidersPage() {
     session?.isSystemAdmin || roles.includes("PlanManager"),
   );
 
-  const { data: networks, isLoading: networksLoading } =
-    useSWR<BaseInfoListResponse>(canManage ? "/base-info/networks" : null);
 
-  const [networkId, setNetworkId] = useState<number | null>(null);
+  const [selectedNetwork, setNetworkId] = useState<number | null>(null);
+  const networkScope = useNetworkScope(session, selectedNetwork?.toString());
+  const networkId = toPositiveInt(networkScope.networkId);
   const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
   const [planId, setPlanId] = useState<number | null>(null);
   const [selectedProviderIds, setSelectedProviderIds] = useState<number[]>([]);
@@ -52,20 +55,6 @@ export default function PlanProvidersPage() {
     mutate: mutateAssignments,
   } = useSWR<PlanProviderLink[]>(assignmentsUrl);
 
-  const networkOptions = useMemo(() => {
-    const all = (networks?.Data ?? [])
-      .map((item) => ({
-        id: toPositiveInt(item.Value),
-        label: item.Text,
-        disabled: item.Disabled,
-      }))
-      .filter((item): item is { id: number; label: string; disabled: boolean } => item.id !== null);
-
-    if (session?.isSystemAdmin) return all;
-
-    const allowed = new Set(session?.user.networkIds ?? []);
-    return all.filter((item) => allowed.has(item.id));
-  }, [networks, session]);
 
   const planOptions = useMemo(
     () =>
@@ -203,43 +192,18 @@ export default function PlanProvidersPage() {
         <>
           <section className="card" style={{marginBottom:18}}>
             <div className="form-grid">
-              <label className="field">
-                <span className="label">شبکه *</span>
-                <select
-                  className="select"
-                  value={networkId ?? ""}
-                  onChange={(event) => changeNetwork(event.target.value)}
-                  disabled={networksLoading}
-                >
-                  <option value="">
-                    {networksLoading ? "در حال دریافت شبکه‌ها..." : "انتخاب شبکه"}
-                  </option>
-                  {networkOptions.map((network) => (
-                    <option
-                      key={network.id}
-                      value={network.id}
-                      disabled={network.disabled}
-                    >
-                      {network.label}
-                    </option>
-                  ))}
-                </select>
-                {!session?.isSystemAdmin ? (
-                  <small className="muted">
-                    برای مدیر طرح فقط شبکه‌های موجود در دسترسی فعلی کاربر نمایش داده می‌شود.
-                  </small>
-                ) : null}
-              </label>
+              <NetworkSelect session={session} value={networkScope.networkId} loading={networkScope.loading}
+                label="شبکه *" onChange={changeNetwork} />
 
               <label className="field">
                 <span className="label">گروه شبکه *</span>
-                <select className="select" value={networkGroupId ?? ""} onChange={(event) => changeGroup(event.target.value)} disabled={!networkId || groupsLoading}>
+                <SearchableSelect className="select" value={networkGroupId ?? ""} onChange={(event) => changeGroup(event.target.value)} disabled={!networkId || groupsLoading}>
                   <option value="">{groupsLoading ? "در حال دریافت گروه‌ها..." : "انتخاب گروه"}</option>
                   {(groups?.Data ?? []).map((group) => {
                     const id = toPositiveInt(group.Value);
                     return id ? <option key={id} value={id} disabled={group.Disabled}>{group.Text}</option> : null;
                   })}
-                </select>
+                </SearchableSelect>
               </label>
             </div>
           </section>

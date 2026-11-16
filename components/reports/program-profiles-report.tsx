@@ -1,5 +1,7 @@
 "use client";
 
+import { useSession } from "@/hooks/use-session";
+import { useNetworkScope } from "@/hooks/use-network-scope";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -42,7 +44,9 @@ export function ProgramProfilesReport({ approvedOnly = false }: { approvedOnly?:
   const [toDate,setToDate]=useState("");
   const [topic,setTopic]=useState("");
   const [producer,setProducer]=useState("");
-  const [networkId,setNetworkId]=useState("");
+  const { data: session } = useSession();
+  const [selectedNetwork,setNetworkId]=useState("");
+  const { networkId, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
   const [groupId,setGroupId]=useState("");
   const [planId,setPlanId]=useState("");
 
@@ -59,7 +63,7 @@ export function ProgramProfilesReport({ approvedOnly = false }: { approvedOnly?:
     return "/reports/program-profiles?"+p.toString();
   },[fromDate,toDate,topic,producer,networkId,groupId,planId,approvedOnly]);
 
-  const {data,error,isLoading,mutate}=useSWR<Row[]>(url);
+  const {data,error,isLoading,mutate}=useSWR<Row[]>(session && !networkLoading ? url : null);
 
   function reset(){
     setFromDate("");setToDate("");setTopic("");setProducer("");setNetworkId("");setGroupId("");setPlanId("");
@@ -79,7 +83,7 @@ export function ProgramProfilesReport({ approvedOnly = false }: { approvedOnly?:
           <label className="field"><span className="label">موضوع</span><input className="input" value={topic} onChange={e=>setTopic(e.target.value)} placeholder="موضوع شناسنامه"/></label>
           <label className="field"><span className="label">تهیه‌کننده</span><input className="input" value={producer} onChange={e=>setProducer(e.target.value)} placeholder="نام یا نام کاربری تهیه‌کننده"/></label>
           <ProgramReportFilters
-            networkId={networkId} groupId={groupId} planId={planId}
+            session={session} networkLoading={networkLoading} networkId={networkId} groupId={groupId} planId={planId}
             onNetworkChange={setNetworkId} onGroupChange={setGroupId} onPlanChange={setPlanId}
           />
         </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
@@ -422,7 +423,7 @@ export default function NewUserPage() {
                   <div className="form-grid" style={{ marginTop: 18 }}>
                     <label className="field">
                       <span className="label">شبکه مدیر گروه *</span>
-                      <select
+                      <SearchableSelect
                         className="select"
                         value={groupNetworkId ?? ""}
                         onChange={(event) => {
@@ -443,12 +444,12 @@ export default function NewUserPage() {
                               {network.label}
                             </option>
                           ))}
-                      </select>
+                      </SearchableSelect>
                     </label>
 
                     <label className="field">
                       <span className="label">گروه برنامه‌ساز *</span>
-                      <select
+                      <SearchableSelect
                         className="select"
                         value={networkGroupId ?? ""}
                         onChange={(event) =>
@@ -476,7 +477,7 @@ export default function NewUserPage() {
                             </option>
                           ) : null;
                         })}
-                      </select>
+                      </SearchableSelect>
                     </label>
                   </div>
                 ) : null}

@@ -1,5 +1,8 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { NetworkSelect } from "@/components/ui/network-field";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormEvent, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Loader2, Save, CalendarDays, Layers3, UserRoundSearch } from "lucide-react";
@@ -27,12 +30,13 @@ export default function NewForecastPage() {
   const { data: session } = useSession();
   const isProvider = session?.user.roles.includes("Providers") ?? false;
 
-  const { data: networks } = useSWR<BaseInfoListResponse>("/base-info/networks");
   const { data: myPlanLinks } = useSWR<PlanProviderLink[]>(
     isProvider ? "/plan-providers/my/plans" : null,
   );
 
-  const [networkId, setNetworkId] = useState<number | null>(null);
+  const [selectedNetwork, setNetworkId] = useState<number | null>(null);
+  const networkScope = useNetworkScope(session, selectedNetwork?.toString());
+  const networkId = toPositiveInt(networkScope.networkId);
   const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
   const [planId, setPlanId] = useState<number | null>(null);
   const [broadcastDate, setBroadcastDate] = useState("");
@@ -59,16 +63,6 @@ export default function NewForecastPage() {
       : null,
   );
 
-  const networkOptions = useMemo(() => {
-    const all = (networks?.Data ?? [])
-      .map((item) => ({ id: toPositiveInt(item.Value), label: item.Text }))
-      .filter((item): item is { id: number; label: string } => item.id !== null);
-
-    if (session?.isSystemAdmin || isProvider) return all;
-
-    const allowed = new Set(session?.user.networkIds ?? []);
-    return all.filter((item) => allowed.has(item.id));
-  }, [networks, session, isProvider]);
 
   const planOptions = useMemo(() => {
     const all = (plans?.Data ?? [])
@@ -162,24 +156,12 @@ export default function NewForecastPage() {
           </div>
           <div className="form-section-body">
             <div className="form-grid">
-              <label className="field">
-                <span className="label">شبکه *</span>
-                <select
-                  className="select"
-                  value={networkId ?? ""}
-                  onChange={(e) => changeNetwork(e.target.value)}
-                  required
-                >
-                  <option value="">انتخاب شبکه</option>
-                  {networkOptions.map((item) => (
-                    <option key={item.id} value={item.id}>{item.label}</option>
-                  ))}
-                </select>
-              </label>
+              <NetworkSelect session={session} value={networkScope.networkId} loading={networkScope.loading}
+                label="شبکه *" onChange={changeNetwork} />
 
               <label className="field">
                 <span className="label">گروه برنامه‌ساز *</span>
-                <select
+                <SearchableSelect
                   className="select"
                   value={networkGroupId ?? ""}
                   onChange={(e) => changeGroup(e.target.value)}
@@ -191,12 +173,12 @@ export default function NewForecastPage() {
                     const id = toPositiveInt(item.Value);
                     return id ? <option key={id} value={id}>{item.Text}</option> : null;
                   })}
-                </select>
+                </SearchableSelect>
               </label>
 
               <label className="field">
                 <span className="label">طرح *</span>
-                <select
+                <SearchableSelect
                   className="select"
                   value={planId ?? ""}
                   onChange={(e) => setPlanId(toPositiveInt(e.target.value))}
@@ -207,7 +189,7 @@ export default function NewForecastPage() {
                   {planOptions.map((item) => (
                     <option key={item.id} value={item.id}>{item.label}</option>
                   ))}
-                </select>
+                </SearchableSelect>
                 {plansError ? <small className="text-destructive">دریافت طرح‌ها ناموفق بود. اتصال وب‌سرویس را بررسی کنید.</small> : null}
                 {networkGroupId && !plansLoading && !plansError && planOptions.length === 0 ? <small className="muted">طرح قابل انتخابی برای این گروه یافت نشد.</small> : null}
                 {isProvider ? (

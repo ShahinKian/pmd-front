@@ -1,5 +1,7 @@
 "use client";
 
+import { useSession } from "@/hooks/use-session";
+import { useNetworkScope } from "@/hooks/use-network-scope";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -38,7 +40,9 @@ export default function ApprovedForecastReportPage() {
   const [fromDate,setFromDate]=useState("");
   const [toDate,setToDate]=useState("");
   const [topic,setTopic]=useState("");
-  const [networkId,setNetworkId]=useState("");
+  const { data: session } = useSession();
+  const [selectedNetwork,setNetworkId]=useState("");
+  const { networkId, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
   const [groupId,setGroupId]=useState("");
   const [planId,setPlanId]=useState("");
 
@@ -53,7 +57,7 @@ export default function ApprovedForecastReportPage() {
     return "/reports/approved-forecasts?"+p.toString();
   },[fromDate,toDate,topic,networkId,groupId,planId]);
 
-  const {data,error,isLoading,mutate}=useSWR<Row[]>(url);
+  const {data,error,isLoading,mutate}=useSWR<Row[]>(session && !networkLoading ? url : null);
 
   function reset(){
     setFromDate("");setToDate("");setTopic("");setNetworkId("");setGroupId("");setPlanId("");
@@ -72,7 +76,7 @@ export default function ApprovedForecastReportPage() {
           <div className="field"><span className="label">تا تاریخ</span><PersianDatePicker value={toDate} onChange={setToDate}/></div>
           <label className="field"><span className="label">موضوع</span><input className="input" value={topic} onChange={e=>setTopic(e.target.value)} placeholder="جستجو در موضوع"/></label>
           <ProgramReportFilters
-            networkId={networkId} groupId={groupId} planId={planId}
+            session={session} networkLoading={networkLoading} networkId={networkId} groupId={groupId} planId={planId}
             onNetworkChange={setNetworkId} onGroupChange={setGroupId} onPlanChange={setPlanId}
           />
         </div>

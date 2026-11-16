@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
@@ -161,10 +162,10 @@ export default function UsersPage() {
                       </td>
                       <td className="p-3">
                         {editing ? (
-                          <select className="select min-w-48" value={draft.providerId} onChange={e=>setDraft(x=>({...x,providerId:e.target.value}))}>
+                          <SearchableSelect className="select min-w-48" value={draft.providerId} onChange={e=>setDraft(x=>({...x,providerId:e.target.value}))}>
                             <option value="">بدون تهیه‌کننده</option>
                             {providerOptions.map(p=><option key={p.id} value={p.id} disabled={p.disabled}>{p.text}</option>)}
-                          </select>
+                          </SearchableSelect>
                         ) : (providerName || "—")}
                       </td>
                       <td className="p-3">

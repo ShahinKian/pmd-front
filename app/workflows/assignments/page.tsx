@@ -1,5 +1,6 @@
 "use client";
 
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormEvent, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Edit3, Loader2, Plus, Save, Settings2 } from "lucide-react";
@@ -308,7 +309,7 @@ export default function WorkflowAssignmentsPage() {
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
                 <Label className="mb-2 text-default-600">نوع فرم *</Label>
-                <select
+                <SearchableSelect
                   value={formTypeId}
                   onChange={(event) => setFormTypeId(event.target.value)}
                   required
@@ -318,12 +319,12 @@ export default function WorkflowAssignmentsPage() {
                   {activeFormTypes.map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
                 <Label className="mb-2 text-default-600">شبکه</Label>
-                <select
+                <SearchableSelect
                   value={networkId ?? ""}
                   onChange={(event) => setNetworkId(toPositiveInt(event.target.value))}
                   className="h-10 w-full rounded-md border border-default-300 bg-background px-3 text-sm"
@@ -332,12 +333,12 @@ export default function WorkflowAssignmentsPage() {
                   {networkOptions.map((network) => (
                     <option key={network.id} value={network.id}>{network.label}</option>
                   ))}
-                </select>
+                </SearchableSelect>
               </div>
 
               <div>
                 <Label className="mb-2 text-default-600">Workflow فعال *</Label>
-                <select
+                <SearchableSelect
                   value={workflowDefinitionId}
                   onChange={(event) => setWorkflowDefinitionId(event.target.value)}
                   required
@@ -349,7 +350,7 @@ export default function WorkflowAssignmentsPage() {
                       {workflow.name} - v{workflow.version}
                     </option>
                   ))}
-                </select>
+                </SearchableSelect>
               </div>
 
               <div className="flex items-end">

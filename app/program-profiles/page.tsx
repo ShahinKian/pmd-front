@@ -1,5 +1,8 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { NetworkSelect } from "@/components/ui/network-field";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
@@ -41,12 +44,12 @@ export default function ProfilesPage(){
   const [topic,setTopic]=useState("");
   const [fromDate,setFromDate]=useState("");
   const [toDate,setToDate]=useState("");
-  const [networkId,setNetworkId]=useState("");
+  const [selectedNetwork,setNetworkId]=useState("");
+  const { networkId, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
   const [networkGroupId,setNetworkGroupId]=useState("");
   const [planId,setPlanId]=useState("");
   const [page,setPage]=useState(1);
 
-  const {data:networks}=useSWR<BaseInfoListResponse>("/base-info/networks");
   const {data:groups}=useSWR<BaseInfoListResponse>(
     networkId?`/base-info/network-groups/${networkId}`:null
   );
@@ -60,13 +63,14 @@ export default function ProfilesPage(){
     if(topic.trim())p.set("topic",topic.trim());
     if(fromDate)p.set("fromDate",fromDate+"T00:00:00");
     if(toDate)p.set("toDate",toDate+"T23:59:59");
+    if(networkId)p.set("networkId",networkId);
     if(planId)p.set("planId",planId);
     p.set("pageNumber",String(page));
     p.set("pageSize","20");
     return "/program-profiles?"+p.toString();
-  },[status,topic,fromDate,toDate,planId,page]);
+  },[status,topic,fromDate,toDate,networkId,planId,page]);
 
-  const {data,error,isLoading,mutate}=useSWR<ProfileListPayload>(query,profileListFetcher);
+  const {data,error,isLoading,mutate}=useSWR<ProfileListPayload>(session && !networkLoading ? query : null,profileListFetcher);
 
   function resetFilters(){
     setStatus("");
@@ -97,10 +101,10 @@ export default function ProfilesPage(){
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <label className="field">
             <span className="label">وضعیت</span>
-            <select className="select" value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}>
+            <SearchableSelect className="select" value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}>
               <option value="">همه وضعیت‌ها</option>
               {Object.values(PROFILE_STATUS).map(value=><option key={value} value={value}>{profileStatusLabel(value)}</option>)}
-            </select>
+            </SearchableSelect>
           </label>
 
           <label className="field">
@@ -118,28 +122,23 @@ export default function ProfilesPage(){
             <PersianDatePicker value={toDate} onChange={value=>{setToDate(value);setPage(1);}}/>
           </div>
 
-          <label className="field">
-            <span className="label">شبکه</span>
-            <select className="select" value={networkId} onChange={e=>{setNetworkId(e.target.value);setNetworkGroupId("");setPlanId("");setPage(1);}}>
-              <option value="">همه شبکه‌ها</option>
-              {(networks?.Data??[]).map(x=><option key={x.Value} value={x.Value} disabled={x.Disabled}>{x.Text}</option>)}
-            </select>
-          </label>
+          <NetworkSelect session={session} value={networkId} loading={networkLoading} allLabel="همه شبکه‌های مجاز"
+            onChange={value=>{setNetworkId(value);setNetworkGroupId("");setPlanId("");setPage(1);}} />
 
           <label className="field">
             <span className="label">گروه</span>
-            <select className="select" value={networkGroupId} disabled={!networkId} onChange={e=>{setNetworkGroupId(e.target.value);setPlanId("");setPage(1);}}>
+            <SearchableSelect className="select" value={networkGroupId} disabled={!networkId} onChange={e=>{setNetworkGroupId(e.target.value);setPlanId("");setPage(1);}}>
               <option value="">همه گروه‌ها</option>
               {(groups?.Data??[]).map(x=><option key={x.Value} value={x.Value} disabled={x.Disabled}>{x.Text}</option>)}
-            </select>
+            </SearchableSelect>
           </label>
 
           <label className="field md:col-span-3">
             <span className="label">برنامه</span>
-            <select className="select" value={planId} disabled={!networkId||!networkGroupId} onChange={e=>{setPlanId(e.target.value);setPage(1);}}>
+            <SearchableSelect className="select" value={planId} disabled={!networkId||!networkGroupId} onChange={e=>{setPlanId(e.target.value);setPage(1);}}>
               <option value="">همه برنامه‌ها</option>
               {(plans?.Data??[]).map(x=><option key={x.Value} value={x.Value} disabled={x.Disabled}>{x.Text}</option>)}
-            </select>
+            </SearchableSelect>
           </label>
         </div>
 

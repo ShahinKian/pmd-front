@@ -1,9 +1,11 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent } from "react";
 import useSWR from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
-import { NetworkSelect } from "@/components/certificate/network-select";
+import { NetworkSelect } from "@/components/ui/network-field";
 import { useSession } from "@/hooks/use-session";
 import { certificateAccess } from "@/lib/certificate/access";
 import type { DutyCrewMember } from "@/lib/certificate/types";
@@ -13,7 +15,8 @@ import { apiClient, apiErrorMessage } from "@/lib/http/client";
 export default function DutyCrewPage() {
   const { data: session, error: sessionError, isLoading: sessionLoading } = useSession();
   const { canManageDutyCrew } = certificateAccess(session);
-  const [network, setNetwork] = useState("");
+  const [selectedNetwork, setNetwork] = useState("");
+  const { networkId: network, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
   const [job, setJob] = useState("");
   const [personnel, setPersonnel] = useState("");
   const [busy, setBusy] = useState(false);
@@ -57,28 +60,28 @@ export default function DutyCrewPage() {
     {session && canManageDutyCrew && <>
       <form className="card" onSubmit={submit}>
         <div className="form-grid">
-          <NetworkSelect session={session} value={network} disabled={busy} onChange={(value) => {
+          <NetworkSelect session={session} value={network} loading={networkLoading} disabled={busy} onChange={(value) => {
             setNetwork(value); setJob(""); setPersonnel(""); setMessage("");
           }} />
           {network && <>
             <label className="field">
               <span className="label">شغل</span>
-              <select className="select" required value={job} disabled={busy || jobs.isLoading} onChange={(event) => {
+              <SearchableSelect className="select" required value={job} disabled={busy || jobs.isLoading} onChange={(event) => {
                 setJob(event.target.value); setPersonnel("");
               }}>
                 <option value="">{jobs.isLoading ? "در حال بارگذاری…" : "انتخاب شغل"}</option>
                 {jobs.data?.Data.filter((item) => !item.Disabled).map((item) =>
                   <option key={item.Value} value={item.Value}>{item.Text}</option>)}
-              </select>
+              </SearchableSelect>
             </label>
             <label className="field">
               <span className="label">عامل برنامه‌ساز</span>
-              <select className="select" required value={personnel} disabled={!job || busy || people.isLoading}
+              <SearchableSelect className="select" required value={personnel} disabled={!job || busy || people.isLoading}
                 onChange={(event) => setPersonnel(event.target.value)}>
                 <option value="">{people.isLoading ? "در حال بارگذاری…" : people.data?.Data.length === 0 ? "عاملی برای این شغل پیدا نشد" : "انتخاب عامل"}</option>
                 {people.data?.Data.filter((item) => !item.Disabled && !crew?.some((member) => member.personnelId === Number(item.Value)))
                   .map((item) => <option key={item.Value} value={item.Value}>{item.Text}</option>)}
-              </select>
+              </SearchableSelect>
             </label>
             <div><button className="btn btn-primary" disabled={!personnel || busy}>افزودن عامل موظفی</button></div>
           </>}

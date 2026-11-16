@@ -1,5 +1,9 @@
 "use client";
 
+import { useNetworkScope } from "@/hooks/use-network-scope";
+import { useSession } from "@/hooks/use-session";
+import { NetworkSelect } from "@/components/ui/network-field";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormEvent, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Loader2, Save } from "lucide-react";
@@ -27,10 +31,14 @@ function toPositiveInt(value: string): number | null {
 }
 
 export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
+  const { data: session } = useSession();
+  const { networkId, loading: networkLoading } = useNetworkScope(session);
   const { data: networks, isLoading: networksLoading } =
     useSWR<BaseInfoListResponse>("/base-info/networks");
 
-  const [networkIds, setNetworkIds] = useState<number[]>(expert?.networkIds ?? []);
+  const [selectedNetworks, setNetworkIds] = useState<number[]>(expert?.networkIds ?? []);
+  const networkIds = session?.isSystemAdmin ? selectedNetworks
+    : expert?.networkIds ?? (networkId ? [Number(networkId)] : []);
   const [isActive, setIsActive] = useState(expert?.isActive ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -52,6 +60,8 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
+    if (!session || networkLoading) return;
 
     if (networkIds.length === 0) {
       setError("حداقل یک شبکه برای کارشناس انتخاب کنید.");
@@ -102,7 +112,7 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
         </div>
         <div>
           <Label htmlFor="education" className="mb-2 text-default-600">تحصیلات *</Label>
-          <select
+          <SearchableSelect
             id="education"
             name="education"
             defaultValue={expert?.education ?? EducationLevel.Bachelor}
@@ -111,7 +121,7 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
             {Object.entries(educationLevelLabels).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
-          </select>
+          </SearchableSelect>
         </div>
         <div>
           <Label htmlFor="workplace" className="mb-2 text-default-600">محل کار *</Label>
@@ -131,7 +141,7 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
         </div>
       </div>
 
-      <div>
+      {session?.isSystemAdmin ? <div>
         <div className="mb-3">
           <div className="font-medium text-default-700">شبکه‌های کارشناس *</div>
           <div className="mt-1 text-xs text-default-500">کارشناس می‌تواند به یک یا چند شبکه وابسته باشد.</div>
@@ -149,7 +159,12 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
             </div>
           ))}
         </div>
-      </div>
+      </div> : expert
+        ? <div className="field">
+          <span className="label">شبکه‌های کارشناس</span>
+          <div className="input">{networkIds.map((id) => networkOptions.find((option) => option.id === id)?.label || `شبکه ${id}`).join("، ") || "شبکه‌ای تخصیص داده نشده است"}</div>
+        </div>
+        : <NetworkSelect session={session} value={networkId} loading={networkLoading} onChange={() => {}} />}
 
       {expert ? (
         <div className="flex items-center justify-between rounded-xl border bg-card p-4">
