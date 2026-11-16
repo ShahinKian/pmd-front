@@ -4,17 +4,17 @@ import { SYSTEM_ROLES } from "@/lib/auth/roles";
 export function certificateAccess(session?: SessionPayload | null) {
   const roles = session?.user.roles ?? [];
   const isAdmin = Boolean(session?.isSystemAdmin);
-  const canIssue = roles.includes(SYSTEM_ROLES.PlanningInformation);
   const canApprove = roles.includes(SYSTEM_ROLES.PlanManager);
+  const canIssue = canApprove || roles.includes(SYSTEM_ROLES.PlanningInformation);
   const finance = roles.includes(SYSTEM_ROLES.Finance);
 
   return {
-    canRead: isAdmin || canIssue || canApprove || finance,
+    canRead: isAdmin || canIssue || finance,
     canCreatePeriod: isAdmin,
     canIssue,
     canApprove,
-    canDeduct: canIssue || canApprove,
+    canDeduct: canIssue,
     canManageDutyCrew: isAdmin || canApprove,
-    financeOnly: finance && !isAdmin && !canIssue && !canApprove,
+    financeOnly: finance && !isAdmin && !canIssue,
   };
 }
