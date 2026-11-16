@@ -19,15 +19,51 @@ function fields(value: unknown): Record<string, unknown> {
 }
 
 class SourceFailure extends Error {
-  constructor(readonly code: string, readonly status: number, readonly planId?: number) {
+  constructor(readonly code: string, readonly status: number, readonly planId?: number, readonly field?: string) {
     super(code);
   }
+}
+
+class EstimateFieldError extends Error {
+  constructor(readonly field: string) { super(field); }
+}
+
+function optionalInteger(value: unknown, field: string): number | null {
+  if (value == null || (typeof value === "string" && !value.trim())) return null;
+  const parsed = typeof value === "string" && /^\d+$/.test(value.trim()) ? Number(value.trim()) : value;
+  if (parsed === 0 || positiveId(parsed)) return parsed;
+  throw new EstimateFieldError(field);
+}
+
+function requiredId(value: unknown, field: string): number {
+  const id = optionalInteger(value, field);
+  if (!positiveId(id)) throw new EstimateFieldError(field);
+  return id;
+}
+
+function optionalText(value: unknown, field: string): string | null {
+  if (value == null) return null;
+  if (typeof value !== "string") throw new EstimateFieldError(field);
+  return value.trim() || null;
+}
+
+function calculatedRate(value: unknown): string {
+  const text = typeof value === "string" ? value.trim()
+    : typeof value === "number" && Number.isFinite(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER ? String(value)
+    : "";
+  const match = /^(\d+)(?:\.(\d+))?$/.exec(text);
+  if (!match) throw new EstimateFieldError("Calculated");
+  const whole = match[1].replace(/^0+(?=\d)/, "");
+  const fraction = (match[2] ?? "").replace(/0+$/, "");
+  if (whole.length > 16 || fraction.length > 2) throw new EstimateFieldError("Calculated");
+  return fraction ? `${whole}.${fraction}` : whole;
 }
 
 async function readEstimate<T>(planId: number, part: "EstimateHeader" | "EstimateDetail", request: () => Promise<T>) {
   try {
     return await request();
   } catch (error) {
+    if (error instanceof EstimateFieldError) throw new SourceFailure(part, 502, planId, error.field);
     if (error instanceof BaseInfoError) {
       if (error.code === "CONFIGURATION") throw new SourceFailure("BaseInfoConfiguration", 503);
       if (error.code === "UNAUTHORIZED") throw new SourceFailure("BaseInfoUnauthorized", 502);
@@ -37,8 +73,8 @@ async function readEstimate<T>(planId: number, part: "EstimateHeader" | "Estimat
   }
 }
 
-function failure(code: string, status: number, planId?: number) {
-  return Response.json({ code, planId }, { status, headers: noStore });
+function failure(code: string, status: number, planId?: number, field?: string) {
+  return Response.json({ code, planId, field }, { status, headers: noStore });
 }
 
 async function getEstimates(networkId: number, planIds: number[]) {
@@ -48,26 +84,43 @@ async function getEstimates(networkId: number, planIds: number[]) {
       const [header, rates] = await Promise.all([
         readEstimate(planId, "EstimateHeader", async () => {
           const data = fields((await baseInfoService.getEstimate(planId)).Data);
-          if (Number(data.PlanId) !== planId || Number(data.NetworkId) !== networkId) {
-            throw new SourceFailure("EstimateHeader", 502, planId);
-          }
-          return data;
+          if (requiredId(data.PlanId, "PlanId") !== planId) throw new EstimateFieldError("PlanId");
+          if (requiredId(data.NetworkId, "NetworkId") !== networkId) throw new EstimateFieldError("NetworkId");
+          const planName = optionalText(data.PlanName, "PlanName");
+          if (!planName) throw new EstimateFieldError("PlanName");
+          const organizationCode = data.EstimateOrganizationCode;
+          return {
+            id: requiredId(data.Id, "Id"), planId, networkId, planName,
+            estimateOrganizationCode: typeof organizationCode === "number" && Number.isSafeInteger(organizationCode)
+              ? String(organizationCode) : optionalText(organizationCode, "EstimateOrganizationCode"),
+            partNumber: optionalInteger(data.PartNumber, "PartNumber"),
+            networkGroupId: optionalInteger(data.NetworkGroupId, "NetworkGroupId") || null,
+            networkGroupName: optionalText(data.NetworkGroupName, "NetworkGroupName"),
+          };
         }),
         readEstimate(planId, "EstimateDetail", async () => {
           const { Data } = await baseInfoService.getEstimateDetail(planId);
-          if (!Array.isArray(Data)) throw new SourceFailure("EstimateDetail", 502, planId);
-          return Data.map((row: unknown) => {
-            const { Id, EstimateId, PersonnelId, ActivityTypeId, Calculated, BussinessTypeId } = fields(row);
-            return { id: Id, estimateId: EstimateId, personnelId: PersonnelId, activityTypeId: ActivityTypeId,
-              calculated: Calculated, bussinessTypeId: BussinessTypeId };
-          });
+          if (!Array.isArray(Data)) throw new EstimateFieldError("Data");
+          const rates = [];
+          for (const row of Data) {
+            const data = fields(row);
+            if (!Object.hasOwn(data, "PersonnelId")) throw new EstimateFieldError("PersonnelId");
+            const personnelId = optionalInteger(data.PersonnelId, "PersonnelId");
+            // Unassigned estimate lines cannot match an attending crew member.
+            if (!personnelId) continue;
+            rates.push({
+              id: requiredId(data.Id, "Id"),
+              estimateId: requiredId(data.EstimateId, "EstimateId"),
+              personnelId,
+              activityTypeId: requiredId(data.ActivityTypeId, "ActivityTypeId"),
+              calculated: calculatedRate(data.Calculated),
+              bussinessTypeId: optionalInteger(data.BussinessTypeId, "BussinessTypeId") || null,
+            });
+          }
+          return rates;
         }),
       ]);
-      const { Id, PlanId, NetworkId, PlanName, EstimateOrganizationCode,
-        PartNumber, NetworkGroupId, NetworkGroupName } = header;
-      return { id: Id, planId: PlanId, networkId: NetworkId, planName: PlanName,
-        estimateOrganizationCode: EstimateOrganizationCode, partNumber: PartNumber,
-        networkGroupId: NetworkGroupId, networkGroupName: NetworkGroupName, rates };
+      return { ...header, rates };
     }));
     estimates.push(...batch);
   }
@@ -113,7 +166,7 @@ export async function POST(request: NextRequest) {
     if (!name || name.length > 200) return failure("CrewNotEligible", 404);
     return Response.json(name, { headers: noStore });
   } catch (error) {
-    if (error instanceof SourceFailure) return failure(error.code, error.status, error.planId);
+    if (error instanceof SourceFailure) return failure(error.code, error.status, error.planId, error.field);
     if (error instanceof BaseInfoError) {
       if (error.code === "CONFIGURATION") return failure("BaseInfoConfiguration", 503);
       if (error.code === "UNAUTHORIZED") return failure("BaseInfoUnauthorized", 502);
