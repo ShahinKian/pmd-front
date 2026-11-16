@@ -2,6 +2,7 @@
 
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { LoaderCircle, Save } from "lucide-react";
 import { mutate } from "swr";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { paymentMonths } from "@/lib/certificate/format";
@@ -70,8 +71,8 @@ export function PaymentPeriodForm({ period, saveLabel, onSave, children }: {
       </label>
     </div>
     {error && <p className="alert alert-error" role="alert">{error}</p>}
-    <div className="flex flex-wrap gap-2">
-      <button className="btn btn-primary" disabled={busy}>{busy ? "در حال ثبت…" : saveLabel}</button>
+    <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+      <button className="btn btn-success" disabled={busy}>{busy ? <LoaderCircle className="animate-spin" size={16} aria-hidden /> : <Save size={16} aria-hidden />}{busy ? "در حال ثبت…" : saveLabel}</button>
       {children}
     </div>
   </form>;

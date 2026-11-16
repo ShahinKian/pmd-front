@@ -394,3 +394,126 @@ textarea {
     grid-template-columns:1fr;
   }
 }
+
+/* Shared form and list styling for the dashboard pages. */
+.page-head {
+  flex-wrap: wrap;
+  padding-block: .25rem .75rem;
+  border-block-end: 1px solid var(--color-border);
+}
+.card,
+.form-section {
+  border-radius: .875rem;
+  box-shadow: 0 1px 3px #0f172a0a;
+}
+.form-section-head {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-card));
+}
+.form-grid {
+  align-items: start;
+  gap: 1.125rem 1.25rem;
+}
+.field { min-width: 0; }
+.label { font-weight: 600; }
+.input,
+.select,
+.date-picker-button {
+  min-height: 2.75rem;
+  border-radius: .625rem;
+}
+.input:focus,
+.select:focus-visible,
+.date-picker-button:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+.input[aria-invalid="true"],
+.select[aria-invalid="true"] { border-color: var(--color-destructive); }
+.field .input[aria-readonly="true"] {
+  display: flex;
+  align-items: center;
+  background: var(--color-default-50);
+}
+.btn {
+  height: auto;
+  min-height: 2.5rem;
+  padding-block: .45rem;
+  border-radius: .55rem;
+  border: 1px solid transparent;
+  text-align: center;
+}
+.btn > svg { flex: none; }
+.btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.btn.btn-outline,
+.btn.btn-info,
+.btn.btn-danger,
+.btn.btn-warning {
+  border-color: color-mix(in srgb, currentColor 26%, transparent);
+  background: color-mix(in srgb, currentColor 7%, var(--color-card));
+}
+.btn.btn-outline:hover,
+.btn.btn-info:hover,
+.btn.btn-danger:hover,
+.btn.btn-warning:hover {
+  background: color-mix(in srgb, currentColor 14%, var(--color-card));
+}
+.btn-info { color: var(--color-primary); }
+.btn-danger { color: var(--color-destructive); }
+.btn-warning { color: #9a5913; }
+.dark .btn-warning { color: #facc82; }
+.btn-success {
+  background: #0f766e;
+  color: #fff;
+}
+.btn-success:hover { background: #115e59; }
+:is(.card, .form-section) table > thead {
+  background: var(--color-default-50);
+  color: var(--color-default-700);
+}
+:is(.card, .form-section) table > thead th {
+  padding: .8rem .9rem;
+  font-weight: 600;
+  text-align: start;
+}
+:is(.card, .form-section) table > tbody td {
+  padding: .7rem .9rem;
+  border-block-start: 1px solid var(--color-border);
+}
+:is(.card, .form-section) table > tbody > tr:nth-child(even) {
+  background: color-mix(in srgb, var(--color-default-100) 32%, var(--color-card));
+}
+:is(.card, .form-section) table > tbody > tr:focus-within,
+:is(.card, .form-section) table > tbody > tr:hover {
+  background: color-mix(in srgb, var(--color-primary) 5%, var(--color-card));
+}
+:is(.card, .form-section) table .btn {
+  min-height: 2.125rem;
+  padding: .3rem .65rem;
+  font-size: .8rem;
+  white-space: nowrap;
+}
+.table-tag {
+  display: inline-flex;
+  padding: .225rem .625rem;
+  border-radius: 999px;
+  background: var(--color-default-100);
+  color: var(--color-default-700);
+  font-size: .75rem;
+  white-space: nowrap;
+}
+.list-state {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: var(--color-default-600);
+  font-size: .875rem;
+}
+@media (max-width: 640px) {
+  .form-section-head,
+  .form-section-body,
+  .card {
+    padding-inline: .875rem;
+  }
+}

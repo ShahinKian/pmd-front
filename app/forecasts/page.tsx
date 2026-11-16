@@ -6,7 +6,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Filter, Plus, RefreshCcw } from "lucide-react";
+import { Eye, Filter, Plus, RefreshCcw } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { apiClient } from "@/lib/http/client";
 import { useSession } from "@/hooks/use-session";
@@ -148,7 +148,7 @@ export default function ForecastsPage() {
                     {hasProfileHighlight ? <span className="mr-2 rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-800">شناسنامه ثبت شده</span> : null}
                   </td>
                   <td style={{ padding: 12 }}>{item.workflow ? <><strong>{item.workflow.workflowName}</strong><div className="muted">{item.workflow.currentNodeName || "پایان فرآیند"}</div></> : "—"}</td>
-                  <td style={{ padding: 12 }}><Link className="btn btn-outline" href={"/forecasts/" + item.id}>مشاهده</Link></td>
+                  <td style={{ padding: 12 }}><Link className="btn btn-info" href={"/forecasts/" + item.id}><Eye size={15} aria-hidden />مشاهده</Link></td>
                 </tr>
               );
             })}

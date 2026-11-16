@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
     if (!response.ok) return failure([401, 403].includes(response.status) ? "AccessDenied" : "PreparationUnavailable", response.status);
     await response.body?.cancel();
 
-    const makers = await baseInfoService.getProgramMakers(jobId, networkId);
+    const makers = await baseInfoService.getProgramMakers(jobId, networkId, { fresh: true });
     const name = makers.Data.find((item) => item.Disabled === false && Number(item.Value) === personnelId)?.Text.trim();
     if (!name || name.length > 200) return failure("CrewNotEligible", 404);
     return Response.json(name, { headers: noStore });

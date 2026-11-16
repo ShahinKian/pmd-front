@@ -147,7 +147,9 @@ export default function LoginPage() {
                           key={captchaVersion}
                           src={"/api/auth/captcha?v=" + captchaVersion}
                           alt="کد امنیتی"
-                          className="h-[66px] w-full object-cover"
+                          width={240}
+                          height={66}
+                          className="block h-[66px] w-full object-contain"
                           draggable={false}
                           onError={() => setCaptchaFailed(true)}
                         /> : captchaFailed ? (

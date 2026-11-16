@@ -40,29 +40,27 @@ async function resolvePlanNames(planIds: number[]): Promise<Map<number, Resolved
       continue;
     }
 
-    for (const group of groups) {
-      if (unresolved.size === 0) break;
+    const groupIds = groups.flatMap((group) => {
+      const id = positiveInt(group.Value);
+      return id && !group.Disabled ? [id] : [];
+    });
+    const batchSize = 4;
+    for (let start = 0; start < groupIds.length && unresolved.size; start += batchSize) {
+      const batch = groupIds.slice(start, start + batchSize);
+      const results = await Promise.allSettled(batch.map((groupId) => baseInfoService.getPlans(networkId, groupId)));
 
-      const networkGroupId = positiveInt(group.Value);
-      if (!networkGroupId || group.Disabled) continue;
-
-      try {
-        const plansResponse = await baseInfoService.getPlans(networkId, networkGroupId);
-        const plans = Array.isArray(plansResponse.Data) ? plansResponse.Data : [];
-
-        for (const plan of plans) {
+      for (const [index, result] of results.entries()) {
+        if (result.status === "rejected") continue;
+        for (const plan of result.value.Data) {
           const planId = positiveInt(plan.Value);
-          if (!planId || !unresolved.has(planId)) continue;
+          if (!planId || !unresolved.delete(planId)) continue;
 
           resolved.set(planId, {
             title: plan.Text?.trim() || "نام برنامه در دسترس نیست",
             networkId,
-            networkGroupId,
+            networkGroupId: batch[index],
           });
-          unresolved.delete(planId);
         }
-      } catch {
-        // اگر یک گروه خطا داشت، بقیه گروه‌ها همچنان بررسی می‌شوند.
       }
     }
   }

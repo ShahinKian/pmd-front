@@ -4,6 +4,7 @@ import { useNetworkScope } from "@/hooks/use-network-scope";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { Calculator, CalendarDays, CheckCheck, Eye, FileCheck, Files, Save, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
@@ -101,9 +102,9 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
       {access.financeOnly && <p className="page-description">اسناد ارسالی به کارتابل مالی</p>}
     </div>
       {session && access.canRead && <div className="flex flex-wrap gap-2">
-        {issuedMode && access.canIssue && <Link href="/production-permits" className="btn btn-outline">صدور مجوز قطعی</Link>}
-        {!issuedMode && <Link href={issuedHref} className="btn btn-outline">مجوزهای صادرشده</Link>}
-        {access.canCreatePeriod && <Link href="/production-permits/periods" className="btn btn-primary">دوره‌های پرداخت</Link>}
+        {issuedMode && access.canIssue && <Link href="/production-permits" className="btn btn-outline"><FileCheck size={16} aria-hidden />صدور مجوز قطعی</Link>}
+        {!issuedMode && <Link href={issuedHref} className="btn btn-info"><Files size={16} aria-hidden />مجوزهای صادرشده</Link>}
+        {access.canCreatePeriod && <Link href="/production-permits/periods" className="btn btn-outline"><CalendarDays size={16} aria-hidden />دوره‌های پرداخت</Link>}
       </div>}
     </div>
     {sessionLoading && <p role="status">در حال بررسی دسترسی…</p>}
@@ -152,7 +153,8 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
         {preparation.data?.alreadyIssued && <p>صدور این دوره برای شبکهٔ انتخاب‌شده انجام شده است.</p>}
         {preparation.data && !preparation.error && !preparation.data.alreadyIssued && <>
           {readyPlans > 0 && <div className="flex flex-wrap items-center gap-3">
-            <button type="button" className="btn btn-primary" disabled={Boolean(busy)} onClick={issue}>
+            <button type="button" className="btn btn-success" disabled={Boolean(busy)} onClick={issue}>
+              <Calculator size={16} aria-hidden />
               {busy === "issue" ? "در حال محاسبه برنامه‌های شبکه…" : "محاسبه و صدور پیش‌نویس مجوز قطعی"}
             </button>
             <p>{displayNumber(readyPlans)} برنامه آماده صدور است.</p>
@@ -176,10 +178,10 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
         {Boolean(visiblePermits?.length) && <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
           <thead><tr><th>برنامه</th><th>قسمت‌ها</th><th>وضعیت</th><th>ناخالص</th><th>کسورات</th><th>قابل پرداخت</th><th>سند</th></tr></thead>
           <tbody>{visiblePermits?.map((permit) => <tr key={permit.id} className="border-t">
-            <td>{planTitle(permit.planId, permit.planName)}</td><td>{displayNumber(permit.episodeCount)}</td><td>{statusLabels[permit.status]}</td>
+            <td>{planTitle(permit.planId, permit.planName)}</td><td>{displayNumber(permit.episodeCount)}</td><td><span className="table-tag">{statusLabels[permit.status]}</span></td>
             <td>{displayNumber(permit.grossAmount)}</td><td>{displayNumber(permit.deductionAmount)}</td><td>{displayNumber(permit.netAmount)}</td>
-            <td><button className="btn btn-outline whitespace-nowrap" type="button" disabled={Boolean(busy)} aria-pressed={permitId === permit.id}
-              onClick={() => { setPermitId(permit.id); setMessage(null); }}>مشاهده سند</button></td>
+            <td><button className="btn btn-info" type="button" disabled={Boolean(busy)} aria-pressed={permitId === permit.id}
+              onClick={() => { setPermitId(permit.id); setMessage(null); }}><Eye size={15} aria-hidden />مشاهده سند</button></td>
           </tr>)}</tbody>
         </table></div>}
       </section>}
@@ -189,9 +191,11 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
           <div><h2 className="font-semibold">{planTitle(detail.data.permit.planId, detail.data.permit.planName)}</h2>
             <p>{statusLabels[detail.data.permit.status]} · قابل پرداخت {displayNumber(detail.data.permit.netAmount)}</p></div>
           {access.canApprove && detail.data.permit.status !== "SentToFinance" &&
-            <button className="btn btn-primary" type="button" disabled={Boolean(busy)} onClick={() =>
+            <button className={detail.data.permit.status === "Draft" ? "btn btn-success" : "btn btn-primary"} type="button" disabled={Boolean(busy)} onClick={() =>
               transition(detail.data?.permit.status === "Draft" ? "approve" : "send-to-finance")}>
-              {detail.data.permit.status === "Draft" ? "تأیید سند" : "ارسال به مالی"}
+              {detail.data.permit.status === "Draft"
+                ? <><CheckCheck size={16} aria-hidden />تأیید سند</>
+                : <><Send size={16} aria-hidden />ارسال به مالی</>}
             </button>}
         </div>
         <details>
@@ -228,6 +232,8 @@ function DeductionForm({ payment, busy, save }: {
 }) {
   const [value, setValue] = useState(String(payment.deduction));
   const [invalid, setInvalid] = useState(false);
+  const suggested = payment.suggestedDutyDeduction;
+  const applicable = suggested == null ? null : amountExceeds(suggested, payment.grossAmount) ? payment.grossAmount : suggested;
 
   return <form className="grid min-w-36 gap-1" onSubmit={(event) => {
     event.preventDefault();
@@ -241,8 +247,15 @@ function DeductionForm({ payment, busy, save }: {
     <div className="flex gap-1">
       <input className="input" inputMode="decimal" aria-label={`مبلغ کسورات موظفی ${payment.personnelName}`} aria-invalid={invalid}
         value={value} disabled={busy} onChange={(event) => { setValue(event.target.value); setInvalid(false); }} />
-      <button className="btn btn-outline whitespace-nowrap" disabled={busy}>ثبت کسورات</button>
+      <button className="btn btn-success" disabled={busy}><Save size={15} aria-hidden />ثبت کسورات</button>
     </div>
-    {invalid && <span role="alert">مبلغی بین صفر و ناخالص وارد کنید.</span>}
+    {suggested != null && applicable != null && applicable !== payment.deduction && <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs text-default-600">مبلغ تعریف‌شده {displayNumber(suggested)}</span>
+      <button className="btn btn-info" type="button" disabled={busy} onClick={() => {
+        setValue(applicable); setInvalid(false);
+      }}>انتقال به کادر کسورات</button>
+      {applicable !== suggested && <span className="text-xs text-default-600">حداکثر قابل کسر {displayNumber(applicable)}</span>}
+    </div>}
+    {invalid && <span className="text-sm text-destructive" role="alert">مبلغی بین صفر و ناخالص وارد کنید.</span>}
   </form>;
 }

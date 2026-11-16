@@ -47,6 +47,7 @@ export interface PersonnelPayment {
   personnelId: number;
   personnelName: string;
   isDutyCrew: boolean;
+  suggestedDutyDeduction?: Money | null;
   attendanceCount: number;
   grossAmount: Money;
   deduction: Money;
@@ -63,4 +64,5 @@ export interface PermitDetail {
 export interface DutyCrewMember {
   personnelId: number;
   personnelName: string;
+  defaultDeduction?: Money | null;
 }

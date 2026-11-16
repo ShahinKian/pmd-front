@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
+import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import useSWR from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
@@ -88,10 +89,10 @@ export default function RolesPage() {
             disabled={busy} onChange={(event) => setName(event.target.value)} />
         </label>
         <div className="flex flex-wrap gap-2">
-          <button className="btn btn-primary" type="submit" disabled={busy || !name.trim()}>
-            {editing ? "ذخیره تغییرات" : "ایجاد نقش"}
+          <button className="btn btn-success" type="submit" disabled={busy || !name.trim()}>
+            {editing ? <><Save size={16} aria-hidden />ذخیره تغییرات</> : <><Plus size={16} aria-hidden />ایجاد نقش</>}
           </button>
-          {editing && <button className="btn btn-outline" type="button" disabled={busy} onClick={() => edit(null)}>انصراف</button>}
+          {editing && <button className="btn btn-outline" type="button" disabled={busy} onClick={() => edit(null)}><X size={15} aria-hidden />انصراف</button>}
         </div>
         {notice && <p className={`alert ${notice.error ? "alert-error" : "alert-success"}`}
           role={notice.error ? "alert" : "status"}>{notice.text}</p>}
@@ -104,10 +105,10 @@ export default function RolesPage() {
             <td><bdi>{roleLabel(role.name)}</bdi></td>
             <td>{role.isSystemRole ? "سیستمی" : "سفارشی"}</td>
             <td>{!role.isSystemRole && <div className="flex flex-wrap gap-2">
-              <button className="btn btn-outline" type="button" disabled={busy}
-                aria-label={`ویرایش ${role.name}`} onClick={() => edit(role)}>ویرایش</button>
-              <button className="btn btn-outline" type="button" disabled={busy}
-                aria-label={`حذف ${role.name}`} onClick={() => void remove(role)}>حذف</button>
+              <button className="btn btn-info" type="button" disabled={busy}
+                aria-label={`ویرایش ${role.name}`} onClick={() => edit(role)}><Pencil size={15} aria-hidden />ویرایش</button>
+              <button className="btn btn-danger" type="button" disabled={busy}
+                aria-label={`حذف ${role.name}`} onClick={() => void remove(role)}><Trash2 size={15} aria-hidden />حذف</button>
             </div>}</td>
           </tr>)}</tbody>
         </table>

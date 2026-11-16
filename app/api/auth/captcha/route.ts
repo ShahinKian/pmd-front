@@ -19,11 +19,11 @@ export async function GET(request: NextRequest) {
   const challenge = createCaptchaChallenge();
 
   const rotations = [-8, 6, -3, 7, -5, 4, -6, 3, -4, 5];
-  const chars = Array.from(challenge.expression);
+  const chars = Array.from(challenge.expression.replaceAll(" ", ""));
 
   const glyphs = chars
     .map((char, index) => {
-      const x = 24 + index * 22;
+      const x = 120 + (index - (chars.length - 1) / 2) * 26;
       const y = 43 + randomInt(-3, 4);
       const rotate = rotations[index % rotations.length];
       return (
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   }).join("");
 
   const svg =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="66" viewBox="0 0 240 66" ' +
+    '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="66" viewBox="0 0 240 66" preserveAspectRatio="xMidYMid meet" ' +
     'style="color:#6d28d9;background:#f8f7ff">' +
     '<rect width="240" height="66" rx="10" fill="#f8f7ff" />' +
     lines +

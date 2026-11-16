@@ -6,7 +6,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Filter, Plus, RefreshCcw } from "lucide-react";
+import { Eye, Filter, Plus, RefreshCcw } from "lucide-react";
 import { useSession } from "@/hooks/use-session";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import { apiClient } from "@/lib/http/client";
@@ -169,7 +169,7 @@ export default function ProfilesPage(){
                 {profileStatusLabel(p.status,p.statusDisplayName)}
               </span>
             </td>
-            <td style={{padding:12}}><Link href={`/program-profiles/${p.id}`} className="btn btn-outline">مشاهده</Link></td>
+            <td style={{padding:12}}><Link href={`/program-profiles/${p.id}`} className="btn btn-info"><Eye size={15} aria-hidden />مشاهده</Link></td>
           </tr>;
         })}</tbody>
       </table>

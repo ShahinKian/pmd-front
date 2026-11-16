@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { CalendarPlus, Pencil, Power, X } from "lucide-react";
 import useSWR from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { PaymentPeriodForm, refreshPaymentPeriods } from "@/components/certificate/payment-period-form";
@@ -46,7 +47,7 @@ export default function PaymentPeriodsPage() {
     ]} />
     <div className="page-head">
       <h1 className="page-title">دوره‌های پرداخت</h1>
-      {canCreatePeriod && <Link href="/production-permits/periods/new" className="btn btn-primary">تعریف دوره پرداخت</Link>}
+      {canCreatePeriod && <Link href="/production-permits/periods/new" className="btn btn-primary"><CalendarPlus size={16} aria-hidden />تعریف دوره پرداخت</Link>}
     </div>
     {(isLoading || periods.isLoading) && <p role="status">در حال بارگذاری…</p>}
     {session && !canCreatePeriod && <p role="alert">مدیریت دوره‌های پرداخت در دسترسی مدیر سیستم است.</p>}
@@ -62,7 +63,7 @@ export default function PaymentPeriodsPage() {
           setNotice({ text: "دوره پرداخت ویرایش شد." });
           refreshPaymentPeriods();
         }}>
-          <button type="button" className="btn btn-outline" onClick={() => setEditing(null)}>انصراف</button>
+          <button type="button" className="btn btn-outline" onClick={() => setEditing(null)}><X size={15} aria-hidden />انصراف</button>
         </PaymentPeriodForm>
       </section>}
       <section className="card">
@@ -74,13 +75,13 @@ export default function PaymentPeriodsPage() {
               <td>{paymentMonths[period.paymentMonth - 1]} {displayNumber(period.paymentYear)}</td>
               <td>{displayDate(period.fromDate)}</td><td>{displayDate(period.toDate)}</td>
               <td>{period.legacyNetworkId == null ? "همه شبکه‌ها" : `شبکه ${displayNumber(period.legacyNetworkId)}`}</td>
-              <td>{period.isActive ? "فعال" : "غیرفعال"}</td>
+              <td><span className="table-tag">{period.isActive ? "فعال" : "غیرفعال"}</span></td>
               <td><div className="flex flex-wrap items-center gap-2">
                 {period.hasIssuance ? <span>مجوز صادر شده</span> :
-                  <button type="button" className="btn btn-outline" disabled={busy || Boolean(editing)}
-                    onClick={() => { setEditing(period); setNotice(null); }}>ویرایش</button>}
-                <button type="button" className="btn btn-outline" disabled={busy || Boolean(editing)}
-                  onClick={() => void changeState(period)}>{period.isActive ? "غیرفعال کردن" : "فعال کردن"}</button>
+                  <button type="button" className="btn btn-info" disabled={busy || Boolean(editing)}
+                    onClick={() => { setEditing(period); setNotice(null); }}><Pencil size={15} aria-hidden />ویرایش</button>}
+                <button type="button" className={period.isActive ? "btn btn-warning" : "btn btn-success"} disabled={busy || Boolean(editing)}
+                  onClick={() => void changeState(period)}><Power size={15} aria-hidden />{period.isActive ? "غیرفعال کردن" : "فعال کردن"}</button>
               </div></td>
             </tr>)}</tbody>
           </table>
