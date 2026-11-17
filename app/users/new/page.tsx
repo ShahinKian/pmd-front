@@ -37,7 +37,7 @@ export default function NewUserPage() {
   const { data: networks, isLoading: networksLoading } =
     useSWR<BaseInfoListResponse>("/base-info/networks");
 
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>([]);
   const [selectedNetworkIds, setSelectedNetworkIds] = useState<number[]>([]);
   const [groupNetworkId, setGroupNetworkId] = useState<number | null>(null);
   const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
@@ -48,9 +48,10 @@ export default function NewUserPage() {
   const [message, setMessage] =
     useState<{ type: "error" | "success"; text: string } | null>(null);
 
-  const isProvider = selectedRoles.includes(PROVIDERS_ROLE);
-  const isNetworkGroupManager =
-    selectedRoles.includes(NETWORK_GROUP_MANAGER_ROLE);
+  const selectedSystemKeys = (roles ?? []).filter((role) => selectedRoleIds.includes(role.id))
+    .map((role) => role.systemKey ?? (role.isSystemRole ? role.name : null));
+  const isProvider = selectedSystemKeys.includes(PROVIDERS_ROLE);
+  const isNetworkGroupManager = selectedSystemKeys.includes(NETWORK_GROUP_MANAGER_ROLE);
 
   const { data: groups, isLoading: groupsLoading } =
     useSWR<BaseInfoListResponse>(
@@ -79,13 +80,14 @@ export default function NewUserPage() {
     [networks],
   );
 
-  function setRole(role: string, checked: boolean) {
-    setSelectedRoles((current) => {
+  function setRole(role: RoleResponse, checked: boolean) {
+    const key = role.systemKey ?? (role.isSystemRole ? role.name : null);
+    setSelectedRoleIds((current) => {
       const next = checked
-        ? Array.from(new Set([...current, role]))
-        : current.filter((item) => item !== role);
+        ? Array.from(new Set([...current, role.id]))
+        : current.filter((item) => item !== role.id);
 
-      if (role === PROVIDERS_ROLE) {
+      if (key === PROVIDERS_ROLE) {
         setProviderId(null);
         if (checked) {
           setSelectedNetworkIds([]);
@@ -94,7 +96,7 @@ export default function NewUserPage() {
         }
       }
 
-      if (role === NETWORK_GROUP_MANAGER_ROLE && !checked) {
+      if (key === NETWORK_GROUP_MANAGER_ROLE && !checked) {
         setGroupNetworkId(null);
         setNetworkGroupId(null);
       }
@@ -156,7 +158,7 @@ export default function NewUserPage() {
       return;
     }
 
-    if (selectedRoles.length === 0) {
+    if (selectedRoleIds.length === 0) {
       setMessage({
         type: "error",
         text: "حداقل یک نقش برای کاربر انتخاب کنید.",
@@ -188,7 +190,7 @@ export default function NewUserPage() {
       fullName: String(form.get("fullName") ?? "").trim(),
       userName: String(form.get("userName") ?? "").trim(),
       password: String(form.get("password") ?? ""),
-      roles: selectedRoles,
+      roleIds: selectedRoleIds,
       networkIds: isProvider ? [] : selectedNetworkIds,
       networkGroupId: isNetworkGroupManager ? networkGroupId : null,
       providerId: isProvider ? providerId : null,
@@ -345,8 +347,7 @@ export default function NewUserPage() {
 
               <div className="role-grid">
                 {(roles ?? []).map((role) => {
-                  const key = role.systemKey ?? role.name;
-                  const active = selectedRoles.includes(key);
+                  const active = selectedRoleIds.includes(role.id);
                   return (
                     <div
                       className={`role-card ${active ? "active" : ""}`}
@@ -359,7 +360,7 @@ export default function NewUserPage() {
                       <Switch
                         checked={active}
                         onCheckedChange={(checked) =>
-                          setRole(key, checked)
+                          setRole(role, checked)
                         }
                       />
                     </div>

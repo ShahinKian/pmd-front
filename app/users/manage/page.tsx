@@ -51,7 +51,7 @@ export default function ManageUserPage() {
     useSWR<BaseInfoListResponse>(providerUrl);
 
   const providerRole = useMemo(
-    () => roleData?.roles.find((role) => (role.systemKey ?? role.name) === "Providers"),
+    () => roleData?.roles.find((role) => (role.systemKey ?? (role.isSystemRole ? role.name : null)) === "Providers"),
     [roleData],
   );
   const providerRoleSelected = Boolean(
@@ -211,7 +211,8 @@ export default function ManageUserPage() {
                   })}
                 </div>
 
-                {selectedRoleIds.some((id) => roleData.roles.find((r) => r.id === id)?.name === "Admin") ? (
+                {roleData.roles.some((role) => selectedRoleIds.includes(role.id) &&
+                  (role.systemKey ?? (role.isSystemRole ? role.name : null)) === "Admin") ? (
                   <div className="alert" style={{marginTop:14,background:"#fff7ed",border:"1px solid #fed7aa",color:"#9a3412"}}>
                     نقش مدیر سیستم دسترسی سراسری سامانه ثبت عملکرد دارد.
                   </div>

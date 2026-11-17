@@ -42,6 +42,7 @@ export interface RegisterRequest {
   userName: string;
   password: string;
   roles?: string[];
+  roleIds?: string[];
   networkIds?: number[];
   networkGroupId?: number | null;
   providerId?: number | null;

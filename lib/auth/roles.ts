@@ -21,9 +21,16 @@ export function roleLabel(role: Pick<RoleResponse, "name" | "displayName">): str
   return role.displayName?.trim() || role.name;
 }
 
+export function findRoleByReference(reference: string, catalog: readonly RoleResponse[] | undefined) {
+  const normalized = reference.toUpperCase();
+  if (normalized.startsWith("ROLE-ID:")) {
+    return catalog?.find((role) => role.id.toUpperCase() === normalized.slice("ROLE-ID:".length));
+  }
+  return catalog?.find((role) => role.systemKey?.toUpperCase() === normalized)
+    ?? catalog?.find((role) => role.name.toUpperCase() === normalized);
+}
+
 export function roleLabelForName(name: string, catalog: readonly RoleResponse[] | undefined): string {
-  const normalized = name.toUpperCase();
-  const role = catalog?.find((item) => item.systemKey?.toUpperCase() === normalized ||
-    item.name.toUpperCase() === normalized);
+  const role = findRoleByReference(name, catalog);
   return role ? roleLabel(role) : name;
 }

@@ -36,7 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import type { RoleResponse } from "@/lib/auth/types";
-import { roleLabel, roleLabelForName } from "@/lib/auth/roles";
+import { findRoleByReference, roleLabel, roleLabelForName } from "@/lib/auth/roles";
 import {
   WorkflowNodeType,
   workflowNodeTypeLabels,
@@ -718,9 +718,8 @@ function NodeForm({
 }) {
   const [type, setType] = useState<WorkflowNodeType>(node?.type ?? initialType);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
-  const legacyRoleName = node?.assignedRole?.toUpperCase();
-  const existingRoleId = node?.assignedRoleId ?? (legacyRoleName ? roles.find((role) =>
-    role.systemKey?.toUpperCase() === legacyRoleName || role.name.toUpperCase() === legacyRoleName)?.id : undefined);
+  const existingRoleId = node?.assignedRoleId ?? (node?.assignedRole
+    ? findRoleByReference(node.assignedRole, roles)?.id : undefined);
   const effectiveRoleId = selectedRoleId ?? existingRoleId ?? "";
   const legacyRole = selectedRoleId === null && !existingRoleId ? node?.assignedRole : null;
   const [isStart, setIsStart] = useState(node?.isStart ?? false);
