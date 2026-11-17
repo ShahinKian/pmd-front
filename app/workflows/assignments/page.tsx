@@ -7,6 +7,7 @@ import { Edit3, Loader2, Plus, Save, Settings2 } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GroupedNumberInput } from "@/components/ui/grouped-number-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import StatusAlert from "@/components/ui/status-alert";
@@ -20,14 +21,12 @@ import {
   type WorkflowFormType,
 } from "@/lib/workflows/types";
 
-const registeredForms = [
-  { key: "forecast", title: "پیش‌بینی برنامه", description: "متصل به داده‌ها و گردش‌کار پیش‌بینی برنامه" },
-  { key: "program-profile", title: "شناسنامه برنامه", description: "متصل به اطلاعات شناسنامه برنامه و شرایط آن" },
-  { key: "final-permit", title: "مجوز نهایی", description: "فرم سیستمی ثبت‌شده در PMD" },
-  { key: "payment-permit", title: "مجوز پرداخت", description: "فرم سیستمی ثبت‌شده در PMD" },
-  { key: "finance", title: "امور مالی", description: "فرم سیستمی ثبت‌شده در PMD" },
-] as const;
-const registeredKeys = new Set<string>(registeredForms.map(f => f.key));
+type BackendForm = {
+  key: string;
+  name: string;
+  version: number;
+  fields: Array<{ key: string; label: string; type: string }>;
+};
 
 function toPositiveInt(value: string): number | null {
   const parsed = Number(value);
@@ -37,10 +36,13 @@ function toPositiveInt(value: string): number | null {
 export default function WorkflowAssignmentsPage() {
   const { data: session } = useSession();
   const { data: workflows } = useSWR<WorkflowDefinition[]>("/workflows");
-  const { data: registry } = useSWR<Array<{key:string;name:string;version:number;fields:Array<{key:string;label:string;type:string}>}>>("/workflows/actions?registry=1");
+  const { data: registry, error: registryError, mutate: refreshRegistry } = useSWR<BackendForm[]>(
+    session?.isSystemAdmin ? "/workflows/actions?registry=1" : null,
+  );
   const { data: networks } = useSWR<BaseInfoListResponse>("/base-info/networks");
   const {
     data: formTypes,
+    error: formTypesError,
     mutate: mutateFormTypes,
   } = useSWR<WorkflowFormType[]>("/workflows/form-types?includeInactive=true");
   const {
@@ -55,6 +57,9 @@ export default function WorkflowAssignmentsPage() {
   const [savingAssignment, setSavingAssignment] = useState(false);
 
   const [editingFormType, setEditingFormType] = useState<WorkflowFormType | null>(null);
+  const [registryKey, setRegistryKey] = useState("");
+  const [formTypeName, setFormTypeName] = useState("");
+  const [formTypeSortOrder, setFormTypeSortOrder] = useState("0");
   const [formTypeActive, setFormTypeActive] = useState(true);
   const [savingFormType, setSavingFormType] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
@@ -68,6 +73,10 @@ export default function WorkflowAssignmentsPage() {
     () => (formTypes ?? []).filter((item) => item.isActive && (registry ?? []).some(r => r.key === item.key)),
     [formTypes, registry],
   );
+
+  const availableForms = (registry ?? []).filter((form) =>
+    !(formTypes ?? []).some((registered) => registered.key === form.key));
+  const formCatalogLoading = !registry || !formTypes;
 
   const networkOptions = useMemo(
     () =>
@@ -90,7 +99,7 @@ export default function WorkflowAssignmentsPage() {
   async function saveAssignment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!formTypeId) {
+    if (!activeFormTypes.some((item) => item.id === formTypeId)) {
       setMessage({ type: "error", text: "نوع فرم را انتخاب کنید." });
       return;
     }
@@ -120,46 +129,56 @@ export default function WorkflowAssignmentsPage() {
     }
   }
 
+  function resetFormTypeEditor() {
+    setEditingFormType(null);
+    setRegistryKey("");
+    setFormTypeName("");
+    setFormTypeSortOrder("0");
+    setFormTypeActive(true);
+  }
+
+  function selectBackendForm(key: string) {
+    setRegistryKey(key);
+    setFormTypeName(availableForms.find((form) => form.key === key)?.name ?? "");
+    setMessage(null);
+  }
+
   async function saveFormType(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const payload = {
-      key: editingFormType?.key ?? `custom-form-${crypto.randomUUID()}`,
-      name: String(form.get("name") ?? "").trim(),
-      sortOrder: Number(form.get("sortOrder") ?? 0),
-      isActive: formTypeActive,
-    };
+    if (savingFormType) return;
 
-    if (!payload.name) {
-      setMessage({ type: "error", text: "عنوان فارسی نوع فرم الزامی است." });
+    const key = editingFormType?.key ?? availableForms.find((form) => form.key === registryKey)?.key;
+    const name = formTypeName.trim();
+    const sortOrder = Number(formTypeSortOrder);
+    if (!key || !name || !Number.isInteger(sortOrder)) {
+      setMessage({ type: "error", text: "فرم، عنوان و ترتیب را بررسی کنید." });
       return;
     }
 
+    const payload = { key, name, sortOrder, isActive: formTypeActive };
     setSavingFormType(true);
     setMessage(null);
     try {
-      if (editingFormType) {
-        await apiClient.put("/workflows/form-types/" + editingFormType.id, payload);
-      } else {
-        await apiClient.post("/workflows/form-types", payload);
-      }
+      const { data: saved } = editingFormType
+        ? await apiClient.put<WorkflowFormType>("/workflows/form-types/" + editingFormType.id, payload)
+        : await apiClient.post<WorkflowFormType>("/workflows/form-types", payload);
 
-      await mutateFormTypes();
-      setEditingFormType(null);
-      setFormTypeActive(true);
-      event.currentTarget.reset();
+      await mutateFormTypes((current = []) =>
+        [...current.filter((item) => item.id !== saved.id), saved]
+          .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name, "fa")),
+        { revalidate: false });
+      if (saved.isActive && registry?.some((form) => form.key === saved.key)) setFormTypeId(saved.id);
+      else if (formTypeId === saved.id) setFormTypeId("");
+      if (editingFormType) void mutateAssignments();
+      resetFormTypeEditor();
 
       setMessage({
         type: "success",
-        text: editingFormType
-          ? "نوع فرم با موفقیت ویرایش شد."
-          : "نوع فرم جدید با موفقیت تعریف شد.",
+        text: editingFormType ? "نوع فرم ویرایش شد." : "فرم بک‌اند ثبت شد.",
       });
     } catch (e) {
-      setMessage({
-        type: "error",
-        text: apiErrorMessage(e, "ذخیره نوع فرم انجام نشد."),
-      });
+      void mutateFormTypes();
+      setMessage({ type: "error", text: apiErrorMessage(e, "ذخیره نوع فرم انجام نشد.") });
     } finally {
       setSavingFormType(false);
     }
@@ -167,6 +186,8 @@ export default function WorkflowAssignmentsPage() {
 
   function editFormType(item: WorkflowFormType) {
     setEditingFormType(item);
+    setFormTypeName(item.name);
+    setFormTypeSortOrder(String(item.sortOrder));
     setFormTypeActive(item.isActive);
     setMessage(null);
     document.getElementById("workflow-form-type-editor")?.scrollIntoView({
@@ -229,15 +250,72 @@ export default function WorkflowAssignmentsPage() {
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => {
-                    setEditingFormType(null);
-                    setFormTypeActive(true);
-                  }}
+                  disabled={savingFormType}
+                  onClick={resetFormTypeEditor}
                 >
                   انصراف از ویرایش
                 </Button>
               ) : null}
             </div>
+
+            {(registryError || formTypesError) ? (
+              <div className="mb-4 flex flex-wrap items-center gap-3">
+                <StatusAlert type="error" message="فهرست فرم‌های بک‌اند یا فرم‌های ثبت‌شده دریافت نشد." />
+                <Button type="button" variant="outline" onClick={() => {
+                  void refreshRegistry();
+                  void mutateFormTypes();
+                }}>تلاش دوباره</Button>
+              </div>
+            ) : formCatalogLoading ? (
+              <p className="mb-4 text-sm text-default-500" role="status">در حال دریافت فرم‌ها…</p>
+            ) : null}
+
+            {(editingFormType || (!formCatalogLoading && availableForms.length > 0)) && (
+              <form onSubmit={saveFormType} className="mb-5 rounded-lg border p-4">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div>
+                    <Label htmlFor="backend-workflow-form" className="mb-2 text-default-600">فرم بک‌اند</Label>
+                    {editingFormType ? (
+                      <Input id="backend-workflow-form" dir="ltr" value={editingFormType.key} readOnly />
+                    ) : (
+                      <SearchableSelect
+                        id="backend-workflow-form"
+                        className="select"
+                        value={registryKey}
+                        disabled={savingFormType}
+                        onChange={(event) => selectBackendForm(event.target.value)}
+                        required
+                      >
+                        <option value="">انتخاب فرم بک‌اند</option>
+                        {availableForms.map((form) => <option key={form.key} value={form.key}>{form.name}</option>)}
+                      </SearchableSelect>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="workflow-form-name" className="mb-2 text-default-600">عنوان فرم</Label>
+                    <Input id="workflow-form-name" className="input" maxLength={200} required value={formTypeName}
+                      disabled={savingFormType} onChange={(event) => setFormTypeName(event.target.value)} />
+                  </div>
+                  <div>
+                    <Label htmlFor="workflow-form-sort-order" className="mb-2 text-default-600">ترتیب نمایش</Label>
+                    <GroupedNumberInput id="workflow-form-sort-order" value={formTypeSortOrder} disabled={savingFormType}
+                      min={-2147483648} max={2147483647} required onValueChange={setFormTypeSortOrder} />
+                  </div>
+                  <div className="flex items-end">
+                    <label className="flex h-10 w-full items-center justify-between rounded-md border px-3">
+                      <span className="text-sm text-default-700">فعال برای تخصیص</span>
+                      <Switch checked={formTypeActive} disabled={savingFormType} onCheckedChange={setFormTypeActive} />
+                    </label>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Button type="submit" disabled={savingFormType || (!editingFormType && (!registryKey || formCatalogLoading))}>
+                    {savingFormType ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {editingFormType ? "ذخیره تغییرات" : "ثبت فرم برای تخصیص"}
+                  </Button>
+                </div>
+              </form>
+            )}
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {(registry ?? []).map(form => {
@@ -246,11 +324,19 @@ export default function WorkflowAssignmentsPage() {
                   <div className="font-semibold">{matched?.name ?? form.name}</div>
                   <p className="mt-1 text-xs text-default-500">نسخه قرارداد {form.version} · {form.fields.length} فیلد معتبر</p>
                   <code dir="ltr" className="mt-2 block text-xs">{form.key}</code>
-                  <div className="mt-3 text-xs">{matched?.isActive ? "فعال و قابل تخصیص" : matched ? "غیرفعال" : "نیازمند ثبت در پایگاه داده"}</div>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <span className="text-xs">{!formTypes ? "در حال دریافت وضعیت…" : matched?.isActive ? "فعال و قابل تخصیص" : matched ? "غیرفعال" : "آماده ثبت"}</span>
+                    {matched
+                      ? <Button type="button" size="sm" variant="ghost" disabled={savingFormType} onClick={() => editFormType(matched)}>ویرایش</Button>
+                      : formTypes && <Button type="button" size="sm" variant="ghost" disabled={savingFormType} onClick={() => {
+                        resetFormTypeEditor();
+                        selectBackendForm(form.key);
+                      }}>انتخاب برای ثبت</Button>}
+                  </div>
                 </div>;
               })}
             </div>
-            <p className="mt-4 text-sm text-default-500">فرم جدید صرفاً با واردکردن عنوان، به فرم واقعی برنامه متصل نمی‌شود. تعریف فرم سفارشی تا زمان معرفی قرارداد داده و منبع معتبر آن غیرفعال است. فرم‌های قدیمی سفارشی حذف نشده‌اند.</p>
+            {registry?.length === 0 && <p className="text-sm text-default-500">فرم متصل به گردش‌کار در بک‌اند پیدا نشد.</p>}
           </section>
 
           <section className="overflow-hidden rounded-xl border bg-card">
@@ -311,11 +397,12 @@ export default function WorkflowAssignmentsPage() {
                 <Label className="mb-2 text-default-600">نوع فرم *</Label>
                 <SearchableSelect
                   value={formTypeId}
+                  disabled={activeFormTypes.length === 0}
                   onChange={(event) => setFormTypeId(event.target.value)}
                   required
                   className="h-10 w-full rounded-md border border-default-300 bg-background px-3 text-sm"
                 >
-                  <option value="">انتخاب نوع فرم</option>
+                  <option value="">{activeFormTypes.length ? "انتخاب نوع فرم" : "ابتدا یک فرم بک‌اند را ثبت و فعال کنید"}</option>
                   {activeFormTypes.map((item) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
@@ -362,7 +449,7 @@ export default function WorkflowAssignmentsPage() {
             </div>
 
             <div className="mt-5 flex justify-end">
-              <Button disabled={savingAssignment}>
+              <Button type="submit" disabled={savingAssignment || !activeFormTypes.some((item) => item.id === formTypeId) || !workflowDefinitionId}>
                 {savingAssignment ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
