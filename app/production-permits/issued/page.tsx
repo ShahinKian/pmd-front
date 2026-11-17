@@ -1,12 +1,34 @@
+"use client";
+
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { ProductionPermits } from "@/components/certificate/production-permits";
 
-export default async function IssuedProductionPermitsPage({ searchParams }: {
-  searchParams: Promise<{ network?: string | string[]; periodId?: string | string[] }>;
-}) {
-  const { network, periodId } = await searchParams;
-  const initialNetwork = typeof network === "string" && /^\d{1,10}$/.test(network) && Number(network) <= 2147483647 && Number(network) > 0
+function IssuedProductionPermits() {
+  const searchParams = useSearchParams();
+  const [network, ...duplicateNetworks] = searchParams.getAll("network");
+  const [periodId, ...duplicatePeriods] = searchParams.getAll("periodId");
+  const initialNetwork = network && duplicateNetworks.length === 0
+    && /^\d{1,10}$/.test(network) && Number(network) <= 2147483647 && Number(network) > 0
     ? network : "";
-  const initialPeriod = initialNetwork && typeof periodId === "string" && /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(periodId)
+  const initialPeriod = initialNetwork && periodId && duplicatePeriods.length === 0
+    && /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i.test(periodId)
     ? periodId : "";
-  return <ProductionPermits mode="issued" initialNetwork={initialNetwork} initialPeriod={initialPeriod} />;
+
+  return (
+    <ProductionPermits
+      key={`${initialNetwork}/${initialPeriod}`}
+      mode="issued"
+      initialNetwork={initialNetwork}
+      initialPeriod={initialPeriod}
+    />
+  );
+}
+
+export default function IssuedProductionPermitsPage() {
+  return (
+    <Suspense fallback={<p role="status">در حال بارگذاری مجوزهای صادرشده…</p>}>
+      <IssuedProductionPermits />
+    </Suspense>
+  );
 }
