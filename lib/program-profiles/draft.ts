@@ -11,6 +11,23 @@ export type ProfileDraft = {
 };
 export type SavedProfileDraft = { revision:number; updatedAt:string; data:ProfileDraft };
 export type DraftSummary = { forecastId:string; title:string; step:number; updatedAt:string };
+export function normalizeDraftCrew(row: Partial<Record<keyof DraftCrew, unknown>>): DraftCrew {
+  const text = (value: unknown) => typeof value === "string" ? value : "";
+  const id = (value: unknown) => {
+    const parsed = typeof value === "string" ? Number(value.trim()) : value;
+    return typeof parsed === "number" && Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : 0;
+  };
+  return {
+    rowId: text(row.rowId),
+    personnelId: id(row.personnelId),
+    personnelName: text(row.personnelName),
+    activityTypeId: id(row.activityTypeId),
+    activityTypeName: text(row.activityTypeName),
+    isPresent: row.isPresent !== false,
+    jobId: id(row.jobId),
+    jobName: text(row.jobName),
+  };
+}
 export function isSoundOperator(...names:(string|null|undefined)[]) {
   return names.some(name => normalizeSearch(name ?? "").replace(/ /g, "").includes("صدابردار"));
 }

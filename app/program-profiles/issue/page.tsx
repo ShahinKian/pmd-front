@@ -16,7 +16,9 @@ import type {ForecastResponse, PaginationMeta} from "@/lib/forecasts/types";
 import type {BaseInfoListResponse} from "@/lib/base-info/browser-types";
 import type {ExpertResponse} from "@/lib/experts/types";
 
-import { isSoundOperator, restoreMissing, type ProfileDraft, type SavedProfileDraft, type DraftSummary } from "@/lib/program-profiles/draft";
+import { isSoundOperator, restoreMissing, normalizeDraftCrew, type ProfileDraft, type SavedProfileDraft, type DraftSummary } from "@/lib/program-profiles/draft";
+import { normalizeStartTime } from "@/lib/program-profiles/start-time";
+import { asciiDigits } from "@/lib/number-input";
 
 type Crew={personnelId:number;personnelName:string;activityTypeId:number;activityTypeName:string;isPresent:boolean};
 type Item={itemName:string;productionType:string;duration:string};
@@ -94,8 +96,7 @@ function minutesToTime(minutes:number):string {
   return [Math.floor(minutes/60),minutes%60,0].map(n=>String(n).padStart(2,"0")).join(":");
 }
 function isValidStartTime(value:string):boolean {
-  const match=/^([0-9]{2}):([0-9]{2})(?::([0-9]{2}))?$/.exec(value.trim());
-  return Boolean(match&&Number(match[1])<24&&Number(match[2])<60&&(match[3]===undefined||Number(match[3])<60));
+  return normalizeStartTime(value)!==null;
 }
 function durationSeconds(value:string):number {
   const match=/^(\d{1,}):([0-5]\d):([0-5]\d)(?:\.\d+)?$/.exec(value.trim());
@@ -176,7 +177,7 @@ export default function IssueProfilePage(){
     return rows.filter(item=>item.PlanId===selected?.planId).map(item=>({rowId:String(item.Id),itemName:item.ItemTitle??"",subject:item.ItemSubject??"",duration:normalizeDuration(item.ItemPeriod??""),productionType:""}));
   }
   function mapCrew(rows:ExternalCrew[]):EditableCrew[]{
-    return rows.filter(person=>!isSoundOperator(person.BussinessTypeName,person.ActivityTypeName,person.ProgramActivityTypeName)).map(person=>({rowId:String(person.Id),personnelId:person.PersonnelId??0,personnelName:person.PersonnelName??"",activityTypeId:person.ActivityTypeId,activityTypeName:person.ActivityTypeName??"",isPresent:true,jobId:person.BussinessTypeId,jobName:person.BussinessTypeName??""}));
+    return rows.filter(person=>!isSoundOperator(person.BussinessTypeName,person.ActivityTypeName,person.ProgramActivityTypeName)).map(person=>normalizeDraftCrew({rowId:String(person.Id),personnelId:person.PersonnelId,personnelName:person.PersonnelName,activityTypeId:person.ActivityTypeId,activityTypeName:person.ActivityTypeName,isPresent:true,jobId:person.BussinessTypeId,jobName:person.BussinessTypeName}));
   }
   useEffect(()=>{
     if(!selected)return;
@@ -187,7 +188,7 @@ export default function IssueProfilePage(){
       const draft=saved?.data;
       if(draft?.completed&&draft.issuedProfileId){router.replace(`/program-profiles/${draft.issuedProfileId}`);return;}
       setItemsDraft(draft?.items??[]);
-      setCrewDraft((draft?.crew??[]).filter(row=>!isSoundOperator(row.jobName,row.activityTypeName)));
+      setCrewDraft((draft?.crew??[]).map(normalizeDraftCrew).filter(row=>!isSoundOperator(row.jobName,row.activityTypeName)));
       setItemsLoaded(draft?.itemsLoaded??false);setCrewLoaded(draft?.crewLoaded??false);
       setExpertRows(draft?.experts??selected.expertIds?.map(expertId=>({expertId,topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}))??[]);
       setNewAxes(draft?.axes??[]);setKeywords(draft?.keywords??[]);
@@ -243,6 +244,12 @@ export default function IssueProfilePage(){
   const crewValid=crewDraft.filter(x=>x.personnelId>0&&x.personnelName.trim()&&x.activityTypeId>0);
   const programDuration=planData?minutesToTime(planData.Duration):"";
   const [startTime,setStartTime]=useState("");
+  function changeStartTime(part:"hour"|"minute",value:string){
+    const digits=asciiDigits(value);
+    if(!/^\d{0,2}$/.test(digits))return;
+    const [hour="",minute=""]=startTime.split(":");
+    setStartTime(part==="hour"?`${digits}:${minute}`:`${hour}:${digits}`);
+  }
   const productionMethod=planData?.ProduceTypeName?.trim()??"";
   const [occasion,setOccasion]=useState("");
   const itemTotalSeconds=itemsDraft.reduce((sum,item)=>sum+durationSeconds(item.duration),0);
@@ -258,7 +265,7 @@ export default function IssueProfilePage(){
       if(!selected)error="ابتدا پیش‌بینی تأییدشده را انتخاب کنید.";
       else if(!planData)error="اطلاعات طرح هنوز دریافت نشده است.";
       else if(durationSeconds(programDuration)<=0)error="مدت برنامه الزامی و باید معتبر باشد.";
-      else if(!isValidStartTime(startTime))error="ساعت شروع الزامی است.";
+      else if(!isValidStartTime(startTime))error="ساعت شروع را وارد کنید؛ ساعت از ۰۰ تا ۲۳ و دقیقه از ۰۰ تا ۵۹ باشد.";
     }
     if(index===1&&(!itemsLoaded||overDuration||itemsDraft.some(x=>!x.itemName.trim()||durationSeconds(x.duration)<=0)))
       error="زمان آیتم‌ها را بررسی کنید؛ مجموع نباید از مدت برنامه بیشتر باشد.";
@@ -272,7 +279,7 @@ export default function IssueProfilePage(){
     setMessage("");return true;
   }
   function snapshot(target=step,profileId=issuedProfileId):ProfileDraft{
-    return {version:1,forecastId,title:selected?.planName||selected?.mainTopic||"شناسنامه برنامه",step:target,startTime,occasion,items:itemsDraft,crew:crewDraft,itemsLoaded,crewLoaded,keywords,axes:newAxes,experts:expertRows,issuedProfileId:profileId,completed:false};
+    return {version:1,forecastId,title:selected?.planName||selected?.mainTopic||"شناسنامه برنامه",step:target,startTime:normalizeStartTime(startTime)??startTime,occasion,items:itemsDraft,crew:crewDraft.map(normalizeDraftCrew),itemsLoaded,crewLoaded,keywords,axes:newAxes,experts:expertRows,issuedProfileId:profileId,completed:false};
   }
   async function persistDraft(target=step,profileId=issuedProfileId,revision=draftRevision,completed=false){
     const {data}=await apiClient.put<SavedProfileDraft>(`/program-profiles/drafts/${forecastId}`,{revision,data:{...snapshot(target,profileId),completed}});
@@ -337,7 +344,7 @@ export default function IssueProfilePage(){
         programDegreeName:planData.ProgramDegreeName,
         programStructureId:planData.StructureProgramId,
         programStructureName:planData.StructureProgramName,
-        startTime:startTime.length===5?startTime+":00":startTime,
+        startTime:normalizeStartTime(startTime)+":00",
         programType:planData.ProgramType,
         programTypeName:planData.ProgramTypeName,
         crewMembers,
@@ -414,7 +421,21 @@ export default function IssueProfilePage(){
         <label className="field"><span className="label">درجه برنامه</span><input className="input bg-default-50" readOnly value={planData?.ProgramDegreeName??""}/></label>
         <label className="field"><span className="label">ساختار برنامه</span><input className="input bg-default-50" readOnly value={planData?.StructureProgramName??""}/></label>
         <label className="field"><span className="label">نوع کاربرد</span><input className="input bg-default-50" readOnly value={planData?.ApplicationTypeName??""}/></label>
-        <label className="field"><span className="label">ساعت شروع *</span><input className={"input "+(fieldErrors.startTime?"border-red-500 ring-1 ring-red-500":"")} name="startTime" type="time" step="60" value={startTime} onChange={e=>setStartTime(e.target.value)} required/>{fieldErrors.startTime?<span className="text-xs text-red-600">{fieldErrors.startTime}</span>:null}</label>
+        <div className="field">
+          <span className="label" id="start-time-label">ساعت شروع *</span>
+          <div className="flex items-center gap-2" dir="ltr" role="group" aria-labelledby="start-time-label">
+            <input className={"input text-center "+(fieldErrors.startTime?"border-red-500 ring-1 ring-red-500":"")}
+              type="text" inputMode="numeric" maxLength={2} name="startHour" aria-label="ساعت شروع"
+              placeholder="ساعت" value={startTime.split(":")[0]??""}
+              onChange={event=>changeStartTime("hour",event.target.value)} required />
+            <span aria-hidden="true">:</span>
+            <input className={"input text-center "+(fieldErrors.startTime?"border-red-500 ring-1 ring-red-500":"")}
+              type="text" inputMode="numeric" maxLength={2} name="startMinute" aria-label="دقیقه شروع"
+              placeholder="دقیقه" value={startTime.split(":")[1]??""}
+              onChange={event=>changeStartTime("minute",event.target.value)} required />
+          </div>
+          {fieldErrors.startTime?<span className="text-xs text-red-600">{fieldErrors.startTime}</span>:null}
+        </div>
         <label className="field"><span className="label">نوع برنامه</span><input className="input bg-default-50" readOnly value={planData?.ProgramTypeName??""}/></label>
         </fieldset>
       </div>

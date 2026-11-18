@@ -12,6 +12,8 @@ function load(file,deps={}){
 }
 const search=load('lib/base-info/search.ts');
 const helpers=load('lib/program-profiles/draft.ts',{'@/lib/base-info/search':search});
+const numbers=load('lib/number-input.ts');
+const time=load('lib/program-profiles/start-time.ts',{'@/lib/number-input':numbers});
 const draft={version:1,forecastId:'11111111-1111-4111-8111-111111111111',title:'برنامه',step:2,startTime:'12:00',occasion:'',items:[],crew:[],itemsLoaded:true,crewLoaded:true,keywords:[],axes:[],experts:[],issuedProfileId:null,completed:false};
 test('restoring deleted source rows preserves edits and manual rows, without duplicates',()=>{
   const current=[{rowId:'1',name:'edited'},{rowId:'manual',name:'new'}];
@@ -27,6 +29,25 @@ test('draft validation accepts incomplete work but rejects malformed rows',()=>{
   assert.equal(helpers.isProfileDraft(draft),true);
   assert.equal(helpers.isProfileDraft({...draft,items:[{rowId:'1'}]}),false);
   assert.equal(helpers.isProfileDraft({...draft,step:7}),false);
+});
+test('source crew identifiers become editable draft values before the first save',()=>{
+  const source={rowId:'source-1',personnelId:'123',personnelName:null,activityTypeId:null,activityTypeName:null,jobId:'4',jobName:null,isPresent:false};
+  assert.equal(helpers.isProfileDraft({...draft,crew:[source]}),false);
+  const crew=helpers.normalizeDraftCrew(source);
+  assert.equal(crew.personnelId,123);
+  assert.equal(crew.activityTypeId,0);
+  assert.equal(crew.jobId,4);
+  assert.equal(crew.personnelName,'');
+  assert.equal(crew.isPresent,false);
+  assert.equal(helpers.isProfileDraft(JSON.parse(JSON.stringify({...draft,step:1,crew:[crew]}))),true);
+  const edited={...crew,personnelName:'نام ویرایش‌شده',activityTypeId:7,activityTypeName:'فعالیت'};
+  assert.equal(JSON.stringify(helpers.normalizeDraftCrew(edited)),JSON.stringify(edited));
+});
+test('manual start time accepts Persian digits and short entries while enforcing clock ranges',()=>{
+  for(const [input,expected] of [['۹:۵','09:05'],['٠٩:٣٠','09:30'],['23:59','23:59'],['12:30:45','12:30'],['00:00','00:00']])
+    assert.equal(time.normalizeStartTime(input),expected);
+  for(const value of ['',':','12:','24:00','12:60','-1:30','12:30:60','abc'])
+    assert.equal(time.normalizeStartTime(value),null);
 });
 test('disk drafts survive a new store instance, isolate users, reject stale saves, and hide completed work',async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'profile-draft-test-'));process.env.PROFILE_DRAFTS_DIR=dir;
