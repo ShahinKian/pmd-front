@@ -11,7 +11,8 @@ import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell"
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import { useSession } from "@/hooks/use-session";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
-import type { PlanProviderLink } from "@/lib/plan-providers/types";
+import type { EnrichedProviderPlan } from "@/lib/plan-providers/types";
+import { ProgramAssignmentFields } from "@/components/plan-providers/program-assignment-fields";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Switch } from "@/components/ui/switch";
 import { TopicAxesEditor } from "@/components/forecasts/topic-axes-editor";
@@ -30,15 +31,18 @@ export default function NewForecastPage() {
   const { data: session } = useSession();
   const isProvider = session?.user.roles.includes("Providers") ?? false;
 
-  const { data: myPlanLinks } = useSWR<PlanProviderLink[]>(
-    isProvider ? "/plan-providers/my/plans" : null,
+  const { data: myPlans, isLoading: myPlansLoading, error: myPlansError, mutate: reloadMyPlans } = useSWR<EnrichedProviderPlan[]>(
+    isProvider ? "/plan-providers/my/plans/enriched" : null,
   );
+  const { data: networks } = useSWR<BaseInfoListResponse>(isProvider ? "/base-info/networks" : null);
 
   const [selectedNetwork, setNetworkId] = useState<number | null>(null);
-  const networkScope = useNetworkScope(session, selectedNetwork?.toString());
-  const networkId = toPositiveInt(networkScope.networkId);
-  const [networkGroupId, setNetworkGroupId] = useState<number | null>(null);
+  const networkScope = useNetworkScope(isProvider ? undefined : session, selectedNetwork?.toString());
+  const [selectedGroupId, setNetworkGroupId] = useState<number | null>(null);
   const [planId, setPlanId] = useState<number | null>(null);
+  const selectedPlan = myPlans?.find(plan => plan.planId === planId);
+  const networkId = isProvider ? selectedPlan?.networkId ?? null : toPositiveInt(networkScope.networkId);
+  const networkGroupId = isProvider ? selectedPlan?.networkGroupId ?? null : selectedGroupId;
   const [broadcastDate, setBroadcastDate] = useState("");
   const [hasExpert, setHasExpert] = useState(false);
   const [selectedExpertIds, setSelectedExpertIds] = useState<string[]>([]);
@@ -50,11 +54,11 @@ export default function NewForecastPage() {
     networkId ? `/base-info/network-groups/${networkId}` : null,
   );
   const { data: plans, isLoading: plansLoading, error: plansError } = useSWR<BaseInfoListResponse>(
-    networkId && networkGroupId
+    !isProvider && networkId && networkGroupId
       ? `/base-info/plans/${networkId}?networkGroupId=${networkGroupId}`
       : null,
   );
-  const { data: episode } = useSWR<{ episodeNumber: number }>(
+  const { data: episode, error: episodeError, isLoading: episodeLoading, mutate: reloadEpisode } = useSWR<{ episodeNumber: number }>(
     planId ? `/forecasts/next-episode-number/${planId}` : null,
   );
   const { data: experts } = useSWR<ExpertOption[]>(
@@ -69,11 +73,13 @@ export default function NewForecastPage() {
       .map((item) => ({ id: toPositiveInt(item.Value), label: item.Text }))
       .filter((item): item is { id: number; label: string } => item.id !== null);
 
-    if (!isProvider) return all;
+    return all;
+  }, [plans]);
 
-    const allowed = new Set((myPlanLinks ?? []).map((item) => item.planId));
-    return all.filter((item) => allowed.has(item.id));
-  }, [plans, isProvider, myPlanLinks]);
+  function changePlan(value: string) {
+    setPlanId(toPositiveInt(value));
+    setSelectedExpertIds([]);
+  }
 
   function changeGroup(value: string) {
     setNetworkGroupId(toPositiveInt(value));
@@ -95,6 +101,10 @@ export default function NewForecastPage() {
       setMessage("شبکه، گروه برنامه‌ساز و طرح الزامی هستند.");
       return;
     }
+    if (episodeError || !episode || !Number.isSafeInteger(episode.episodeNumber) || episode.episodeNumber < 1) {
+      setMessage("شماره قسمت برنامه هنوز دریافت نشده است. دوباره تلاش کنید.");
+      return;
+    }
 
     const form = new FormData(event.currentTarget);
     const mainTopic = String(form.get("mainTopic") ?? "").trim();
@@ -108,7 +118,7 @@ export default function NewForecastPage() {
     try {
       const response = await apiClient.post("/forecasts", {
         planId,
-        episodeNumber: episode?.episodeNumber ?? 1,
+        episodeNumber: episode.episodeNumber,
         networkId,
         networkGroupId,
         broadcastDate: `${broadcastDate}T00:00:00`,
@@ -156,6 +166,30 @@ export default function NewForecastPage() {
           </div>
           <div className="form-section-body">
             <div className="form-grid">
+              {isProvider ? <>
+                <label className="field md:col-span-2">
+                  <span className="label">برنامه *</span>
+                  <SearchableSelect className="select" value={planId ?? ""}
+                    onChange={event => changePlan(event.target.value)}
+                    disabled={saving || myPlansLoading || Boolean(myPlansError)} required>
+                    <option value="">{myPlansLoading ? "در حال دریافت برنامه‌ها…" : "انتخاب برنامه"}</option>
+                    {(myPlans ?? []).map(plan => {
+                      const networkName = networks?.Data.find(network => Number(network.Value) === plan.networkId)?.Text;
+                      return <option key={plan.planId} value={plan.planId}
+                        disabled={!plan.networkId || !plan.networkGroupId}>
+                        {plan.title} | {networkName || (plan.networkId ? `شبکه ${plan.networkId}` : "شبکه نامشخص")}
+                      </option>;
+                    })}
+                  </SearchableSelect>
+                  {myPlansError && <small role="alert" className="text-destructive">دریافت برنامه‌های شما ناموفق بود.</small>}
+                  {myPlans?.some(plan => !plan.networkId || !plan.networkGroupId) && <small className="text-destructive">اطلاعات شبکه یا گروه برخی برنامه‌ها دریافت نشده است.</small>}
+                  {(myPlansError || myPlans?.some(plan => !plan.networkId || !plan.networkGroupId)) && <button
+                    type="button" className="btn btn-outline" onClick={() => void reloadMyPlans()}>دریافت مجدد اطلاعات برنامه‌ها</button>}
+                  {!myPlansLoading && !myPlansError && myPlans?.length === 0 && <small className="muted">برنامه‌ای به شما تخصیص داده نشده است.</small>}
+                </label>
+                <ProgramAssignmentFields networkId={networkId} networkGroupId={networkGroupId}
+                  episodeNumber={episode?.episodeNumber} />
+              </> : <>
               <NetworkSelect session={session} value={networkScope.networkId} loading={networkScope.loading}
                 label="شبکه *" onChange={changeNetwork} />
 
@@ -181,7 +215,7 @@ export default function NewForecastPage() {
                 <SearchableSelect
                   className="select"
                   value={planId ?? ""}
-                  onChange={(e) => setPlanId(toPositiveInt(e.target.value))}
+                  onChange={(e) => changePlan(e.target.value)}
                   disabled={!networkId || !networkGroupId || plansLoading || Boolean(plansError)}
                   required
                 >
@@ -192,18 +226,19 @@ export default function NewForecastPage() {
                 </SearchableSelect>
                 {plansError ? <small className="text-destructive">دریافت طرح‌ها ناموفق بود. اتصال وب‌سرویس را بررسی کنید.</small> : null}
                 {networkGroupId && !plansLoading && !plansError && planOptions.length === 0 ? <small className="muted">طرح قابل انتخابی برای این گروه یافت نشد.</small> : null}
-                {isProvider ? (
-                  <small className="muted">
-                    فقط طرح‌هایی نمایش داده می‌شوند که در PlanProvider به شما تخصیص داده شده‌اند.
-                  </small>
-                ) : null}
               </label>
+              </>}
+              {episodeLoading && <p role="status">در حال دریافت شماره قسمت…</p>}
+              {episodeError && <p role="alert" className="text-destructive">
+                دریافت شماره قسمت ناموفق بود.
+                <button type="button" className="btn btn-outline" onClick={() => void reloadEpisode()}>تلاش مجدد</button>
+              </p>}
 
-              <label className="field">
+              {!isProvider && <label className="field">
                 <span className="label">شماره قسمت بعدی</span>
                 <input className="input" readOnly value={episode?.episodeNumber ?? ""} />
                 <small className="muted">شماره نهایی هنگام ثبت توسط بک‌اند تعیین می‌شود.</small>
-              </label>
+              </label>}
 
               <div className="field">
                 <span className="label">تاریخ پخش *</span>
@@ -272,7 +307,7 @@ export default function NewForecastPage() {
         {message ? <div className="alert alert-error">{message}</div> : null}
 
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button className="btn btn-primary" disabled={saving}>
+          <button className="btn btn-primary" disabled={saving || !session || !planId || episodeLoading || !episode || Boolean(episodeError)}>
             {saving ? <Loader2 size={17} /> : <Save size={17} />}
             {saving ? "در حال ثبت..." : "ثبت پیش‌بینی"}
           </button>

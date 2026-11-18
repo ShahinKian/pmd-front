@@ -4,6 +4,7 @@ import { useNetworkScope } from "@/hooks/use-network-scope";
 import { useSession } from "@/hooks/use-session";
 import { NetworkSelect } from "@/components/ui/network-field";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { ProgramAssignmentFields } from "@/components/plan-providers/program-assignment-fields";
 import {FormEvent,useEffect,useMemo,useRef,useState} from "react";
 import {useRouter} from "next/navigation";
 import Link from "next/link";
@@ -11,7 +12,8 @@ import useSWR from "swr";
 import {RefreshCcw,Loader2,Save,Trash2,Clock3,Users,Layers3,Plus,PenLine,Check, X, UserRound,ChevronDown,ChevronUp} from "lucide-react";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import {apiClient,apiErrorMessage} from "@/lib/http/client";
-import type {ForecastResponse} from "@/lib/forecasts/types";
+import type {ForecastResponse, PaginationMeta} from "@/lib/forecasts/types";
+import type {BaseInfoListResponse} from "@/lib/base-info/browser-types";
 import type {ExpertResponse} from "@/lib/experts/types";
 
 import { isSoundOperator, restoreMissing, type ProfileDraft, type SavedProfileDraft, type DraftSummary } from "@/lib/program-profiles/draft";
@@ -23,12 +25,30 @@ type ExternalCrew={Id:number;PersonnelId:number|null;PersonnelName:string|null;A
 type EditableItem=Item&{rowId:string;subject:string};
 type EditableCrew=Crew&{rowId:string;jobId:number;jobName:string};
 type KeywordOption={id:string;title:string;isGlobal:boolean;networkId:number|null;isActive:boolean};
-function ForecastOption({forecast}:{forecast:ForecastResponse}){
+async function forecastListFetcher(url:string):Promise<ForecastResponse[]>{
+  const [path,query]=url.split("?");
+  const params=new URLSearchParams(query);
+  const rows:ForecastResponse[]=[];
+  let page=1;
+  let totalPages=1;
+  do{
+    params.set("pageNumber",String(page));
+    const response=await apiClient.get<ForecastResponse[]>(`${path}?${params}`);
+    rows.push(...response.data);
+    const pagination=response.headers.pagination?JSON.parse(response.headers.pagination) as PaginationMeta:null;
+    totalPages=pagination?.TotalPages??1;
+    page++;
+  }while(page<=totalPages);
+  return rows;
+}
+function ForecastOption({forecast,showNetwork=false}:{forecast:ForecastResponse;showNetwork?:boolean}){
+  const {data:networks}=useSWR<BaseInfoListResponse>(showNetwork?"/base-info/networks":null);
   const {data}=useSWR<{IsSuccess:boolean;Data:{Value:string;Text:string}[]}>(
     forecast.planName?null:`/base-info/plans/${forecast.networkId}?networkGroupId=${forecast.networkGroupId}`
   );
   const name=forecast.planName?.trim()||data?.Data?.find(x=>Number(x.Value)===forecast.planId)?.Text;
-  return <option value={forecast.id} disabled={!name}>{name||"در حال دریافت نام برنامه..."} | {forecast.mainTopic} | قسمت {forecast.episodeNumber}</option>;
+  const networkName=networks?.Data.find(item=>Number(item.Value)===forecast.networkId)?.Text||`شبکه ${forecast.networkId}`;
+  return <option value={forecast.id} disabled={!name}>{name||"در حال دریافت نام برنامه..."}{showNetwork?` | ${networkName}`:""} | {forecast.mainTopic} | قسمت {forecast.episodeNumber}</option>;
 }
 type PersonnelResponse={IsSuccess:boolean;Data:{Value:string;Text:string;Disabled:boolean}[];Message:string|null};
 function PersonnelPicker({networkId,jobId,value,onChange}:{networkId:number;jobId:number;value:number;onChange:(id:number,name:string)=>void}){
@@ -94,11 +114,12 @@ type PlanDetailResponse={IsSuccess:boolean;Data:PlanDetail|null;Message:string|n
 export default function IssueProfilePage(){
   const router=useRouter();
   const { data: session } = useSession();
+  const isProvider = session?.user.roles.includes("Providers") ?? false;
   const [selectedNetwork, setSelectedNetwork] = useState("");
-  const { networkId, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
+  const { networkId, loading: networkLoading } = useNetworkScope(isProvider ? undefined : session, selectedNetwork);
   const forecastList = session && !networkLoading
     ? `/forecasts?status=3&pageNumber=1&pageSize=100${networkId ? `&networkId=${networkId}` : ""}` : null;
-  const {data:forecasts}=useSWR<ForecastResponse[]>(forecastList);
+  const {data:forecasts,error:forecastsError,isLoading:forecastsLoading,mutate:reloadForecasts}=useSWR<ForecastResponse[]>(forecastList,forecastListFetcher);
   const [forecastId,setForecastId]=useState("");
   const {data:savedDrafts,mutate:refreshDrafts,error:draftsError}=useSWR<DraftSummary[]>("/program-profiles/drafts");
   const {data:restoredForecast}=useSWR<ForecastResponse>(forecastId?`/forecasts/${forecastId}`:null);
@@ -374,14 +395,17 @@ export default function IssueProfilePage(){
       <fieldset disabled={saving}>
 
       <div className={step===0?"grid grid-cols-1 gap-4 md:grid-cols-3":"hidden"}>
-        <NetworkSelect session={session} value={networkId} loading={networkLoading} disabled={saving}
-          allLabel="همه شبکه‌های مجاز" onChange={value=>{if(changeForecast(""))setSelectedNetwork(value);}} />
-        <label className="field md:col-span-3"><span className="label">پیش‌بینی تأییدشده *</span>
-          <SearchableSelect className="select" value={forecastId} onChange={e=>changeForecast(e.target.value)} required>
-            <option value="">انتخاب نام برنامه، موضوع و شماره قسمت</option>
-            {availableForecasts.map(x=><ForecastOption key={x.id} forecast={x}/>)}
+        {!isProvider && <NetworkSelect session={session} value={networkId} loading={networkLoading} disabled={saving}
+          allLabel="همه شبکه‌های مجاز" onChange={value=>{if(changeForecast(""))setSelectedNetwork(value);}} />}
+        <label className="field md:col-span-3"><span className="label">{isProvider ? "برنامه و قسمت تأییدشده *" : "پیش‌بینی تأییدشده *"}</span>
+          <SearchableSelect className="select" value={forecastId} onChange={e=>changeForecast(e.target.value)} disabled={forecastsLoading||!!forecastsError} required>
+            <option value="">{forecastsLoading?"در حال دریافت برنامه‌ها…":"انتخاب نام برنامه، موضوع و شماره قسمت"}</option>
+            {availableForecasts.map(x=><ForecastOption key={x.id} forecast={x} showNetwork={isProvider}/>)}
           </SearchableSelect>
+          {forecastsError && <span role="alert" className="text-destructive">دریافت برنامه‌های تأییدشده ناموفق بود. <button type="button" onClick={()=>void reloadForecasts()}>تلاش مجدد</button></span>}
         </label>
+        {isProvider && <ProgramAssignmentFields networkId={selected?.networkId} networkGroupId={selected?.networkGroupId}
+          episodeNumber={selected?.episodeNumber} />}
         <fieldset className="contents" disabled={!draftReady||!!issuedProfileId}>
         <label className="field"><span className="label">مدت برنامه (ساعت:دقیقه)</span><input className={"input bg-default-50 "+(fieldErrors.duration?"border-red-500":"")} dir="ltr" value={programDuration} readOnly placeholder="از اطلاعات پایه طرح"/>{fieldErrors.duration?<span className="text-xs text-red-600">{fieldErrors.duration}</span>:null}</label>
         <label className="field"><span className="label">نحوه تولید</span><input className="input bg-default-50" value={productionMethod} readOnly placeholder="از اطلاعات پایه طرح"/></label>
