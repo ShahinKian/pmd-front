@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { apiFetcher } from "@/lib/http/client";
 import DirectionProvider from "@/provider/direction.provider";
 import { useThemeStore } from "@/store";
+import ApplicationShell from "@/provider/application-shell";
 
 export default function AppProviders({ children }: { children: ReactNode }) {
   const { theme, radius } = useThemeStore();
@@ -26,7 +27,7 @@ export default function AppProviders({ children }: { children: ReactNode }) {
               dedupingInterval: 1500,
             }}
           >
-            {children}
+            <ApplicationShell>{children}</ApplicationShell>
           </SWRConfig>
         </DirectionProvider>
       </div>

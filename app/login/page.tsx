@@ -10,9 +10,11 @@ import { Label } from "@/components/ui/label";
 import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import { cn } from "@/lib/utils";
+import { useSWRConfig } from "swr";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { mutate } = useSWRConfig();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,6 +40,8 @@ export default function LoginPage() {
         password: String(form.get("password") ?? ""),
         captcha: String(form.get("captcha") ?? ""),
       });
+
+      await mutate(() => true, undefined, { revalidate: false });
 
       const candidate = new URLSearchParams(window.location.search).get("returnTo");
       const returnTo =

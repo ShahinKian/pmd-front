@@ -6,6 +6,7 @@ import { NetworkSelect } from "@/components/ui/network-field";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {FormEvent,useEffect,useMemo,useRef,useState} from "react";
 import {useRouter} from "next/navigation";
+import Link from "next/link";
 import useSWR from "swr";
 import {RefreshCcw,Loader2,Save,Trash2,Clock3,Users,Layers3,Plus,PenLine,Check, X, UserRound,ChevronDown,ChevronUp} from "lucide-react";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
@@ -476,7 +477,7 @@ export default function IssueProfilePage(){
         <div className="grid gap-3 text-sm md:grid-cols-2"><p>برنامه: {selected?.planName||selected?.mainTopic||"انتخاب نشده"}</p><p>مدت: {programDuration||"وارد نشده"}</p><p>آیتم‌ها: {itemsDraft.length} مورد</p><p>عوامل: {crewDraft.length} نفر</p><p>کارشناسان: {expertRows.length} ارتباط</p><p>کلیدواژه‌ها: {keywords.length} مورد</p><p>ساعت شروع: {startTime||"وارد نشده"}</p></div>
       </section>
       </fieldset>
-      {issuedProfileId?<p className="alert">شناسنامه ایجاد شده است؛ در صورت خطای کارشناسان، دکمهٔ تکمیل را دوباره بزنید. <a className="underline" href={`/program-profiles/${issuedProfileId}`}>مشاهده شناسنامه</a></p>:null}
+      {issuedProfileId?<p className="alert">شناسنامه ایجاد شده است؛ در صورت خطای کارشناسان، دکمهٔ تکمیل را دوباره بزنید. <Link className="underline" href={`/program-profiles/${issuedProfileId}`}>مشاهده شناسنامه</Link></p>:null}
       {message?<div className="alert alert-error" style={{marginTop:16}}>{message}</div>:null}
       <div className="mt-6 flex items-center justify-between border-t border-default-200 pt-4">
         <button type="button" className="btn btn-outline" disabled={step===0||saving||!draftReady||!!issuedProfileId} onClick={()=>goToStep(Math.max(0,step-1))}><ChevronUp size={16}/> مرحله قبل</button>

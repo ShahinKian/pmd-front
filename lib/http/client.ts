@@ -13,6 +13,7 @@ export const apiClient = axios.create({
 });
 
 let refreshPromise: Promise<void> | null = null;
+export const SESSION_EXPIRED_EVENT = "pmd:session-expired";
 
 async function refreshSession(): Promise<void> {
   if (!refreshPromise) {
@@ -47,8 +48,7 @@ apiClient.interceptors.response.use(
         return apiClient.request(config as AxiosRequestConfig);
       } catch {
         if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-          const returnTo = window.location.pathname + window.location.search;
-          window.location.assign(`/login?returnTo=${encodeURIComponent(returnTo)}`);
+          window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
         }
       }
     }

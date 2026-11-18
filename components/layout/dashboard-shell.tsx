@@ -2,12 +2,11 @@
 
 import type { ReactNode } from "react";
 import { Home } from "lucide-react";
-import DashBoardLayoutProvider from "@/provider/dashboard.layout.provider";
 import { Breadcrumbs, BreadcrumbItem } from "@/components/ui/breadcrumbs";
-import { ToastHost } from "@/components/ui/toast-host";
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
-  return <DashBoardLayoutProvider><ToastHost />{children}</DashBoardLayoutProvider>;
+  // The persistent dashboard layout is mounted once by ApplicationShell.
+  return <>{children}</>;
 }
 
 export function Breadcrumb({

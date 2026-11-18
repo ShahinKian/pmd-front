@@ -1,11 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { clearAuthCookies } from "@/lib/auth/cookies";
 import { authenticatedPmdFetch } from "@/lib/auth/request";
 import { isSystemAdmin } from "@/lib/auth/roles";
 import type { UserProfileResponse } from "@/lib/auth/types";
 import { readUpstreamBody } from "@/lib/auth/upstream";
-import { isSecureRequest } from "@/lib/auth/security";
 
 export async function GET(request: NextRequest) {
   const { response: upstream } = await authenticatedPmdFetch(request, "/api/auth/profile");
@@ -13,7 +11,6 @@ export async function GET(request: NextRequest) {
 
   if (!upstream.ok) {
     const response = NextResponse.json(body, { status: upstream.status });
-    if (upstream.status === 401) clearAuthCookies(response, isSecureRequest(request));
     return response;
   }
 

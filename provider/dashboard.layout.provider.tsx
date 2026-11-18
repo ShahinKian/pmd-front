@@ -4,14 +4,11 @@ import Header from "@/components/partials/header";
 import Sidebar from "@/components/partials/sidebar";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/store";
-import { motion } from "framer-motion";
-import { usePathname } from "next/navigation";
 import Footer from "@/components/partials/footer";
 import { useMounted } from "@/hooks/use-mounted";
 
 const DashBoardLayoutProvider = ({ children }: { children: React.ReactNode }) => {
   const { collapsed } = useSidebar();
-  const location = usePathname();
   const mounted = useMounted();
 
   if (!mounted) {
@@ -30,15 +27,7 @@ const DashBoardLayoutProvider = ({ children }: { children: React.ReactNode }) =>
         })}
       >
         <div className="layout-padding px-6 pt-6 page-min-height">
-          <motion.div
-            key={location}
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
-          >
-            <main>{children}</main>
-          </motion.div>
+          <main>{children}</main>
         </div>
       </div>
 

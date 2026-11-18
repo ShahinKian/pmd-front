@@ -1,10 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { authenticatedPmdFetch } from "@/lib/auth/request";
-import { isSameOriginRequest, isSecureRequest } from "@/lib/auth/security";
+import { isSameOriginRequest } from "@/lib/auth/security";
 import type { AuthResponse, RegisterRequest } from "@/lib/auth/types";
 import { readUpstreamBody } from "@/lib/auth/upstream";
-import { clearAuthCookies } from "@/lib/auth/cookies";
 import { pmdFetch } from "@/lib/pmd-api/client";
 
 async function parseRegisterRequest(request: NextRequest): Promise<{
@@ -57,7 +56,6 @@ export async function POST(request: NextRequest) {
   const payload = await readUpstreamBody(upstream);
   if (!upstream.ok) {
     const response = NextResponse.json(payload, { status: upstream.status });
-    if (upstream.status === 401) clearAuthCookies(response, isSecureRequest(request));
     return response;
   }
 
