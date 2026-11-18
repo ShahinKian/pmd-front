@@ -67,6 +67,7 @@ export default function ProfilesPage(){
     if(planId)p.set("planId",planId);
     p.set("pageNumber",String(page));
     p.set("pageSize","20");
+    p.set("inboxOnly","true");
     return "/program-profiles?"+p.toString();
   },[status,topic,fromDate,toDate,networkId,planId,page]);
 
@@ -103,7 +104,7 @@ export default function ProfilesPage(){
             <span className="label">وضعیت</span>
             <SearchableSelect className="select" value={status} onChange={e=>{setStatus(e.target.value);setPage(1);}}>
               <option value="">همه وضعیت‌ها</option>
-              {Object.values(PROFILE_STATUS).map(value=><option key={value} value={value}>{profileStatusLabel(value)}</option>)}
+              {Object.values(PROFILE_STATUS).filter(value=>value!==PROFILE_STATUS.Approved).map(value=><option key={value} value={value}>{profileStatusLabel(value)}</option>)}
             </SearchableSelect>
           </label>
 

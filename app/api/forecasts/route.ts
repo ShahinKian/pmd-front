@@ -7,7 +7,7 @@ import { proxyJsonResponse } from "@/lib/auth/route";
 
 export async function GET(request: NextRequest) {
   const upstreamQuery = new URLSearchParams();
-  const allowed = ["planId","status","fromDate","toDate","pageNumber","pageSize"];
+  const allowed = ["planId","status","fromDate","toDate","pageNumber","pageSize","inboxOnly"];
 
   for (const key of allowed) {
     const value = request.nextUrl.searchParams.get(key);

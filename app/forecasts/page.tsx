@@ -65,6 +65,7 @@ export default function ForecastsPage() {
     if (toDate) params.set("toDate", `${toDate}T23:59:59`);
     params.set("pageNumber", String(page));
     params.set("pageSize", "20");
+    params.set("inboxOnly", "true");
     return "/forecasts?" + params.toString();
   }, [status, fromDate, toDate, networkId, page]);
 
@@ -103,7 +104,7 @@ export default function ForecastsPage() {
               <span className="label">وضعیت</span>
               <SearchableSelect className="select" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
                 <option value="">همه وضعیت‌ها</option>
-                {Object.values(FORECAST_STATUS).map((value) => <option key={value} value={value}>{forecastStatusLabel(value)}</option>)}
+                {Object.values(FORECAST_STATUS).filter(value => value !== FORECAST_STATUS.Approved).map((value) => <option key={value} value={value}>{forecastStatusLabel(value)}</option>)}
               </SearchableSelect>
             </label>
             <div className="field"><span className="label">از تاریخ</span><PersianDatePicker value={fromDate} onChange={(value) => { setFromDate(value); setPage(1); }} /></div>

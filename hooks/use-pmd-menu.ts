@@ -20,10 +20,10 @@ const countOptions = { refreshInterval: 30_000, revalidateOnFocus: true };
 export function usePmdMenu() {
   const { data: session } = useSession();
   const { data: forecasts, mutate: refreshForecasts } = useSWR(
-    session ? "/forecasts?pageNumber=1&pageSize=1" : null, inboxCount, countOptions,
+    session ? "/forecasts?pageNumber=1&pageSize=1&inboxOnly=true" : null, inboxCount, countOptions,
   );
   const { data: profiles, mutate: refreshProfiles } = useSWR(
-    session ? "/program-profiles?pageNumber=1&pageSize=1" : null, inboxCount, countOptions,
+    session ? "/program-profiles?pageNumber=1&pageSize=1&inboxOnly=true" : null, inboxCount, countOptions,
   );
 
   useEffect(() => {
