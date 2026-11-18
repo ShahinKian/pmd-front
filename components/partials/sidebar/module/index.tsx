@@ -20,7 +20,7 @@ const ModuleSidebar = ({ trans }: { trans: any }) => {
   const { subMenu, setSubmenu, collapsed, setCollapsed, sidebarBg } = useSidebar();
   const { isRtl } = useThemeStore();
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [currentSubMenu, setCurrentSubMenu] = useState<any[]>([]);
+  const currentSubMenu = activeIndex !== null ? menus[activeIndex]?.child ?? [] : [];
   const [menuOverlay, setMenuOverlay] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 1280px)");
   const pathname = usePathname();
@@ -28,7 +28,6 @@ const ModuleSidebar = ({ trans }: { trans: any }) => {
 
   const toggleSubMenu = (index: number) => {
     setActiveIndex(index);
-    setCurrentSubMenu(menus[index]?.child ?? []);
     setSubmenu(false);
     setCollapsed(false);
     if (!isDesktop) setMenuOverlay(true);
@@ -40,7 +39,6 @@ const ModuleSidebar = ({ trans }: { trans: any }) => {
       item?.child?.forEach((childItem: any) => {
         if (childItem.href && isLocationMatch(childItem.href, locationName)) {
           setActiveIndex(i);
-          setCurrentSubMenu(item.child ?? []);
           setSubmenu(false);
           setCollapsed(false);
           setMenuOverlay(false);
@@ -50,7 +48,6 @@ const ModuleSidebar = ({ trans }: { trans: any }) => {
     });
     if (!matched && menus.length) {
       setActiveIndex(0);
-      setCurrentSubMenu(menus[0].child ?? []);
     }
     if (!isDesktop) setSubmenu(true);
   }, [locationName, isDesktop, menus.length, setCollapsed, setSubmenu]);

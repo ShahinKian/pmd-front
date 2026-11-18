@@ -20,7 +20,11 @@ export interface PmdMenuItem {
   badge?: string;
 }
 
-export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
+export function getPmdMenus(
+  session?: SessionPayload | null,
+  counts: { forecasts?: number; profiles?: number } = {},
+): PmdMenuItem[] {
+  const badge = (count?: number) => count && count > 0 ? count.toLocaleString("fa-IR") : undefined;
   const roles = session?.user.roles ?? [];
   const isProvider = roles.includes("Providers");
   const canManagePrograms = Boolean(
@@ -44,8 +48,8 @@ export function getPmdMenus(session?: SessionPayload | null): PmdMenuItem[] {
       title: "ثبت عملکرد",
       icon: Files,
       child: [
-        { title: "پیش‌بینی برنامه", href: "/forecasts", icon: ClipBoard },
-        { title: "شناسنامه برنامه", href: "/program-profiles", icon: Files },
+        { title: "پیش‌بینی برنامه", href: "/forecasts", icon: ClipBoard, badge: badge(counts.forecasts) },
+        { title: "شناسنامه برنامه", href: "/program-profiles", icon: Files, badge: badge(counts.profiles) },
       ],
     },
     ...(certificate.canRead ? [{

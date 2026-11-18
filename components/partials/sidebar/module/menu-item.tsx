@@ -32,7 +32,8 @@ function NavLink({ childItem, locationName, trans }: {
         </span>
       )}
       <div className="min-w-0 flex-1 truncate text-right">{translate(title, trans)}</div>
-      {badge && <Badge className="rounded h-min ">{badge}</Badge>}
+      {badge && <Badge color="warning" className="h-6 min-w-6 shrink-0 justify-center rounded-full px-1.5 tabular-nums"
+        aria-label={`${badge} مورد در کارتابل`}>{badge}</Badge>}
     </Link>
   );
 }
