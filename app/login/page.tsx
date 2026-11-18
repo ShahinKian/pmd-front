@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { SiteLogo } from "@/components/svg";
@@ -20,14 +20,57 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [captchaVersion, setCaptchaVersion] = useState(1);
   const [captchaFailed, setCaptchaFailed] = useState(false);
+  const [captchaSrc, setCaptchaSrc] = useState("");
+  const [captchaLoading, setCaptchaLoading] = useState(true);
+  const captchaInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let imageUrl = "";
+    setCaptchaSrc("");
+    setCaptchaFailed(false);
+    setCaptchaLoading(true);
+
+    async function loadCaptcha() {
+      try {
+        const response = await fetch(`/api/auth/captcha?render=png-v1&v=${Date.now()}-${captchaVersion}`, {
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: { Accept: "image/png" },
+          signal: controller.signal,
+        });
+        if (!response.ok || !response.headers.get("content-type")?.startsWith("image/png")) {
+          throw new Error("Invalid captcha image response.");
+        }
+        const blob = await response.blob();
+        if (controller.signal.aborted) return;
+        imageUrl = URL.createObjectURL(blob);
+        setCaptchaSrc(imageUrl);
+      } catch {
+        if (!controller.signal.aborted) {
+          setCaptchaFailed(true);
+          setCaptchaLoading(false);
+        }
+      }
+    }
+    void loadCaptcha();
+    return () => {
+      controller.abort();
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
+    };
+  }, [captchaVersion]);
 
   function refreshCaptcha() {
+    if (captchaInput.current) captchaInput.current.value = "";
     setCaptchaFailed(false);
-    setCaptchaVersion(Date.now());
+    setCaptchaSrc("");
+    setCaptchaLoading(true);
+    setCaptchaVersion(version => version + 1);
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (captchaLoading || captchaFailed || !captchaSrc) return;
     setLoading(true);
     setMessage("");
 
@@ -53,8 +96,6 @@ export default function LoginPage() {
     } catch (error) {
       setMessage(apiErrorMessage(error, "ورود به سامانه انجام نشد."));
       refreshCaptcha();
-      const captchaInput = formElement.elements.namedItem("captcha");
-      if (captchaInput instanceof HTMLInputElement) captchaInput.value = "";
     } finally {
       setLoading(false);
     }
@@ -147,20 +188,23 @@ export default function LoginPage() {
                   <div className="rounded-xl border bg-default-50 p-3">
                     <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1 overflow-hidden rounded-lg border bg-white">
-                        {!captchaFailed ? <img
+                        {captchaSrc && !captchaFailed ? <img
                           key={captchaVersion}
-                          src={"/api/auth/captcha?v=" + captchaVersion}
+                          src={captchaSrc}
                           alt="کد امنیتی"
                           width={240}
                           height={66}
                           className="block h-[66px] w-full object-contain"
                           draggable={false}
-                          onError={() => setCaptchaFailed(true)}
+                          onLoad={() => setCaptchaLoading(false)}
+                          onError={() => { setCaptchaFailed(true); setCaptchaLoading(false); }}
                         /> : captchaFailed ? (
                           <div className="flex h-[66px] items-center justify-center px-3 text-center text-xs text-red-600">
                             دریافت کد امنیتی ناموفق بود
                           </div>
-                        ) : null}
+                        ) : <div role="status" className="flex h-[66px] items-center justify-center text-sm text-default-500">
+                          در حال دریافت کد امنیتی…
+                        </div>}
                       </div>
 
                       <Button
@@ -169,7 +213,7 @@ export default function LoginPage() {
                         size="icon"
                         className="h-[66px] w-12 shrink-0"
                         onClick={refreshCaptcha}
-                        disabled={loading}
+                        disabled={loading || captchaLoading}
                         title="تغییر کد امنیتی"
                       >
                         <RefreshCw className="h-5 w-5" />
@@ -180,6 +224,7 @@ export default function LoginPage() {
                       disabled={loading}
                       id="captcha"
                       name="captcha"
+                      ref={captchaInput}
                       inputMode="numeric"
                       autoComplete="off"
                       dir="ltr"
@@ -206,7 +251,7 @@ export default function LoginPage() {
                   />
                 ) : null}
 
-                <Button className="w-full mt-6" disabled={loading} size="lg">
+                <Button className="w-full mt-6" disabled={loading || captchaLoading || captchaFailed} size="lg">
                   {loading && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
                   {loading ? "در حال بررسی و ورود..." : "ورود"}
                 </Button>
