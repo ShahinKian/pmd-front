@@ -1,8 +1,8 @@
-// Run after npm run build. Checks the actual route's PNG pixels and challenge cookies.
+// Run after npm run build. Checks the published standalone server with Sharp binaries blocked.
 const assert = require("node:assert/strict");
 const http = require("node:http");
 const { spawn } = require("node:child_process");
-const sharp = require("sharp");
+const { PNG } = require("pngjs");
 
 async function main() {
   const reservation = http.createServer();
@@ -10,9 +10,15 @@ async function main() {
   const port = reservation.address().port;
   await new Promise(resolve => reservation.close(resolve));
   const server = spawn(process.execPath, [
-    "node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port),
+    "--require", "./tests/fixtures/block-sharp-native.cjs",
+    ".next/standalone/server.js",
   ], {
-    env: { ...process.env, CAPTCHA_SECRET: "captcha-http-test-secret" },
+    env: {
+      ...process.env,
+      HOSTNAME: "127.0.0.1",
+      PORT: String(port),
+      CAPTCHA_SECRET: "captcha-http-test-secret",
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
   try {
@@ -42,7 +48,8 @@ async function main() {
       cookies.add(cookie);
       const png = Buffer.from(await response.arrayBuffer());
       assert.equal(png.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
-      const { data, info } = await sharp(png).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+      const { data, width, height } = PNG.sync.read(png);
+      const info = { width, height, channels: 4 };
       assert.equal(info.width, 240);
       assert.equal(info.height, 66);
       for (let glyph = 0; glyph < 5; glyph++) {
