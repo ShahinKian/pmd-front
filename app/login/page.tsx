@@ -2,14 +2,12 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck, Orbit, UserRound, LockKeyhole } from "lucide-react";
-import { SiteLogo } from "@/components/svg";
+import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck, Orbit, RadioTower, LockKeyhole } from "lucide-react";
+import { RadioArtwork } from "@/components/auth/radio-artwork";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import StatusAlert from "@/components/ui/status-alert";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
-import { cn } from "@/lib/utils";
 import { useSWRConfig } from "swr";
 
 export default function LoginPage() {
@@ -117,20 +115,37 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-[#f6f7fb] px-4 py-8 dark:bg-[#161623]">
-      <div className="grid w-full max-w-md gap-5">
-        <div className="flex items-center gap-3 text-xl font-black text-foreground">
-          <span className="brand-mark size-10"><Orbit className="size-6"/></span>
-          سامانه ثبت عملکرد
-        </div>
-        <section className="panel overflow-hidden">
-          <div className="border-b border-border px-5 py-5">
-            <h1 className="text-lg font-extrabold">ورود به سامانه</h1>
-            <p className="mt-1 text-sm leading-7 text-muted-foreground">
-              نام کاربری، رمز عبور و پاسخ کد امنیتی را وارد کنید.
-            </p>
+    <main className="radio-login relative isolate flex min-h-dvh items-center justify-center overflow-hidden px-4 py-8 sm:px-6 lg:px-8">
+      <div className="radio-login-glow pointer-events-none absolute -right-20 -top-44 size-[550px] rounded-full bg-[#9572ec]/25 blur-[110px]" aria-hidden="true"/>
+      <div className="radio-login-glow pointer-events-none absolute -bottom-60 -left-28 size-[550px] rounded-full bg-[#58a9d6]/20 blur-[115px]" aria-hidden="true"/>
+      <div className="radio-login-grid pointer-events-none absolute inset-0 opacity-40" aria-hidden="true"/>
+      <div className="radio-login-shell relative z-10 grid w-full max-w-[1080px] overflow-hidden rounded-[2rem] border border-white/20 shadow-[0_35px_110px_-30px_#0c082c80] lg:grid-cols-[1.03fr_.97fr]">
+        <section className="radio-login-intro relative hidden min-h-[640px] flex-col justify-between overflow-hidden p-10 text-white lg:flex xl:p-12">
+          <div className="relative z-10 flex items-center gap-3">
+            <span className="grid size-12 place-items-center rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl"><Orbit size={27}/></span>
+            <div><strong className="block text-lg font-black">سامانه ثبت عملکرد</strong><span className="block text-xs text-[#d8cdf6]">مدیریت هوشمند فرآیندهای رادیویی</span></div>
           </div>
-          <form onSubmit={submit} noValidate className="grid gap-4 px-5 py-5"
+          <RadioArtwork/>
+          <div className="relative z-10">
+            <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-[#e8dfff] backdrop-blur-lg"><RadioTower size={15}/> رادیو، در یک نگاه</span>
+            <h2 className="max-w-md text-3xl font-black leading-[1.65]">از پیش‌بینی برنامه تا شناسنامه عملکرد؛ همه‌چیز در یک فضای یکپارچه</h2>
+            <p className="mt-3 max-w-sm text-sm leading-8 text-[#d8cdf6]">مدیریت برنامه‌ها، شبکه‌ها و گردش‌کارها با دسترسی امن و تجربه‌ای سریع و ساده.</p>
+            <div className="mt-6 flex items-center gap-2" aria-hidden="true">
+              <span className="h-1.5 w-12 rounded-full bg-[#d1beff]"/><span className="size-1.5 rounded-full bg-white/40"/><span className="size-1.5 rounded-full bg-white/40"/>
+            </div>
+          </div>
+        </section>
+        <section className="radio-login-form relative flex min-h-[590px] flex-col justify-center px-6 py-8 sm:px-10 sm:py-10 lg:px-12">
+          <div className="mb-8 lg:hidden">
+            <span className="mb-4 grid size-12 place-items-center rounded-2xl bg-[#b8a6ff] text-[#211d3c]"><Orbit size={26}/></span>
+            <span className="text-lg font-black">سامانه ثبت عملکرد</span>
+          </div>
+          <div className="mb-7">
+            <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary"><LockKeyhole size={13}/> ورود امن</span>
+            <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">خوش آمدید</h1>
+            <p className="mt-2 text-sm leading-7 text-muted-foreground">برای ورود، اطلاعات حساب و کد امنیتی را وارد کنید.</p>
+          </div>
+          <form onSubmit={submit} noValidate className="grid gap-4"
             onBlurCapture={event => {
               const input=event.target as unknown as HTMLInputElement;
               if (input.name && ["userName","password","captcha"].includes(input.name)) {
@@ -163,7 +178,7 @@ export default function LoginPage() {
             </div>
             <div className="field">
               <label htmlFor="captcha" className="label">کد امنیتی *</label>
-              <div className="rounded-xl border border-border bg-muted/60 p-3">
+              <div className="rounded-2xl border border-border/60 bg-muted/50 p-3 shadow-inner">
                 <div className="flex items-center gap-3">
                   <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-white">
                     {captchaSrc && !captchaFailed ? (
@@ -188,13 +203,15 @@ export default function LoginPage() {
             </div>
             {message ? <StatusAlert type="error" title="ورود ناموفق بود" message={message}
               dismissible onDismiss={()=>setMessage("")}/> : null}
-            <Button type="submit" size="lg" className="w-full" disabled={loading || captchaLoading || captchaFailed}>
+            <Button type="submit" size="lg" className="w-full !h-12 !rounded-xl font-bold shadow-lg shadow-primary/15" disabled={loading || captchaLoading || captchaFailed}>
               {loading ? <Loader2 className="size-4 animate-spin"/> : <ShieldCheck className="size-4"/>}
               {loading ? "در حال بررسی و ورود..." : "ورود به سامانه"}
             </Button>
           </form>
+          <div className="mt-7 flex items-center justify-center gap-2 border-t border-border/60 pt-5 text-xs text-muted-foreground">
+            <ShieldCheck size={16} className="text-primary"/> دسترسی ایمن به سامانه ثبت عملکرد
+          </div>
         </section>
-        <p className="text-center text-xs text-muted-foreground">ورود امن به سامانه ثبت عملکرد</p>
       </div>
     </main>
   );
