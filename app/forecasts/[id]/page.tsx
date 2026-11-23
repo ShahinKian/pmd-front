@@ -34,6 +34,7 @@ export default function ForecastDetailsPage() {
   const [topicAxes, setTopicAxes] = useState<string[]>([]);
   const [expertIds, setExpertIds] = useState<string[]>([]);
   const [busy, setBusy] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
   const { data: experts } = useSWR<ExpertOption[]>(
@@ -135,7 +136,7 @@ export default function ForecastDetailsPage() {
   }
 
   async function removeForecast() {
-    if (!window.confirm("از حذف این پیش‌بینی مطمئن هستید؟")) return;
+    setConfirmDelete(false);
     setBusy("delete");
     try {
       await apiClient.delete("/forecasts/" + id);
@@ -332,7 +333,7 @@ export default function ForecastDetailsPage() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={removeForecast}
+                onClick={() => setConfirmDelete(true)}
                 disabled={Boolean(busy)}
               >
                 {busy === "delete" ? <Loader2 size={16} /> : <Trash2 size={16} />}
@@ -353,6 +354,22 @@ export default function ForecastDetailsPage() {
             </div>
           ) : null}
         </>
+      ) : null}
+      {confirmDelete ? (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-[#161623]/60 p-4 print:hidden" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmDelete(false); }}>
+          <section role="alertdialog" aria-modal="true" aria-labelledby="confirm-delete-title" aria-describedby="confirm-delete-description" className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-foreground shadow-2xl">
+            <h2 id="confirm-delete-title" className="text-lg font-bold">حذف پیش‌بینی برنامه</h2>
+            <p id="confirm-delete-description" className="mt-3 text-sm leading-7 text-muted-foreground">
+              آیا از حذف این پیش‌بینی مطمئن هستید؟ این عملیات ممکن است قابل بازگشت نباشد.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" className="btn btn-outline" onClick={() => setConfirmDelete(false)}>انصراف</button>
+              <button type="button" className="btn bg-destructive text-white hover:opacity-90" disabled={Boolean(busy)} onClick={removeForecast}>
+                <Trash2 size={16} /> حذف پیش‌بینی
+              </button>
+            </div>
+          </section>
+        </div>
       ) : null}
     </DashboardShell>
   );
