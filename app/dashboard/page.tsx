@@ -19,7 +19,7 @@ interface DashboardSummary {
   pendingProfiles: number;
 }
 
-const persian = (value: number) => value.toLocaleString("fa-IR");
+const persian = (value: number) => value.toLocaleString("fa-IR", { useGrouping: false });
 
 export default function DashboardPage() {
   const { data: session, error, isLoading } = useSession();
