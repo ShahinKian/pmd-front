@@ -49,6 +49,7 @@ export default function ProfilesPage(){
   const [networkGroupId,setNetworkGroupId]=useState("");
   const [planId,setPlanId]=useState("");
   const [page,setPage]=useState(1);
+  const [pageSize,setPageSize]=useState(20);
   const [sort,setSort]=useState<{key:"mainTopic"|"broadcastDate"|"status";direction:"asc"|"desc"}>({key:"broadcastDate",direction:"desc"});
   function toggleSort(key:typeof sort.key){setSort(current=>({key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"}));}
 
@@ -68,10 +69,10 @@ export default function ProfilesPage(){
     if(networkId)p.set("networkId",networkId);
     if(planId)p.set("planId",planId);
     p.set("pageNumber",String(page));
-    p.set("pageSize","20");
+    p.set("pageSize",String(pageSize));
     p.set("inboxOnly","true");
     return "/program-profiles?"+p.toString();
-  },[status,topic,fromDate,toDate,networkId,planId,page]);
+  },[status,topic,fromDate,toDate,networkId,planId,page,pageSize]);
 
   const {data,error,isLoading,mutate}=useSWR<ProfileListPayload>(session && !networkLoading ? query : null,profileListFetcher);
 
@@ -191,7 +192,12 @@ export default function ProfilesPage(){
 
     {data?.pagination?<div className="mt-4 flex items-center justify-between">
       <span className="muted text-xs">صفحه {data.pagination.PageNumber} از {data.pagination.TotalPages} — {data.pagination.TotalCount} رکورد</span>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">ردیف در صفحه
+          <select className="select !h-9 !min-h-9 !w-20" value={pageSize} onChange={event=>{setPageSize(Number(event.target.value));setPage(1);}}>
+            {[10,20,50,100].map(size=><option key={size} value={size}>{size.toLocaleString("fa-IR")}</option>)}
+          </select>
+        </label>
         <button className="btn btn-outline" disabled={!data.pagination.HasPrevious} onClick={()=>setPage(x=>Math.max(1,x-1))}>قبلی</button>
         <button className="btn btn-outline" disabled={!data.pagination.HasNext} onClick={()=>setPage(x=>x+1)}>بعدی</button>
       </div>
