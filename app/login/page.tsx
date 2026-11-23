@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, RefreshCw, ShieldCheck, Orbit, UserRound, LockKeyhole } from "lucide-react";
 import { SiteLogo } from "@/components/svg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<"userName" | "password" | "captcha", string>>>({});
+  const [touched, setTouched] = useState<string[]>([]);
+  const validateField = (name: string, value: string) => {
+    if (!value.trim()) return name === "userName" ? "نام کاربری الزامی است." : name === "password" ? "رمز عبور الزامی است." : "کد امنیتی الزامی است.";
+    return "";
+  };
+  const updateValidation = (name: string, value: string) => {
+    if (!["userName","password","captcha"].includes(name)) return;
+    setFieldErrors(current => ({...current, [name]: validateField(name, value)}));
+  };
   const [captchaVersion, setCaptchaVersion] = useState(1);
   const [captchaFailed, setCaptchaFailed] = useState(false);
   const [captchaSrc, setCaptchaSrc] = useState("");
@@ -71,11 +81,16 @@ export default function LoginPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (captchaLoading || captchaFailed || !captchaSrc) return;
-    setLoading(true);
     setMessage("");
-
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
+    const names = ["userName","password","captcha"] as const;
+    const errors = Object.fromEntries(names.map(name => [name, validateField(name, String(form.get(name) ?? ""))]));
+    setFieldErrors(errors);
+    setTouched([...names]);
+    const invalid = names.find(name => errors[name]);
+    if (invalid) { formElement.querySelector<HTMLInputElement>(`[name="${invalid}"]`)?.focus(); return; }
+    setLoading(true);
 
     try {
       await apiClient.post("/auth/login", {
@@ -102,18 +117,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center overflow-hidden w-full">
-      <div className="min-h-screen basis-full flex flex-wrap w-full justify-center overflow-y-auto">
-        <div className="basis-1/2 bg-primary w-full relative hidden xl:flex justify-center items-center bg-gradient-to-br from-primary-600 via-primary-400 to-primary-600">
-          <div className="relative z-10 backdrop-blur bg-primary-foreground/40 py-14 px-16 rounded max-w-[640px]">
+    <div className="min-h-dvh w-full bg-[#f6f7fb] text-foreground dark:bg-[#161623]">
+      <div className="flex min-h-dvh w-full flex-col lg:flex-row">
+        <div className="relative hidden min-h-dvh w-full items-center justify-center overflow-hidden bg-[#211d3c] px-10 lg:flex lg:w-[47%]">
+          <div className="relative z-10 max-w-xl rounded-3xl border border-white/10 bg-white/5 px-10 py-14 shadow-2xl backdrop-blur">
             <div className="text-4xl leading-[56px] 2xl:text-6xl 2xl:leading-[80px] font-semibold">
-              <span className="text-default-900 dark:text-default-50">سامانه ثبت عملکرد</span>
+              <span className="text-white">سامانه ثبت عملکرد</span>
             </div>
-            <div className="mt-5 2xl:mt-8 text-default-900 dark:text-default-200 text-2xl font-medium leading-10">
+            <div className="mt-6 text-lg font-medium leading-10 text-[#d3d1ea]">
               سامانه مدیریت پیش‌بینی، شناسنامه عملکرد و فرآیندهای برنامه
             </div>
 
-            <div className="mt-10 flex items-center gap-3 rounded-xl border border-white/20 bg-white/10 p-4 text-default-900 dark:text-default-100">
+            <div className="mt-10 flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 p-5 text-[#e6e2ff]">
               <ShieldCheck className="h-6 w-6" />
               <div>
                 <div className="font-semibold">ورود امن به سامانه</div>
@@ -125,10 +140,10 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="min-h-screen basis-full md:basis-1/2 w-full px-4 py-5 flex justify-center items-center">
-          <div className="lg:w-[480px] w-full">
-            <div className="w-full py-10">
-              <SiteLogo className="h-10 w-10 2xl:w-14 2xl:h-14 text-primary" />
+        <div className="flex min-h-dvh w-full items-center justify-center px-5 py-10 sm:px-8 lg:w-[53%]">
+          <div className="w-full max-w-[490px] rounded-3xl border border-border bg-card p-5 shadow-[0_20px_60px_-35px_#29204470] sm:p-9">
+            <div className="w-full py-2">
+              <span className="grid size-12 place-items-center rounded-xl bg-[#b8a6ff] text-[#242044]"><Orbit className="size-7" /></span>
               <div className="2xl:mt-8 mt-6 2xl:text-3xl text-2xl font-bold text-default-900">
                 ورود به سامانه ثبت عملکرد
               </div>
@@ -136,7 +151,7 @@ export default function LoginPage() {
                 نام کاربری، رمز عبور و کد امنیتی را وارد کنید.
               </div>
 
-              <form onSubmit={submit} className="mt-5 2xl:mt-7">
+              <form onSubmit={submit} noValidate className="mt-7 space-y-5" onBlurCapture={(event) => { const input = event.target as HTMLInputElement; if (input.name && ["userName","password","captcha"].includes(input.name)) { setTouched(current => current.includes(input.name) ? current : [...current, input.name]); updateValidation(input.name, input.value); } }} onInputCapture={(event) => { const input = event.target as HTMLInputElement; if (touched.includes(input.name)) updateValidation(input.name, input.value); }}>
                 <div>
                   <Label htmlFor="userName" className="mb-2 font-medium text-default-600">
                     نام کاربری
@@ -148,10 +163,13 @@ export default function LoginPage() {
                     autoComplete="username"
                     dir="ltr"
                     className="text-left"
+                    aria-invalid={Boolean(fieldErrors.userName)}
                     size="lg"
                     required
                   />
                 </div>
+
+                {fieldErrors.userName ? <p role="alert" className="mt-1 text-xs text-destructive">{fieldErrors.userName}</p> : null}
 
                 <div className="mt-3.5">
                   <Label htmlFor="password" className="mb-2 font-medium text-default-600">
@@ -166,6 +184,7 @@ export default function LoginPage() {
                       autoComplete="current-password"
                       dir="ltr"
                       className={cn("peer text-left")}
+                      aria-invalid={Boolean(fieldErrors.password)}
                       size="lg"
                       required
                     />
@@ -180,14 +199,16 @@ export default function LoginPage() {
                   </div>
                 </div>
 
+                {fieldErrors.password ? <p role="alert" className="mt-1 text-xs text-destructive">{fieldErrors.password}</p> : null}
+
                 <div className="mt-3.5">
                   <Label htmlFor="captcha" className="mb-2 font-medium text-default-600">
                     کد امنیتی
                   </Label>
 
-                  <div className="rounded-xl border bg-default-50 p-3">
+                  <div className="rounded-2xl border border-border bg-muted/50 p-3">
                     <div className="flex items-center gap-3">
-                      <div className="min-w-0 flex-1 overflow-hidden rounded-lg border bg-white">
+                      <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-white">
                         {captchaSrc && !captchaFailed ? <img
                           key={captchaVersion}
                           src={captchaSrc}
@@ -229,11 +250,13 @@ export default function LoginPage() {
                       autoComplete="off"
                       dir="ltr"
                       className="mt-3 text-center text-lg font-semibold tracking-[0.25em]"
+                      aria-invalid={Boolean(fieldErrors.captcha)}
                       placeholder="پاسخ عبارت بالا"
                       size="lg"
                       required
                     />
 
+                    {fieldErrors.captcha ? <p role="alert" className="mt-2 text-xs text-destructive">{fieldErrors.captcha}</p> : null}
                     <p className="mt-2 text-xs leading-5 text-default-500">
                       پاسخ عبارت داخل تصویر را وارد کنید. کد امنیتی پس از هر تلاش ورود تغییر می‌کند.
                     </p>
@@ -251,7 +274,7 @@ export default function LoginPage() {
                   />
                 ) : null}
 
-                <Button className="w-full mt-6" disabled={loading || captchaLoading || captchaFailed} size="lg">
+                <Button className="mt-6 w-full" disabled={loading || captchaLoading || captchaFailed} size="lg">
                   {loading && <Loader2 className="ltr:mr-2 rtl:ml-2 h-4 w-4 animate-spin" />}
                   {loading ? "در حال بررسی و ورود..." : "ورود"}
                 </Button>
