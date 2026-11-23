@@ -9,6 +9,7 @@ import { roleLabel } from "@/lib/auth/roles";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 
 import type { RoleResponse } from "@/lib/auth/types";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const rolesPath = "/auth/roles";
 
@@ -17,6 +18,7 @@ export default function RolesPage() {
   const { mutate } = useSWRConfig();
   const roles = useSWR<RoleResponse[]>(session?.isSystemAdmin ? rolesPath : null);
   const [editing, setEditing] = useState<RoleResponse | null>(null);
+  const [deleteTarget,setDeleteTarget]=useState<RoleResponse|null>(null);
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -59,12 +61,13 @@ export default function RolesPage() {
   }
 
   async function remove(role: RoleResponse) {
-    if (busy || !window.confirm(`نقش «${roleLabel(role)}» حذف شود؟`)) return;
+    if (busy) return;
 
     setBusy(true);
     setNotice(null);
     try {
       await apiClient.delete(`${rolesPath}/${role.id}`);
+      setDeleteTarget(null);
       await roles.mutate((current) => current?.filter((item) => item.id !== role.id));
       if (editing?.id === role.id) edit(null);
       setNotice({ text: "نقش حذف شد." });
@@ -124,11 +127,21 @@ export default function RolesPage() {
               <button className="btn btn-info" type="button" disabled={busy}
                 aria-label={`ویرایش ${roleLabel(role)}`} onClick={() => edit(role)}><Pencil size={15} aria-hidden />ویرایش</button>
               {!role.isSystemRole && <button className="btn btn-danger" type="button" disabled={busy}
-                aria-label={`حذف ${roleLabel(role)}`} onClick={() => void remove(role)}><Trash2 size={15} aria-hidden />حذف</button>}
+                aria-label={`حذف ${roleLabel(role)}`} onClick={() => setDeleteTarget(role)}><Trash2 size={15} aria-hidden />حذف</button>}
             </div></td>
           </tr>)}</tbody>
         </table>
       </section>}
     </div>}
+    <ConfirmDialog
+      open={Boolean(deleteTarget)}
+      title="حذف نقش"
+      description={deleteTarget ? `نقش «${roleLabel(deleteTarget)}» حذف شود؟` : ""}
+      confirmLabel="حذف نقش"
+      destructive
+      busy={busy}
+      onCancel={() => setDeleteTarget(null)}
+      onConfirm={() => deleteTarget ? remove(deleteTarget) : undefined}
+    />
   </DashboardShell>;
 }
