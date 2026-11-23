@@ -151,7 +151,7 @@ export default function ProfilesPage(){
     </section>
 
     <section className="card" style={{padding:0,overflow:"hidden"}}>
-      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+      <div className="pmd-table-scroll">\n        <table className="pmd-table">
         <thead style={{background:"#f8fafc"}}><tr>
           <th style={{padding:12,textAlign:"right"}}>موضوع</th>
           <th style={{padding:12,textAlign:"right"}}>نام برنامه</th>
@@ -173,7 +173,7 @@ export default function ProfilesPage(){
             <td style={{padding:12}}><Link href={`/program-profiles/${p.id}`} className="btn btn-info"><Eye size={15} aria-hidden />مشاهده</Link></td>
           </tr>;
         })}</tbody>
-      </table>
+      </table>\n        </div>
       {isLoading?<div style={{padding:24}} className="muted">در حال دریافت...</div>:null}
       {error?<div className="alert alert-error" style={{margin:16}}>دریافت شناسنامه‌ها انجام نشد.</div>:null}
       {!isLoading&&!error&&(data?.items.length??0)===0?<div style={{padding:30,textAlign:"center"}} className="muted">موردی برای نمایش وجود ندارد.</div>:null}
