@@ -135,7 +135,7 @@ export default function UsersPage() {
       {session?.isSystemAdmin ? (
         <section className="panel" style={{padding:0,overflow:"hidden"}}>
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
-            <div><h2 className="text-base font-extrabold">فهرست کاربران</h2><p className="mt-1 text-xs text-muted-foreground">{filteredUsers.length.toLocaleString("fa-IR")} کاربر</p></div>
+            <div><h2 className="text-base font-extrabold">فهرست کاربران</h2><p className="mt-1 text-xs text-muted-foreground">{filteredUsers.length.toLocaleString("fa-IR", { useGrouping: false })} کاربر</p></div>
             <label className="relative w-full sm:max-w-80"><span className="sr-only">جست‌وجوی کاربران</span><Search className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><input className="field-input pr-9" placeholder="نام، نام کاربری یا نقش" value={query} onChange={event=>setQuery(event.target.value)}/></label>
           </div>
           <div className="table-scroll">
