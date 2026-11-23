@@ -17,7 +17,8 @@ const Header = ({ handleOpenSearch: _handleOpenSearch }: { handleOpenSearch: () 
 
   const current = menus
     .flatMap((group) => group.child ?? [])
-    .find((item) => item.href && (pathname === item.href || pathname.startsWith(item.href + "/")));
+    .filter((item) => item.href && (pathname === item.href || pathname.startsWith(item.href + "/")))
+    .sort((a, b) => (b.href?.length ?? 0) - (a.href?.length ?? 0))[0];
 
   return (
     <header className="sticky top-0 z-30 flex min-h-[68px] items-center justify-between gap-3 border-b border-border bg-card/95 px-3 backdrop-blur sm:px-6 lg:px-7 print:hidden">
