@@ -296,8 +296,8 @@ export default function NewUserPage() {
 
       {session?.isSystemAdmin ? (
         <form ref={formRef} noValidate onSubmit={submit} className="grid" style={{ gap: 18 }}>
-          <nav aria-label="مراحل تعریف کاربر" className="rounded-2xl border border-border bg-card p-4">
-            <ol className="grid grid-cols-2 gap-2 md:grid-cols-4">{steps.map((title,index)=><li key={title}>
+          <nav aria-label="مراحل تعریف کاربر" className="pmd-wizard-nav rounded-2xl border border-border bg-card p-3 shadow-sm sm:p-4">
+            <ol className="grid grid-cols-2 gap-2 lg:grid-cols-4">{steps.map((title,index)=><li key={title}>
               <button type="button" disabled={index>wizardStep||saving} onClick={()=>setWizardStep(index)} aria-current={wizardStep===index?"step":undefined} className={`flex w-full items-center gap-2 rounded-xl border px-3 py-3 text-right text-xs font-semibold ${wizardStep===index?"border-primary bg-primary/10 text-primary":"border-border text-muted-foreground"}`}>
                 <span className={`grid size-7 shrink-0 place-items-center rounded-full ${index<=wizardStep?"bg-primary text-primary-foreground":"bg-muted text-muted-foreground"}`}>{index<wizardStep?<Check size={15}/>:index+1}</span>{title}
               </button>
