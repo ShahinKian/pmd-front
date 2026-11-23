@@ -6,7 +6,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Eye, Filter, Plus, RefreshCcw } from "lucide-react";
+import { ArrowDownUp, Eye, Filter, Plus, RefreshCcw } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { apiClient } from "@/lib/http/client";
 import { useSession } from "@/hooks/use-session";
@@ -56,6 +56,8 @@ export default function ForecastsPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<{key: "mainTopic" | "episodeNumber" | "broadcastDate" | "userCreatorName" | "status"; direction: "asc" | "desc"}>({key:"broadcastDate",direction:"desc"});
+  function toggleSort(key: typeof sort.key) { setSort(current => ({key,direction: current.key===key && current.direction==="asc" ? "desc" : "asc"})); }
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
@@ -71,6 +73,12 @@ export default function ForecastsPage() {
 
   const { data, error, isLoading, mutate } =
     useSWR<ForecastListPayload>(session && !networkLoading ? query : null, forecastListFetcher);
+
+  const sortedItems = useMemo(() => [...(data?.items ?? [])].sort((a,b) => {
+    const va = a[sort.key]; const vb = b[sort.key];
+    const result = typeof va==="number" && typeof vb==="number" ? va-vb : String(va ?? "").localeCompare(String(vb ?? ""), "fa", {numeric:true});
+    return sort.direction==="asc" ? result : -result;
+  }),[data?.items,sort]);
 
   function resetFilters() {
     setNetworkId(""); setStatus(""); setFromDate(""); setToDate(""); setPage(1);
@@ -118,21 +126,22 @@ export default function ForecastsPage() {
       </section>
 
       <section className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div className="pmd-table-scroll">\n        <table className="pmd-table">
+        <div className="pmd-table-scroll">
+        <table className="pmd-table">
           <thead style={{ background: "#f8fafc" }}>
             <tr>
-              <th style={{ padding: 12, textAlign: "right" }}>موضوع</th>
+              <th style={{ padding: 12, textAlign: "right" }}><button type="button" className="pmd-sort-button" onClick={() => toggleSort("mainTopic")} aria-label="مرتب‌سازی بر اساس موضوع">موضوع<ArrowDownUp size={14} aria-hidden />{sort.key==="mainTopic" ? <span className="text-primary">{sort.direction==="asc" ? "↑":"↓"}</span>:null}</button></th>
               <th style={{ padding: 12, textAlign: "right" }}>برنامه</th>
-              <th style={{ padding: 12, textAlign: "right" }}>قسمت</th>
-              <th style={{ padding: 12, textAlign: "right" }}>تاریخ پخش</th>
-              <th style={{ padding: 12, textAlign: "right" }}>ثبت‌کننده</th>
-              <th style={{ padding: 12, textAlign: "right" }}>وضعیت</th>
+              <th style={{ padding: 12, textAlign: "right" }}><button type="button" className="pmd-sort-button" onClick={() => toggleSort("episodeNumber")} aria-label="مرتب‌سازی بر اساس قسمت">قسمت<ArrowDownUp size={14} aria-hidden />{sort.key==="episodeNumber" ? <span className="text-primary">{sort.direction==="asc" ? "↑":"↓"}</span>:null}</button></th>
+              <th style={{ padding: 12, textAlign: "right" }}><button type="button" className="pmd-sort-button" onClick={() => toggleSort("broadcastDate")} aria-label="مرتب‌سازی بر اساس تاریخ پخش">تاریخ پخش<ArrowDownUp size={14} aria-hidden />{sort.key==="broadcastDate" ? <span className="text-primary">{sort.direction==="asc" ? "↑":"↓"}</span>:null}</button></th>
+              <th style={{ padding: 12, textAlign: "right" }}><button type="button" className="pmd-sort-button" onClick={() => toggleSort("userCreatorName")} aria-label="مرتب‌سازی بر اساس ثبت‌کننده">ثبت‌کننده<ArrowDownUp size={14} aria-hidden />{sort.key==="userCreatorName" ? <span className="text-primary">{sort.direction==="asc" ? "↑":"↓"}</span>:null}</button></th>
+              <th style={{ padding: 12, textAlign: "right" }}><button type="button" className="pmd-sort-button" onClick={() => toggleSort("status")} aria-label="مرتب‌سازی بر اساس وضعیت">وضعیت<ArrowDownUp size={14} aria-hidden />{sort.key==="status" ? <span className="text-primary">{sort.direction==="asc" ? "↑":"↓"}</span>:null}</button></th>
               <th style={{ padding: 12, textAlign: "right" }}>مرحله گردش‌کار</th>
               <th style={{ padding: 12, textAlign: "right" }}>عملیات</th>
             </tr>
           </thead>
           <tbody>
-            {(data?.items ?? []).map((item) => {
+            {sortedItems.map((item) => {
               const approved = item.status === FORECAST_STATUS.Approved;
               const hasProfileHighlight = isStarter && item.hasProfile;
               return (
@@ -154,7 +163,8 @@ export default function ForecastsPage() {
               );
             })}
           </tbody>
-        </table>\n        </div>
+        </table>
+        </div>
 
         {!isLoading && !error && (data?.items.length ?? 0) === 0 ? <div style={{ padding: 30, textAlign: "center" }} className="muted">موردی برای نمایش وجود ندارد.</div> : null}
         {isLoading ? <div style={{ padding: 24 }} className="muted">در حال دریافت اطلاعات...</div> : null}
