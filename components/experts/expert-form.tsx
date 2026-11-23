@@ -42,6 +42,17 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
   const [isActive, setIsActive] = useState(expert?.isActive ?? true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors,setFieldErrors]=useState<Record<string,string>>({});
+  const [touched,setTouched]=useState<string[]>([]);
+  const fieldLabels:Record<string,string>={firstName:"نام",lastName:"نام خانوادگی",specialty:"تخصص",workplace:"محل کار",mobilePhone:"موبایل",nationalCode:"کد ملی"};
+  function validateField(name:string,value:string){
+    if(!fieldLabels[name])return "";
+    if(!value.trim())return `${fieldLabels[name]} الزامی است.`;
+    if(name==="nationalCode" && !/^\\d{10}$/.test(value.trim()))return "کد ملی باید ۱۰ رقم باشد.";
+    if(name==="mobilePhone" && !/^\\d{10,11}$/.test(value.trim()))return "شماره موبایل باید ۱۰ یا ۱۱ رقم باشد.";
+    return "";
+  }
+  function validateInput(input:HTMLInputElement){if(!input.name)return;setFieldErrors(prev=>({...prev,[input.name]:validateField(input.name,input.value)}));}
 
   const networkOptions = useMemo(
     () =>
@@ -69,6 +80,9 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
     }
 
     const form = new FormData(event.currentTarget);
+    const invalid=Object.fromEntries(Object.keys(fieldLabels).map(key=>[key,validateField(key,String(form.get(key)??""))]));
+    setFieldErrors(invalid);
+    if(Object.values(invalid).some(Boolean))return;
     const payload = {
       firstName: String(form.get("firstName") ?? "").trim(),
       lastName: String(form.get("lastName") ?? "").trim(),
@@ -96,19 +110,22 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-6">
+    <form noValidate onSubmit={submit} className="space-y-6" onBlurCapture={event=>{const target=event.target as unknown as HTMLInputElement;if(target.name&&fieldLabels[target.name]){setTouched(prev=>prev.includes(target.name)?prev:[...prev,target.name]);validateInput(target);}}} onInputCapture={event=>{const target=event.target as unknown as HTMLInputElement;if(touched.includes(target.name))validateInput(target);}}>
       <div className="grid gap-4 md:grid-cols-2">
         <div>
           <Label htmlFor="firstName" className="mb-2 text-default-600">نام *</Label>
-          <Input id="firstName" name="firstName" defaultValue={expert?.firstName} required />
+          <Input id="firstName" name="firstName" aria-invalid={Boolean(fieldErrors.firstName)} data-valid={touched.includes("firstName") && !fieldErrors.firstName ? "true" : undefined} defaultValue={expert?.firstName} required />
+          {fieldErrors.firstName ? <span role="alert" className="mt-1 block text-xs text-destructive">{fieldErrors.firstName}</span> : null}
         </div>
         <div>
           <Label htmlFor="lastName" className="mb-2 text-default-600">نام خانوادگی *</Label>
-          <Input id="lastName" name="lastName" defaultValue={expert?.lastName} required />
+          <Input id="lastName" name="lastName" aria-invalid={Boolean(fieldErrors.lastName)} data-valid={touched.includes("lastName") && !fieldErrors.lastName ? "true" : undefined} defaultValue={expert?.lastName} required />
+          {fieldErrors.lastName ? <span role="alert" className="mt-1 block text-xs text-destructive">{fieldErrors.lastName}</span> : null}
         </div>
         <div>
           <Label htmlFor="specialty" className="mb-2 text-default-600">تخصص *</Label>
-          <Input id="specialty" name="specialty" defaultValue={expert?.specialty} required />
+          <Input id="specialty" name="specialty" aria-invalid={Boolean(fieldErrors.specialty)} data-valid={touched.includes("specialty") && !fieldErrors.specialty ? "true" : undefined} defaultValue={expert?.specialty} required />
+          {fieldErrors.specialty ? <span role="alert" className="mt-1 block text-xs text-destructive">{fieldErrors.specialty}</span> : null}
         </div>
         <div>
           <Label htmlFor="education" className="mb-2 text-default-600">تحصیلات *</Label>
@@ -125,15 +142,18 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
         </div>
         <div>
           <Label htmlFor="workplace" className="mb-2 text-default-600">محل کار *</Label>
-          <Input id="workplace" name="workplace" defaultValue={expert?.workplace} required />
+          <Input id="workplace" name="workplace" aria-invalid={Boolean(fieldErrors.workplace)} data-valid={touched.includes("workplace") && !fieldErrors.workplace ? "true" : undefined} defaultValue={expert?.workplace} required />
+          {fieldErrors.workplace ? <span role="alert" className="mt-1 block text-xs text-destructive">{fieldErrors.workplace}</span> : null}
         </div>
         <div>
           <Label htmlFor="mobilePhone" className="mb-2 text-default-600">موبایل *</Label>
-          <Input id="mobilePhone" name="mobilePhone" dir="ltr" defaultValue={expert?.mobilePhone} required />
+          <Input id="mobilePhone" name="mobilePhone" dir="ltr" aria-invalid={Boolean(fieldErrors.mobilePhone)} data-valid={touched.includes("mobilePhone") && !fieldErrors.mobilePhone ? "true" : undefined} defaultValue={expert?.mobilePhone} required />
+          {fieldErrors.mobilePhone ? <span role="alert" className="mt-1 block text-xs text-destructive">{fieldErrors.mobilePhone}</span> : null}
         </div>
         <div>
           <Label htmlFor="nationalCode" className="mb-2 text-default-600">کد ملی *</Label>
-          <Input id="nationalCode" name="nationalCode" dir="ltr" defaultValue={expert?.nationalCode} required />
+          <Input id="nationalCode" name="nationalCode" dir="ltr" aria-invalid={Boolean(fieldErrors.nationalCode)} data-valid={touched.includes("nationalCode") && !fieldErrors.nationalCode ? "true" : undefined} defaultValue={expert?.nationalCode} required />
+          {fieldErrors.nationalCode ? <span role="alert" className="mt-1 block text-xs text-destructive">{fieldErrors.nationalCode}</span> : null}
         </div>
         <div>
           <Label htmlFor="workPhone" className="mb-2 text-default-600">تلفن محل کار</Label>
