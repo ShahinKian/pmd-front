@@ -13,6 +13,7 @@ import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Switch } from "@/components/ui/switch";
 import { TopicAxesEditor } from "@/components/forecasts/topic-axes-editor";
 import { ExpertSelector, type ExpertOption } from "@/components/forecasts/expert-selector";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 function isoToDateOnly(value: string): string {
   const date = new Date(value);
@@ -43,6 +44,7 @@ export default function ForecastDetailsPage() {
   const [topicAxes, setTopicAxes] = useState<string[]>([]);
   const [expertIds, setExpertIds] = useState<string[]>([]);
   const [busy, setBusy] = useState("");
+  const [confirmDelete,setConfirmDelete] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [reasonAction, setReasonAction] = useState<"reject" | "return-for-edit" | null>(null);
   const [reasonText, setReasonText] = useState("");
@@ -155,7 +157,7 @@ export default function ForecastDetailsPage() {
   }
 
   async function removeForecast() {
-    if (!window.confirm("از حذف این پیش‌بینی مطمئن هستید؟")) return;
+    setConfirmDelete(false);
     setBusy("delete");
     try {
       await apiClient.delete("/forecasts/" + id);
@@ -368,7 +370,7 @@ export default function ForecastDetailsPage() {
               {data.status !== FORECAST_STATUS.Approved ? <button
                 type="button"
                 className="btn btn-outline"
-                onClick={removeForecast}
+                onClick={() => setConfirmDelete(true)}
                 disabled={Boolean(busy)}
               >
                 {busy === "delete" ? <Loader2 size={16} /> : <Trash2 size={16} />}
@@ -378,7 +380,7 @@ export default function ForecastDetailsPage() {
           </section>
 
           {reasonAction ? <div role="dialog" aria-modal="true" aria-labelledby="reason-dialog-title" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-            <div className="w-full max-w-lg rounded-xl bg-background p-6 shadow-xl">
+            <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 text-foreground shadow-2xl">
               <h2 id="reason-dialog-title" className="mb-3 text-lg font-semibold">{reasonAction === "reject" ? "علت رد پیش‌بینی" : "علت بازگشت برای اصلاح"}</h2>
               <textarea autoFocus className="input w-full" rows={5} value={reasonText} maxLength={2000} onChange={e => setReasonText(e.target.value)} placeholder="علت را برای اطلاع تهیه‌کننده بنویسید" />
               <div className="mt-4 flex justify-end gap-2">
@@ -400,6 +402,16 @@ export default function ForecastDetailsPage() {
           ) : null}
         </>
       ) : null}
+      <ConfirmDialog
+        open={confirmDelete}
+        title="حذف پیش‌بینی برنامه"
+        description="از حذف این پیش‌بینی مطمئن هستید؟ این عملیات ممکن است قابل بازگشت نباشد."
+        confirmLabel="حذف پیش‌بینی"
+        destructive
+        busy={busy === "delete"}
+        onCancel={() => setConfirmDelete(false)}
+        onConfirm={removeForecast}
+      />
     </DashboardShell>
   );
 }
