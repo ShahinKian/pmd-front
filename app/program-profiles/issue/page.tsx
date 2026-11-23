@@ -384,11 +384,11 @@ export default function IssueProfilePage(){
     {savedDrafts?.length?<section className="card mb-4"><h2 className="mb-3 font-semibold">ادامه پیش‌نویس‌های ذخیره‌شده</h2><div className="flex flex-wrap gap-2">{savedDrafts.map(draft=><button key={draft.forecastId} type="button" className="btn btn-outline" disabled={saving} onClick={()=>{if(changeForecast(draft.forecastId))setSelectedNetwork("");}}>{draft.title} — {stepTitles[draft.step]}</button>)}</div></section>:null}
     {draftsError?<p role="alert" className="alert alert-error">خواندن فهرست پیش‌نویس‌ها ناموفق بود. <button type="button" className="underline" onClick={()=>void refreshDrafts()}>تلاش مجدد</button></p>:null}
     <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-    <nav aria-label="مراحل صدور شناسنامه" className="rounded-xl border border-default-200 bg-background p-3 lg:self-start">
+    <nav aria-label="مراحل صدور شناسنامه" className="pmd-wizard-nav lg:self-start">
       <ol className="space-y-2">{stepTitles.map((title,index)=><li key={title}>
         <button type="button" disabled={saving||!draftReady} onClick={()=>goToStep(index)} aria-current={step===index?"step":undefined}
-          className={"flex w-full items-center gap-3 rounded-lg px-3 py-3 text-right text-sm transition-colors "+(step===index?"bg-default-100 font-semibold text-default-900":"text-default-600 hover:bg-default-50")}>
-          <span className={"flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs "+(step===index?"border-green-600 bg-green-600 text-white":index<step?"border-green-500 text-green-700":"border-default-300")}>{index<step?<Check size={15}/>:index+1}</span>
+          className={"flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-right text-sm transition-colors "+(step===index?"font-bold":"text-muted-foreground hover:bg-muted") }>
+          <span className={"flex size-8 shrink-0 items-center justify-center rounded-full border text-xs "+(step===index?"border-primary bg-primary text-primary-foreground":index<step?"border-primary text-primary":"border-border")}>{index<step?<Check size={15}/>:index+1}</span>
           {title}
         </button>
       </li>)}</ol>
@@ -441,7 +441,7 @@ export default function IssueProfilePage(){
       </div>
       </fieldset>
       <fieldset disabled={saving||!draftReady||!!issuedProfileId}>
-      <section className={"rounded-xl border border-default-200 bg-background p-5 "+(step===1?"":"hidden")} style={{marginTop:20}}>
+      <section className={"pmd-wizard-panel "+(step===1?"":"hidden")} style={{marginTop:20}}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3"><span className="rounded-lg border border-default-200 p-2 text-default-600"><Layers3 size={22}/></span><div><h2 className="font-semibold">آیتم‌های شناسنامه</h2><p className="mt-1 text-xs text-default-500">عنوان، موضوع و مدت آیتم‌ها قابل ویرایش است. بازخوانی، موارد حذف‌شده را بدون تغییر ویرایش‌های فعلی برمی‌گرداند.</p></div></div>
           <div className="flex flex-wrap items-center gap-3"><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setAddItemOpen(value=>!value)}><Plus size={16}/> افزودن آیتم</button><button type="button" className="btn btn-outline" disabled={itemsLoading} onClick={()=>restoreExternal("items")}><RefreshCcw size={16}/>بازخوانی آیتم‌ها</button><div className={"rounded-lg border border-default-200 px-3 py-2 text-sm "+(overDuration?"text-red-700":"text-default-700")}><Clock3 size={15} className="ml-2 inline-block"/><span>زمان آیتم‌ها: </span><strong dir="ltr">{totalDuration(itemsDraft.map(x=>({Id:0,PlanId:0,ItemTitle:x.itemName,ItemSubject:x.subject,ItemPeriod:x.duration})))}</strong><span className="mx-2">/</span><span dir="ltr">{programDuration||"—"}</span></div></div>
@@ -462,7 +462,7 @@ export default function IssueProfilePage(){
           {itemsDraft.length===0?<p className="p-5 text-center text-default-500">آیتمی برای این شناسنامه باقی نمانده است.</p>:null}
         </div>
       </section>
-      <section className={"rounded-xl border border-default-200 bg-background p-5 "+(step===2?"":"hidden")} style={{marginTop:20}}>
+      <section className={"pmd-wizard-panel "+(step===2?"":"hidden")} style={{marginTop:20}}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3"><span className="rounded-lg border border-default-200 p-2 text-default-600"><Users size={22}/></span><div><h2 className="font-semibold">عوامل شناسنامه</h2><p className="mt-1 text-xs text-default-500">نام عامل از وب‌سرویس پرسنل قابل تغییر است؛ نوع فعالیت از اطلاعات پایه خوانده می‌شود.</p></div></div>
         </div>
@@ -483,13 +483,13 @@ export default function IssueProfilePage(){
       </section>
       </fieldset>
       <fieldset disabled={saving||!draftReady}>
-      <section className={step===3?"rounded-xl border border-default-200 p-5":"hidden"}>
+      <section className={step===3?"pmd-wizard-panel":"hidden"}>
         <h2 className="mb-2 font-semibold">محورهای موضوعی برنامه</h2>
         <p className="mb-4 text-sm text-default-500">محورهای پیش‌بینی نمایش داده می‌شوند؛ می‌توانید برای این شناسنامه محور جدید تعریف کنید.</p>
         <div className="space-y-2">{[...(selected?.topicAxes??[]),...newAxes].map(axis=><div key={axis.id} className="flex justify-between rounded-lg border border-default-200 px-4 py-3 text-sm"><span>{axis.title}</span>{newAxes.some(x=>x.id===axis.id)?<button type="button" className="text-red-600" onClick={()=>{setNewAxes(rows=>rows.filter(x=>x.id!==axis.id));setExpertRows(rows=>rows.map(x=>x.topicAxisId===axis.id?{...x,topicAxisId:""}:x));}}>حذف</button>:<span className="text-default-500">پیش‌بینی</span>}</div>)}</div>
         <div className="mt-4 flex gap-2"><input className="input" placeholder="عنوان محور موضوعی جدید" value={axisTitle} onChange={e=>setAxisTitle(e.target.value)}/><button type="button" className="btn bg-green-600 text-white" onClick={()=>{if(!axisTitle.trim())return;setNewAxes(rows=>[...rows,{id:crypto.randomUUID(),title:axisTitle.trim()}]);setAxisTitle("");}}>افزودن محور</button></div>
       </section>
-      <section className={step===4?"rounded-xl border border-default-200 p-5":"hidden"}>
+      <section className={step===4?"pmd-wizard-panel":"hidden"}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">کارشناسان و محورهای موضوعی</h2><p className="mt-1 text-sm text-default-500">کارشناسان پیش‌بینی بارگذاری شده‌اند. می‌توانید کارشناسی را که در پیش‌بینی نبوده نیز اضافه کنید.</p></div><button type="button" className="btn bg-green-600 text-white hover:bg-green-700" onClick={()=>setExpertRows(rows=>[...rows,{expertId:"",topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}])}><Plus size={16}/> افزودن کارشناس</button></div>
         <div className="space-y-3">{expertRows.map((x,i)=><div key={i} className="grid gap-3 rounded-lg border border-default-200 p-4 md:grid-cols-2">
           <label className="field"><span className="label">کارشناس *</span><SearchableSelect className="select" value={x.expertId} onChange={e=>editExpert(i,{expertId:e.target.value})}><option value="">انتخاب کنید</option>{availableExperts.map(expert=><option key={expert.id} value={expert.id}>{expert.firstName} {expert.lastName} — {expert.specialty}</option>)}</SearchableSelect></label>
@@ -500,7 +500,7 @@ export default function IssueProfilePage(){
         </div>)}{!expertRows.length?<p className="py-6 text-center text-default-500">کارشناسی اضافه نشده است. در صورت نیاز از «افزودن کارشناس» استفاده کنید.</p>:null}</div>
       </section>
       <fieldset disabled={!!issuedProfileId}>
-      <section className={step===5?"rounded-xl border border-default-200 p-5":"hidden"}>
+      <section className={step===5?"pmd-wizard-panel":"hidden"}>
         <h2 className="mb-2 font-semibold">کلیدواژه‌های شناسنامه *</h2>
         <p className="mb-4 text-sm text-default-500">حداقل ۵ کلیدواژه الزامی است. موارد جدید پس از ثبت برای همان شبکه نیز قابل استفاده خواهند بود.</p>
         <div className="mb-4 flex flex-wrap gap-2">
@@ -517,7 +517,7 @@ export default function IssueProfilePage(){
         <div className={`mt-3 text-sm ${keywords.length>=5?"text-green-700":"text-red-600"}`}>{keywords.length} از حداقل ۵ کلیدواژه انتخاب شده است.</div>
       </section>
       </fieldset>
-      <section className={step===6?"rounded-xl border border-default-200 p-5":"hidden"}>
+      <section className={step===6?"pmd-wizard-panel":"hidden"}>
         <h2 className="mb-4 font-semibold">بازبینی و صدور شناسنامه</h2>
         <div className="grid gap-3 text-sm md:grid-cols-2"><p>برنامه: {selected?.planName||selected?.mainTopic||"انتخاب نشده"}</p><p>مدت: {programDuration||"وارد نشده"}</p><p>آیتم‌ها: {itemsDraft.length} مورد</p><p>عوامل: {crewDraft.length} نفر</p><p>کارشناسان: {expertRows.length} ارتباط</p><p>کلیدواژه‌ها: {keywords.length} مورد</p><p>ساعت شروع: {startTime||"وارد نشده"}</p></div>
       </section>
