@@ -4,7 +4,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { Camera, Loader2, Save, ShieldAlert, UserPlus, UsersRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Camera, Check, Loader2, Save, ShieldAlert, UserPlus, UsersRound } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
@@ -30,6 +30,32 @@ function toPositiveInt(value: string): number | null {
 export default function NewUserPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [wizardStep,setWizardStep]=useState(0);
+  const [fieldErrors,setFieldErrors]=useState<Record<string,string>>({});
+  const [reviewName,setReviewName]=useState("");
+  const steps = ["اطلاعات حساب","نقش‌های کاربر","دسترسی سازمانی","بازبینی و ثبت"];
+  function advanceWizard(){
+    if(wizardStep===0){
+      const form = new FormData(formRef.current ?? undefined);
+      const errors:Record<string,string>={};
+      const fullName=String(form.get("fullName")??"").trim();
+      const userName=String(form.get("userName")??"").trim();
+      const password=String(form.get("password")??"");
+      if(!fullName) errors.fullName="نام و نام خانوادگی الزامی است.";
+      if(!userName) errors.userName="نام کاربری الزامی است.";
+      if(password.length<8) errors.password="رمز عبور باید حداقل ۸ کاراکتر داشته باشد.";
+      setFieldErrors(errors);
+      if(Object.keys(errors).length){formRef.current?.querySelector<HTMLInputElement>(`[name="${Object.keys(errors)[0]}"]`)?.focus();return;}
+      setReviewName(fullName);
+    }
+    if(wizardStep===1 && selectedRoleIds.length===0){setMessage({type:"error",text:"حداقل یک نقش انتخاب کنید."});return;}
+    if(wizardStep===2 && ((isProvider&&!providerId)||(isNetworkGroupManager&&(!groupNetworkId||!networkGroupId)))){
+      setMessage({type:"error",text:"دسترسی سازمانی و تهیه‌کننده یا گروه برنامه‌ساز را تکمیل کنید."});return;
+    }
+    setMessage(null);
+    setWizardStep(v=>Math.min(v+1,3));
+  }
   const { data: session, isLoading: sessionLoading } = useSession();
 
   const { data: roles, isLoading: rolesLoading } =
@@ -186,6 +212,11 @@ export default function NewUserPage() {
     }
 
     const form = new FormData(event.currentTarget);
+    const fieldErrors:Record<string,string>={};
+    if(!String(form.get("fullName")??"").trim())fieldErrors.fullName="نام و نام خانوادگی الزامی است.";
+    if(!String(form.get("userName")??"").trim())fieldErrors.userName="نام کاربری الزامی است.";
+    if(String(form.get("password")??"").length<8)fieldErrors.password="رمز عبور باید حداقل ۸ کاراکتر داشته باشد.";
+    if(Object.keys(fieldErrors).length){setFieldErrors(fieldErrors);setWizardStep(0);return;}
     const payload = {
       fullName: String(form.get("fullName") ?? "").trim(),
       userName: String(form.get("userName") ?? "").trim(),
@@ -264,7 +295,15 @@ export default function NewUserPage() {
       ) : null}
 
       {session?.isSystemAdmin ? (
-        <form onSubmit={submit} className="grid" style={{ gap: 18 }}>
+        <form ref={formRef} noValidate onSubmit={submit} className="grid" style={{ gap: 18 }}>
+          <nav aria-label="مراحل تعریف کاربر" className="rounded-2xl border border-border bg-card p-4">
+            <ol className="grid grid-cols-2 gap-2 md:grid-cols-4">{steps.map((title,index)=><li key={title}>
+              <button type="button" disabled={index>wizardStep||saving} onClick={()=>setWizardStep(index)} aria-current={wizardStep===index?"step":undefined} className={`flex w-full items-center gap-2 rounded-xl border px-3 py-3 text-right text-xs font-semibold ${wizardStep===index?"border-primary bg-primary/10 text-primary":"border-border text-muted-foreground"}`}>
+                <span className={`grid size-7 shrink-0 place-items-center rounded-full ${index<=wizardStep?"bg-primary text-primary-foreground":"bg-muted text-muted-foreground"}`}>{index<wizardStep?<Check size={15}/>:index+1}</span>{title}
+              </button>
+            </li>)}</ol>
+          </nav>
+          <div className={wizardStep===0?"":"hidden"}>
           <Card>
             <CardHeader>
               <CardTitle>اطلاعات حساب</CardTitle>
@@ -306,7 +345,8 @@ export default function NewUserPage() {
               <div className="form-grid">
                 <label className="field">
                   <span className="label">نام و نام خانوادگی *</span>
-                  <Input name="fullName" required />
+                  <Input name="fullName" required aria-invalid={Boolean(fieldErrors.fullName)} onChange={(event)=>{if(fieldErrors.fullName)setFieldErrors(current=>({...current,fullName:event.target.value.trim()?"":"نام و نام خانوادگی الزامی است."}));}} />
+                  {fieldErrors.fullName?<span role="alert" className="text-xs text-destructive">{fieldErrors.fullName}</span>:null}
                 </label>
                 <label className="field">
                   <span className="label">نام کاربری *</span>
@@ -328,11 +368,14 @@ export default function NewUserPage() {
                     required
                   />
                   <small className="muted">حداقل ۸ کاراکتر</small>
+                   {fieldErrors.password?<span role="alert" className="text-xs text-destructive">{fieldErrors.password}</span>:null}
                 </label>
               </div>
             </CardContent>
           </Card>
+          </div>
 
+          <div className={wizardStep===1?"":"hidden"}>
           <Card>
             <CardHeader>
               <CardTitle>نقش‌های کاربر</CardTitle>
@@ -369,7 +412,9 @@ export default function NewUserPage() {
               </div>
             </CardContent>
           </Card>
+          </div>
 
+          <div className={wizardStep===2?"":"hidden"}>
           {isProvider ? (
             <Card>
               <CardHeader>
@@ -486,6 +531,16 @@ export default function NewUserPage() {
               </CardContent>
             </Card>
           )}
+          </div>
+
+          {wizardStep===3 ? <section className="card">
+            <h2 className="mb-4 text-lg font-bold">بازبینی اطلاعات کاربر</h2>
+            <div className="grid gap-4 text-sm md:grid-cols-2">
+              <div><span className="text-muted-foreground">نام کاربر</span><p className="mt-1 font-semibold">{reviewName}</p></div>
+              <div><span className="text-muted-foreground">تعداد نقش‌ها</span><p className="mt-1 font-semibold">{selectedRoleIds.length.toLocaleString("fa-IR")}</p></div>
+              <div><span className="text-muted-foreground">دسترسی شبکه</span><p className="mt-1 font-semibold">{isProvider?"بر اساس تهیه‌کننده":selectedNetworkIds.length.toLocaleString("fa-IR")+" شبکه"}</p></div>
+            </div>
+          </section> : null}
 
           {message ? (
             <div
@@ -513,13 +568,14 @@ export default function NewUserPage() {
             >
               انصراف
             </Button>
-            <Button
+            <Button type="button" variant="outline" disabled={wizardStep===0||saving} onClick={()=>setWizardStep(v=>Math.max(0,v-1))}><ArrowRight size={16}/>مرحله قبل</Button>
+            {wizardStep<3 ? <Button type="button" onClick={advanceWizard}>مرحله بعد<ArrowLeft size={16}/></Button> : <Button
               type="submit"
               disabled={saving || rolesLoading || networksLoading}
             >
               {saving ? <Loader2 size={17} /> : <Save size={17} />}
               {saving ? "در حال ثبت..." : "ثبت کاربر"}
-            </Button>
+            </Button>}
           </div>
         </form>
       ) : null}
