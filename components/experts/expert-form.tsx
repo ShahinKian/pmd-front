@@ -48,8 +48,8 @@ export default function ExpertForm({ expert, onSaved }: ExpertFormProps) {
   function validateField(name:string,value:string){
     if(!fieldLabels[name])return "";
     if(!value.trim())return `${fieldLabels[name]} الزامی است.`;
-    if(name==="nationalCode" && !/^\\d{10}$/.test(value.trim()))return "کد ملی باید ۱۰ رقم باشد.";
-    if(name==="mobilePhone" && !/^\\d{10,11}$/.test(value.trim()))return "شماره موبایل باید ۱۰ یا ۱۱ رقم باشد.";
+    if(name==="nationalCode" && !/^\d{10}$/.test(value.trim()))return "کد ملی باید ۱۰ رقم باشد.";
+    if(name==="mobilePhone" && !/^\d{10,11}$/.test(value.trim()))return "شماره موبایل باید ۱۰ یا ۱۱ رقم باشد.";
     return "";
   }
   function validateInput(input:HTMLInputElement){if(!input.name)return;setFieldErrors(prev=>({...prev,[input.name]:validateField(input.name,input.value)}));}
