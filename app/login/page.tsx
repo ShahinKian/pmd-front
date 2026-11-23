@@ -151,7 +151,7 @@ export default function LoginPage() {
                 نام کاربری، رمز عبور و کد امنیتی را وارد کنید.
               </div>
 
-              <form onSubmit={submit} noValidate className="mt-7 space-y-5" onBlurCapture={(event) => { const input = event.target as HTMLInputElement; if (input.name && ["userName","password","captcha"].includes(input.name)) { setTouched(current => current.includes(input.name) ? current : [...current, input.name]); updateValidation(input.name, input.value); } }} onInputCapture={(event) => { const input = event.target as HTMLInputElement; if (touched.includes(input.name)) updateValidation(input.name, input.value); }}>
+              <form onSubmit={submit} noValidate className="mt-7 space-y-5" onBlurCapture={(event) => { const input = event.target as unknown as HTMLInputElement; if (input.name && ["userName","password","captcha"].includes(input.name)) { setTouched(current => current.includes(input.name) ? current : [...current, input.name]); updateValidation(input.name, input.value); } }} onInputCapture={(event) => { const input = event.target as unknown as HTMLInputElement; if (touched.includes(input.name)) updateValidation(input.name, input.value); }}>
                 <div>
                   <Label htmlFor="userName" className="mb-2 font-medium text-default-600">
                     نام کاربری
