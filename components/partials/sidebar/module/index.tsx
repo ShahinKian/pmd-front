@@ -1,161 +1,131 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { cn, isLocationMatch, getDynamicPath, translate } from "@/lib/utils";
-import SingleIconMenu from "./single-icon-menu";
-import { usePathname } from "next/navigation";
-import { useSidebar, useThemeStore } from "@/store";
-import MenuItem from "./menu-item";
-import { SiteLogo } from "@/components/svg";
+
 import Link from "next/link";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import LogoutFooter from "./logout-footer";
-import { useMediaQuery } from "@/hooks/use-media-query";
-import MenuOverlayPortal from "./MenuOverlayPortal";
-import { ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { usePathname } from "next/navigation";
+import { ChevronLeft, LogOut, Orbit, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useSidebar } from "@/store";
 import { usePmdMenu } from "@/hooks/use-pmd-menu";
+import { apiClient } from "@/lib/http/client";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
-const ModuleSidebar = ({ trans }: { trans: any }) => {
+const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
   const menus = usePmdMenu();
-  const { subMenu, setSubmenu, collapsed, setCollapsed, sidebarBg } = useSidebar();
-  const { isRtl } = useThemeStore();
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const currentSubMenu = activeIndex !== null ? menus[activeIndex]?.child ?? [] : [];
-  const [menuOverlay, setMenuOverlay] = useState(false);
-  const isDesktop = useMediaQuery("(min-width: 1280px)");
   const pathname = usePathname();
-  const locationName = getDynamicPath(pathname);
+  const router = useRouter();
+  const selectedHref = menus.flatMap((group) => group.child ?? [])
+    .filter((item) => item.href && (pathname === item.href || pathname.startsWith(item.href + "/")))
+    .sort((a, b) => (b.href?.length ?? 0) - (a.href?.length ?? 0))[0]?.href;
+  const { collapsed, setCollapsed, mobileMenu, setMobileMenu } = useSidebar();
 
-  const toggleSubMenu = (index: number) => {
-    setActiveIndex(index);
-    setSubmenu(false);
-    setCollapsed(false);
-    if (!isDesktop) setMenuOverlay(true);
-  };
-
-  useEffect(() => {
-    let matched = false;
-    menus.forEach((item: any, i: number) => {
-      item?.child?.forEach((childItem: any) => {
-        if (childItem.href && isLocationMatch(childItem.href, locationName)) {
-          setActiveIndex(i);
-          setSubmenu(false);
-          setCollapsed(false);
-          setMenuOverlay(false);
-          matched = true;
-        }
-      });
-    });
-    if (!matched && menus.length) {
-      setActiveIndex(0);
-    }
-    if (!isDesktop) setSubmenu(true);
-  }, [locationName, isDesktop, menus.length, setCollapsed, setSubmenu]);
-
-  const getMenuTitle = () => activeIndex !== null ? menus[activeIndex]?.title ?? "" : "";
+  async function logout() {
+    await apiClient.post("/auth/logout");
+    router.replace("/login");
+  }
 
   return (
     <>
-      <div className="main-sidebar pointer-events-none fixed start-0 top-0 z-[60] flex h-full xl:z-10 print:hidden">
-        <div
-          className={cn(
-            "border-default-200 dark:border-default-300 pointer-events-auto relative z-20 flex h-full w-[72px] flex-col border-r border-dashed bg-card transition-all duration-300",
-            {
-              "ltr:-translate-x-full rtl:translate-x-full ltr:xl:translate-x-0 rtl:xl:translate-x-0":
-                !collapsed && subMenu,
-              "translate-x-0": collapsed,
-            },
-          )}
-        >
-          <div className="pt-4">
-            <Link href="/dashboard" prefetch>
-              <SiteLogo className="mx-auto text-primary h-8 w-8" />
-            </Link>
-          </div>
+      {mobileMenu ? (
+        <button
+          type="button"
+          aria-label="بستن منو"
+          className="fixed inset-0 z-40 bg-black/45 xl:hidden"
+          onClick={() => setMobileMenu(false)}
+        />
+      ) : null}
 
-          <ScrollArea className="pt-6 grow">
-            {menus.map((item, i) => (
-              <div key={i} onClick={() => toggleSubMenu(i)} className="mb-3 last:mb-0">
-                <SingleIconMenu
-                  index={i}
-                  activeIndex={activeIndex}
-                  item={item}
-                  locationName={locationName}
-                  trans={trans}
-                />
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-hidden border-l border-[#302956] bg-[#211d3c] text-white shadow-2xl transition-all duration-300 print:hidden",
+          collapsed ? "xl:w-[76px]" : "xl:w-[240px]",
+          mobileMenu ? "w-[240px] translate-x-0" : "w-[240px] translate-x-full xl:translate-x-0",
+        )}
+      >
+        <div className={cn("flex h-[68px] shrink-0 items-center border-b border-white/10 px-3", collapsed ? "xl:justify-center" : "justify-between")}>
+          <Link
+            href="/dashboard"
+            onClick={() => setMobileMenu(false)}
+            className={cn("flex min-w-0 items-center gap-3 rounded-xl px-1", collapsed && "xl:justify-center")}
+          >
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#b8a6ff] text-[#242044]">
+              <Orbit className="size-6" />
+            </span>
+            <span className={cn("min-w-0", collapsed && "xl:hidden")}>
+              <strong className="block truncate text-base font-black">سامانه ثبت عملکرد</strong>
+              <span className="block truncate text-[11px] text-[#aaa7ca]">پنل مدیریت فارسی</span>
+            </span>
+          </Link>
+
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="بستن منو"
+            className="text-white hover:bg-white/10 hover:text-white xl:hidden"
+            onClick={() => setMobileMenu(false)}
+          >
+            <X className="size-5" />
+          </Button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto px-3 py-5 [scrollbar-width:thin] [scrollbar-color:#514775_transparent]" aria-label="منوی اصلی">
+          <div className="grid gap-5">
+            {menus.map((group, groupIndex) => (
+              <div key={group.title + groupIndex}>
+                <div className={cn("mb-2 px-3 text-[11px] font-bold text-[#aaa7ca]", collapsed && "xl:sr-only")}>
+                  {group.title}
+                </div>
+                <div className="grid gap-1">
+                  {(group.child ?? []).map((item) => {
+                    const active = Boolean(item.href && item.href === selectedHref);
+                    const Icon = item.icon;
+                    return item.href ? (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        title={collapsed ? item.title : undefined}
+                        onClick={() => setMobileMenu(false)}
+                        className={cn(
+                          "flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium text-[#d3d1ea] transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-[#b8a6ff]",
+                          collapsed && "xl:justify-center xl:px-0",
+                          active && "bg-[#493b7e] text-white ring-1 ring-[#6956ac]",
+                        )}
+                      >
+                        {Icon ? <Icon className={cn("size-[18px] shrink-0", active && "text-[#d8caff]")} /> : null}
+                        <span className={cn("min-w-0 flex-1 truncate", collapsed && "xl:sr-only")}>{item.title}</span>\n                        {item.badge && !collapsed ? <span className="rounded-full bg-[#6956ac] px-2 py-0.5 text-[10px] text-white">{item.badge}</span> : null}
+                      </Link>
+                    ) : null;
+                  })}
+                </div>
               </div>
             ))}
-          </ScrollArea>
-          <LogoutFooter />
-        </div>
+          </div>
+        </nav>
 
-        <div
-          className={cn(
-            "border-default-200 pointer-events-auto relative z-10 flex flex-col h-full w-[228px] border-r bg-card transition-all duration-300",
-            {
-              "rtl:translate-x-[calc(100%_+_72px)] translate-x-[calc(-100%_-_72px)]":
-                collapsed || subMenu,
-            },
-          )}
-        >
-          {sidebarBg !== "none" && (
-            <div
-              className="absolute left-0 top-0 z-[-1] w-full h-full bg-cover bg-center opacity-[0.07]"
-              style={{ backgroundImage: `url(${sidebarBg})` }}
-            />
-          )}
-
-          <h2 className="text-lg bg-transparent z-50 font-semibold flex gap-4 items-center text-default-700 sticky top-0 py-4 px-4 capitalize">
-            <span className="block">{translate(getMenuTitle(), trans)}</span>
-            {!isDesktop && (
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => {
-                  setCollapsed(true);
-                  setSubmenu(true);
-                  setMenuOverlay(false);
-                }}
-                className="rounded-full h-8 w-8"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </Button>
+        <div className="border-t border-white/10 p-3">
+          <button
+            type="button"
+            onClick={logout}
+            title={collapsed ? "خروج" : undefined}
+            className={cn(
+              "flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-[#d3d1ea] transition-colors hover:bg-white/8 hover:text-white",
+              collapsed && "xl:justify-center xl:px-0",
             )}
-          </h2>
-
-          <ScrollArea className="h-[calc(100%-40px)] grow">
-            <div className="px-4" dir={isRtl ? "rtl" : "ltr"}>
-              <ul>
-                {currentSubMenu?.map((childItem, j) => (
-                  <li key={j} className="mb-1.5 last:mb-0">
-                    <MenuItem
-                      trans={trans}
-                      childItem={childItem}
-                      toggleNested={() => {}}
-                      index={j}
-                      nestedIndex={null}
-                      locationName={locationName}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </ScrollArea>
-
-          <LogoutFooter />
+          >
+            <LogOut className="size-[18px] shrink-0" />
+            <span className={cn(collapsed && "xl:sr-only")}>خروج</span>
+          </button>
         </div>
-      </div>
 
-      {!isDesktop && (
-        <MenuOverlayPortal
-          isOpen={menuOverlay || collapsed}
-          onClose={() => {
-            setMenuOverlay(false);
-            setSubmenu(true);
-            setCollapsed(false);
-          }}
-        />
-      )}
+        <button
+          type="button"
+          aria-label={collapsed ? "باز کردن نوار کناری" : "جمع کردن نوار کناری"}
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute left-2 top-[76px] hidden size-7 place-items-center rounded-full border border-[#4a416c] bg-[#2b254a] text-[#d9d3f5] shadow-md hover:bg-[#3a3262] xl:grid"
+        >
+          <ChevronLeft className={cn("size-4 transition-transform", collapsed && "rotate-180")} />
+        </button>
+      </aside>
     </>
   );
 };
