@@ -56,6 +56,7 @@ export default function ForecastsPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize,setPageSize]=useState(20);
   const [sort, setSort] = useState<{key: "mainTopic" | "episodeNumber" | "broadcastDate" | "userCreatorName" | "status"; direction: "asc" | "desc"}>({key:"broadcastDate",direction:"desc"});
   function toggleSort(key: typeof sort.key) { setSort(current => ({key,direction: current.key===key && current.direction==="asc" ? "desc" : "asc"})); }
 
@@ -66,10 +67,10 @@ export default function ForecastsPage() {
     if (fromDate) params.set("fromDate", `${fromDate}T00:00:00`);
     if (toDate) params.set("toDate", `${toDate}T23:59:59`);
     params.set("pageNumber", String(page));
-    params.set("pageSize", "20");
+    params.set("pageSize", String(pageSize));
     params.set("inboxOnly", "true");
     return "/forecasts?" + params.toString();
-  }, [status, fromDate, toDate, networkId, page]);
+  }, [status, fromDate, toDate, networkId, page, pageSize]);
 
   const { data, error, isLoading, mutate } =
     useSWR<ForecastListPayload>(session && !networkLoading ? query : null, forecastListFetcher);
@@ -176,7 +177,12 @@ export default function ForecastsPage() {
           <span className="muted" style={{ fontSize: 12 }}>
             صفحه {data.pagination.PageNumber} از {data.pagination.TotalPages} — {data.pagination.TotalCount} رکورد
           </span>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">ردیف در صفحه
+              <select className="select !h-9 !min-h-9 !w-20" value={pageSize} onChange={event=>{setPageSize(Number(event.target.value));setPage(1);}}>
+                {[10,20,50,100].map(size=><option key={size} value={size}>{size.toLocaleString("fa-IR")}</option>)}
+              </select>
+            </label>
             <button className="btn btn-outline" disabled={!data.pagination.HasPrevious} onClick={() => setPage((value) => Math.max(1, value - 1))}>قبلی</button>
             <button className="btn btn-outline" disabled={!data.pagination.HasNext} onClick={() => setPage((value) => value + 1)}>بعدی</button>
           </div>
