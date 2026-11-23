@@ -13,7 +13,7 @@ import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell"
 import { NetworkSelect } from "@/components/ui/network-field";
 import { useSession } from "@/hooks/use-session";
 import { certificateAccess } from "@/lib/certificate/access";
-import { amountExceeds, displayDate, displayNumber, parseDeduction, paymentMonths } from "@/lib/certificate/format";
+import { amountExceeds, displayDate, displayMoney, displayNumber, parseDeduction, paymentMonths } from "@/lib/certificate/format";
 import type { Money, PaymentPeriod, PermitDetail, PermitIssuePreparation, PermitSummary, PersonnelPayment } from "@/lib/certificate/types";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 
@@ -189,7 +189,7 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
           <thead><tr><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("planId")}>برنامه<ArrowDownUp size={14} aria-hidden/>{sort.key==="planId"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th>قسمت‌ها</th><th>وضعیت</th><th>ناخالص</th><th>کسورات</th><th>قابل پرداخت</th><th>سند</th></tr></thead>
           <tbody>{visiblePermits?.map((permit) => <tr key={permit.id} className="border-t">
             <td>{planTitle(permit.planId, permit.planName)}</td><td>{displayNumber(permit.episodeCount)}</td><td><span className="table-tag">{statusLabels[permit.status]}</span></td>
-            <td>{displayNumber(permit.grossAmount)}</td><td>{displayNumber(permit.deductionAmount)}</td><td>{displayNumber(permit.netAmount)}</td>
+            <td>{displayMoney(permit.grossAmount)}</td><td>{displayMoney(permit.deductionAmount)}</td><td>{displayMoney(permit.netAmount)}</td>
             <td><button className="btn btn-info" type="button" disabled={Boolean(busy)} aria-pressed={permitId === permit.id}
               onClick={() => { setPermitId(permit.id); setMessage(null); }}><Eye size={15} aria-hidden />مشاهده سند</button></td>
           </tr>)}</tbody>
@@ -199,7 +199,7 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
       {detail.data && <section className="card grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div><h2 className="font-semibold">{planTitle(detail.data.permit.planId, detail.data.permit.planName)}</h2>
-            <p>{statusLabels[detail.data.permit.status]} · قابل پرداخت {displayNumber(detail.data.permit.netAmount)}</p></div>
+            <p>{statusLabels[detail.data.permit.status]} · قابل پرداخت {displayMoney(detail.data.permit.netAmount)}</p></div>
           {access.canApprove && detail.data.permit.status !== "SentToFinance" &&
             <button className={detail.data.permit.status === "Draft" ? "btn btn-success" : "btn btn-primary"} type="button" disabled={Boolean(busy)} onClick={() =>
               transition(detail.data?.permit.status === "Draft" ? "approve" : "send-to-finance")}>
@@ -220,14 +220,14 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
               <td><details>
                 <summary className="cursor-pointer">{payment.personnelName}{payment.isDutyCrew ? " · موظفی" : ""}</summary>
                 <ul className="mt-2 space-y-1">{payment.lines.map((line) => <li key={`${line.episodeNumber}-${line.activityTypeId}`}>
-                  قسمت {displayNumber(line.episodeNumber)} · {line.activityTypeName || displayNumber(line.activityTypeId)} · {displayNumber(line.rate)}
+                  قسمت {displayNumber(line.episodeNumber)} · {line.activityTypeName || displayNumber(line.activityTypeId)} · {displayMoney(line.rate)}
                 </li>)}</ul>
               </details></td>
-              <td>{displayNumber(payment.attendanceCount)}</td><td>{displayNumber(payment.grossAmount)}</td>
+              <td>{displayNumber(payment.attendanceCount)}</td><td>{displayMoney(payment.grossAmount)}</td>
               <td>{payment.isDutyCrew && access.canDeduct && detail.data?.permit.status === "Draft"
                 ? <DeductionForm key={`${detail.data.permit.id}-${payment.deduction}`} payment={payment} busy={Boolean(busy)} save={saveDeduction} />
-                : payment.isDutyCrew ? displayNumber(payment.deduction) : "—"}</td>
-              <td>{displayNumber(payment.netAmount)}</td>
+                : payment.isDutyCrew ? displayMoney(payment.deduction) : "—"}</td>
+              <td>{displayMoney(payment.netAmount)}</td>
             </tr>)}</tbody>
           </table></div>}
       </section>}
@@ -260,11 +260,11 @@ function DeductionForm({ payment, busy, save }: {
       <button className="btn btn-success" disabled={busy}><Save size={15} aria-hidden />ثبت کسورات</button>
     </div>
     {suggested != null && applicable != null && applicable !== payment.deduction && <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs text-default-600">مبلغ تعریف‌شده {displayNumber(suggested)}</span>
+      <span className="text-xs text-default-600">مبلغ تعریف‌شده {displayMoney(suggested)}</span>
       <button className="btn btn-info" type="button" disabled={busy} onClick={() => {
         setValue(applicable); setInvalid(false);
       }}>انتقال به کادر کسورات</button>
-      {applicable !== suggested && <span className="text-xs text-default-600">حداکثر قابل کسر {displayNumber(applicable)}</span>}
+      {applicable !== suggested && <span className="text-xs text-default-600">حداکثر قابل کسر {displayMoney(applicable)}</span>}
     </div>}
     {invalid && <span className="text-sm text-destructive" role="alert">مبلغی بین صفر و ناخالص وارد کنید.</span>}
   </form>;
