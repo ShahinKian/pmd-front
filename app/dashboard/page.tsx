@@ -46,7 +46,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="grid grid-2" style={{marginTop:18}}>
+          <div className="grid grid-2" style={{marginTop:20}}>
             <section className="card">
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
                 <ClipboardCheck size={20}/>
