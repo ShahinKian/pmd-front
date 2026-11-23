@@ -5,7 +5,7 @@ import { useNetworkScope } from "@/hooks/use-network-scope";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Filter, RefreshCcw } from "lucide-react";
+import { ArrowDownUp, Filter, RefreshCcw } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { ProgramReportFilters } from "@/components/reports/program-report-filters";
@@ -40,6 +40,8 @@ export default function ApprovedForecastReportPage() {
   const [fromDate,setFromDate]=useState("");
   const [toDate,setToDate]=useState("");
   const [topic,setTopic]=useState("");
+  const [sort,setSort]=useState<{key:"mainTopic"|"episodeNumber"|"broadcastDate";direction:"asc"|"desc"}>({key:"broadcastDate",direction:"desc"});
+  function toggleSort(key:typeof sort.key){setSort(current=>({key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"}));}
   const { data: session } = useSession();
   const [selectedNetwork,setNetworkId]=useState("");
   const { networkId, loading: networkLoading } = useNetworkScope(session, selectedNetwork);
@@ -58,6 +60,12 @@ export default function ApprovedForecastReportPage() {
   },[fromDate,toDate,topic,networkId,groupId,planId]);
 
   const {data,error,isLoading,mutate}=useSWR<Row[]>(session && !networkLoading ? url : null);
+
+  const sortedRows=useMemo(()=>[...(data??[])].sort((a,b)=>{
+    const av=a[sort.key],bv=b[sort.key];
+    const result=typeof av==="number"&&typeof bv==="number"?av-bv:String(av??"").localeCompare(String(bv??""),"fa",{numeric:true});
+    return sort.direction==="asc"?result:-result;
+  }),[data,sort]);
 
   function reset(){
     setFromDate("");setToDate("");setTopic("");setNetworkId("");setGroupId("");setPlanId("");
@@ -91,11 +99,11 @@ export default function ApprovedForecastReportPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-right text-sm">
           <thead className="bg-default-50"><tr>
-            <th className="p-3">موضوع</th><th className="p-3">برنامه</th><th className="p-3">گروه</th>
-            <th className="p-3">قسمت</th><th className="p-3">تاریخ پخش</th><th className="p-3">وضعیت</th>
+            <th className="p-3"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("mainTopic")}>موضوع<ArrowDownUp size={14} aria-hidden/>{sort.key==="mainTopic"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th className="p-3">برنامه</th><th className="p-3">گروه</th>
+            <th className="p-3"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("episodeNumber")}>قسمت<ArrowDownUp size={14} aria-hidden/>{sort.key==="episodeNumber"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th className="p-3"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("broadcastDate")}>تاریخ پخش<ArrowDownUp size={14} aria-hidden/>{sort.key==="broadcastDate"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th className="p-3">وضعیت</th>
           </tr></thead>
           <tbody className="divide-y divide-default-100">
-            {(data??[]).map(row=><tr key={row.id}>
+            {sortedRows.map(row=><tr key={row.id}>
               <td className="p-3 font-semibold"><Link className="underline" href={`/forecasts/${row.id}`}>{row.mainTopic || "مشاهده پیش‌بینی"}</Link></td>
               <td className="p-3"><ProgramName row={row}/></td>
               <td className="p-3"><GroupName row={row}/></td>
