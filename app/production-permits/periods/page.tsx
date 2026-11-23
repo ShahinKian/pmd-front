@@ -76,8 +76,8 @@ export default function PaymentPeriodsPage() {
       </section>}
       <section className="card">
         {periods.data?.length === 0 && <p>هنوز دوره‌ای ثبت نشده است.</p>}
-        {Boolean(periods.data?.length) && <div className="overflow-x-auto">
-          <table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
+        {Boolean(periods.data?.length) && <div className="table-scroll">
+          <table className="data-table">
             <thead><tr><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("period")}>ماه پرداخت<ArrowDownUp size={14} aria-hidden/>{sort.key==="period"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("fromDate")}>از تاریخ<ArrowDownUp size={14} aria-hidden/>{sort.key==="fromDate"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("toDate")}>تا تاریخ<ArrowDownUp size={14} aria-hidden/>{sort.key==="toDate"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th>دامنه</th><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("isActive")}>وضعیت<ArrowDownUp size={14} aria-hidden/>{sort.key==="isActive"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th>عملیات</th></tr></thead>
             <tbody>{sortedPeriods.map((period) => <tr key={period.id} className="border-t">
               <td>{paymentMonths[period.paymentMonth - 1]} {displayNumber(period.paymentYear)}</td>
@@ -86,7 +86,7 @@ export default function PaymentPeriodsPage() {
               <td><span className="table-tag">{period.isActive ? "فعال" : "غیرفعال"}</span></td>
               <td><div className="flex flex-wrap items-center gap-2">
                 {period.hasIssuance ? <span>مجوز صادر شده</span> :
-                  <button type="button" className="btn btn-info" disabled={busy || Boolean(editing)}
+                  <button type="button" className="btn btn-outline" disabled={busy || Boolean(editing)}
                     onClick={() => { setEditing(period); setNotice(null); }}><Pencil size={15} aria-hidden />ویرایش</button>}
                 <button type="button" className={period.isActive ? "btn btn-warning" : "btn btn-success"} disabled={busy || Boolean(editing)}
                   onClick={() => void changeState(period)}><Power size={15} aria-hidden />{period.isActive ? "غیرفعال کردن" : "فعال کردن"}</button>
