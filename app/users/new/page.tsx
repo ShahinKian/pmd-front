@@ -537,8 +537,8 @@ export default function NewUserPage() {
             <h2 className="mb-4 text-lg font-bold">بازبینی اطلاعات کاربر</h2>
             <div className="grid gap-4 text-sm md:grid-cols-2">
               <div><span className="text-muted-foreground">نام کاربر</span><p className="mt-1 font-semibold">{reviewName}</p></div>
-              <div><span className="text-muted-foreground">تعداد نقش‌ها</span><p className="mt-1 font-semibold">{selectedRoleIds.length.toLocaleString("fa-IR")}</p></div>
-              <div><span className="text-muted-foreground">دسترسی شبکه</span><p className="mt-1 font-semibold">{isProvider?"بر اساس تهیه‌کننده":selectedNetworkIds.length.toLocaleString("fa-IR")+" شبکه"}</p></div>
+              <div><span className="text-muted-foreground">تعداد نقش‌ها</span><p className="mt-1 font-semibold">{selectedRoleIds.length.toLocaleString("fa-IR", { useGrouping: false })}</p></div>
+              <div><span className="text-muted-foreground">دسترسی شبکه</span><p className="mt-1 font-semibold">{isProvider?"بر اساس تهیه‌کننده":selectedNetworkIds.length.toLocaleString("fa-IR", { useGrouping: false })+" شبکه"}</p></div>
             </div>
           </section> : null}
 
