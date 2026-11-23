@@ -916,3 +916,88 @@ html.dark body { background: #161623; }
   .dash-tail-app .form-section-head,.dash-tail-app .form-section-body { padding-inline: 1rem; }
   .dash-tail-app .page-head { align-items: flex-start; }
 }
+
+
+/* Glass radio login — responsive and contrast-safe */
+.radio-login {
+  background: radial-gradient(ellipse at 80% 10%, #e3d7ff 0, transparent 40%),
+    radial-gradient(ellipse at 10% 90%, #d1e9f8 0, transparent 42%),
+    linear-gradient(135deg, #f2edfc, #eef1fa 52%, #e8eafb);
+}
+.radio-login-grid {
+  background-image: linear-gradient(#7763b00b 1px, transparent 1px),
+    linear-gradient(90deg, #7763b00b 1px, transparent 1px);
+  background-size: 36px 36px;
+}
+.radio-login-shell {
+  background: color-mix(in srgb, #ffffff 58%, transparent);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  backdrop-filter: blur(22px) saturate(1.5);
+}
+.radio-login-intro {
+  background: linear-gradient(148deg, #211d3c 0%, #372865 52%, #473885 100%);
+}
+.radio-login-intro::before {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 55% 42%, #b7a3ff35 0, transparent 58%);
+  pointer-events: none;
+}
+.radio-login-form { background: color-mix(in srgb, #ffffff 83%, transparent); }
+.radio-login-form .field-input,
+.radio-login-form .input { background: #ffffffec; }
+.radio-art-orbit { box-shadow: 0 0 38px #b8a6ff16; }
+.radio-art-pulse { animation: radio-signal 4.5s ease-in-out infinite; }
+.radio-art-bar { transform-origin: center; animation: radio-wave 1.6s ease-in-out infinite; }
+@keyframes radio-wave { 0%,100% { transform: scaleY(.5); opacity: .7; } 50% { transform: scaleY(1.15); opacity: 1; } }
+@keyframes radio-signal { 0%,100% { transform: scale(.93); opacity: .4; } 50% { transform: scale(1.07); opacity: .85; } }
+.dark .radio-login {
+  background: radial-gradient(ellipse at 80% 10%, #453369 0, transparent 44%),
+    radial-gradient(ellipse at 8% 88%, #172e51 0, transparent 45%), #111320;
+}
+.dark .radio-login-shell { background: #252138b8; }
+.dark .radio-login-form { background: #211f35db; }
+.dark .radio-login-form .field-input,
+.dark .radio-login-form .input { background: #25253d; }
+@media (max-width: 1023px) {
+  .radio-login { padding-block: 1rem; }
+  .radio-login-shell { max-width: 31rem; }
+  .radio-login-form { min-height: auto; }
+}
+@media (max-width: 480px) {
+  .radio-login-shell { border-radius: 1.5rem; }
+  .radio-login-form { padding: 1.4rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .radio-art-pulse, .radio-art-bar { animation: none !important; }
+}
+
+/* Consistent mobile form layout across all existing PMD modules */
+.dash-tail-app :is(.form-grid,.grid-2,.grid-3) { min-width: 0; }
+.dash-tail-app :is(.form-grid,.grid-2,.grid-3) > * { min-width: 0; }
+.dash-tail-app :is(.card,.form-section,.panel) :is(input,textarea,select) { max-width: 100%; }
+.dash-tail-app :is(.card,.form-section,.panel) .rmdp-container { max-width: 100%; }
+.dash-tail-app :is(.card,.form-section,.panel) .field { min-width: 0; }
+@media (max-width: 767px) {
+  .dash-tail-app .form-grid,
+  .dash-tail-app .grid-2,
+  .dash-tail-app .grid-3 { grid-template-columns: minmax(0, 1fr); }
+  .dash-tail-app .form-grid > [class*="col-span"],
+  .dash-tail-app .form-grid > .full { grid-column: auto; }
+  .dash-tail-app .form-section-body { padding: 1rem; }
+  .dash-tail-app .form-section-head { padding-inline: 1rem; }
+  .dash-tail-app .page-head { flex-direction: column; align-items: stretch; }
+  .dash-tail-app .page-head > .flex { flex-wrap: wrap; }
+  .dash-tail-app .page-head .btn { min-height: 2.75rem; }
+  .dash-tail-app .pmd-wizard-nav { position: relative; top: auto; overflow: visible; }
+  .dash-tail-app .pmd-wizard-nav button { min-width: 0; justify-content: flex-start; text-wrap: wrap; }
+  .dash-tail-app .pmd-wizard-nav ol > li { min-width: 0; }
+  .dash-tail-app .pmd-table-scroll, .dash-tail-app .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .dash-tail-app .role-grid { grid-template-columns: minmax(0, 1fr); }
+  .dash-tail-app .image-picker { flex-wrap: wrap; }
+  .dash-tail-app .image-picker-actions { min-width: 0; }
+}
+@media (max-width: 400px) {
+  .dash-tail-app .pmd-wizard-nav { padding: .65rem; }
+  .dash-tail-app .pmd-wizard-nav button { padding: .5rem; font-size: .7rem; }
+  .dash-tail-app .form-section-body { padding: .85rem; }
+}
