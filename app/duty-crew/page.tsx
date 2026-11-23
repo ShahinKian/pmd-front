@@ -12,7 +12,7 @@ import { useNetworkScope } from "@/hooks/use-network-scope";
 import { useSession } from "@/hooks/use-session";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
 import { certificateAccess } from "@/lib/certificate/access";
-import { displayNumber, parseDeduction } from "@/lib/certificate/format";
+import { displayMoney, displayNumber, parseDeduction } from "@/lib/certificate/format";
 import type { DutyCrewMember, Money } from "@/lib/certificate/types";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 
@@ -143,7 +143,7 @@ export default function DutyCrewPage() {
           <tbody>{crew.map((member) => <tr key={member.personnelId}>
             <td className="font-medium">{member.personnelName}</td>
             <td className="tabular-nums">{displayNumber(member.personnelId)}</td>
-            <td className="whitespace-nowrap tabular-nums">{member.defaultDeduction == null ? "تعیین نشده" : displayNumber(member.defaultDeduction)}</td>
+            <td className="whitespace-nowrap tabular-nums">{member.defaultDeduction == null ? "تعیین نشده" : displayMoney(member.defaultDeduction)}</td>
             <td>{editing?.id === member.personnelId
               ? <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => saveAmount(event, member, editing.value)}>
                 <GroupedNumberInput className="max-w-40" decimalPlaces={2} min={0} aria-label={`مبلغ موظفی ${member.personnelName}`} disabled={busy}
