@@ -7,7 +7,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
-import { Plus, Search, UsersRound } from "lucide-react";
+import { ArrowDownUp, Plus, Search, UsersRound } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,8 @@ export default function ExpertsPage() {
   const networkScope = useNetworkScope(session, selectedNetwork?.toString());
   const networkId = toPositiveInt(networkScope.networkId);
   const [activeFilter, setActiveFilter] = useState<"" | "true" | "false">("");
+  const [sort,setSort] = useState<{key:"name"|"specialty"|"education"|"isActive";direction:"asc"|"desc"}>({key:"name",direction:"asc"});
+  function toggleSort(key:typeof sort.key){setSort(current=>({key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"}));}
 
   const query = new URLSearchParams();
   if (searchTerm.trim()) query.set("searchTerm", searchTerm.trim());
@@ -45,6 +47,13 @@ export default function ExpertsPage() {
         .filter((item): item is { id: number; label: string } => item.id !== null),
     [networks],
   );
+
+  const sortedExperts=useMemo(()=>[...(data??[])].sort((a,b)=>{
+    const value=(e:ExpertResponse)=>sort.key==="name"?`${e.firstName} ${e.lastName}`:sort.key==="isActive"?Number(e.isActive):String(e[sort.key]??"");
+    const va=value(a),vb=value(b);
+    const result=typeof va==="number"&&typeof vb==="number"?va-vb:String(va).localeCompare(String(vb),"fa",{numeric:true});
+    return sort.direction==="asc"?result:-result;
+  }),[data,sort]);
 
   const networkName = (id: number) =>
     networkOptions.find((item) => item.id === id)?.label ?? `شبکه ${id}`;
@@ -95,16 +104,16 @@ export default function ExpertsPage() {
         <table className="w-full text-sm">
           <thead className="bg-default-50">
             <tr>
-              <th className="px-4 py-3 text-right">کارشناس</th>
-              <th className="px-4 py-3 text-right">تخصص</th>
-              <th className="px-4 py-3 text-right">تحصیلات</th>
+              <th className="px-4 py-3 text-right"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("name")}>کارشناس<ArrowDownUp size={14} aria-hidden/>{sort.key==="name"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
+              <th className="px-4 py-3 text-right"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("specialty")}>تخصص<ArrowDownUp size={14} aria-hidden/>{sort.key==="specialty"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
+              <th className="px-4 py-3 text-right"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("education")}>تحصیلات<ArrowDownUp size={14} aria-hidden/>{sort.key==="education"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
               <th className="px-4 py-3 text-right">شبکه‌ها</th>
               <th className="px-4 py-3 text-right">تماس</th>
-              <th className="px-4 py-3 text-right">وضعیت</th>
+              <th className="px-4 py-3 text-right"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("isActive")}>وضعیت<ArrowDownUp size={14} aria-hidden/>{sort.key==="isActive"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
             </tr>
           </thead>
           <tbody>
-            {(data ?? []).map((expert) => (
+            {sortedExperts.map((expert) => (
               <tr key={expert.id} className="border-t hover:bg-default-50">
                 <td className="px-4 py-3">
                   <Link href={`/experts/${expert.id}`} className="font-medium text-primary">
