@@ -5,7 +5,7 @@ import { InputColor, InputVariant, Radius, Shadow } from "@/lib/type";
 
 //py-[10px]
 export const inputVariants = cva(
-  " w-full   bg-background  border-default-300   px-3 h-9   text-sm  file:border-0 file:bg-transparent file:text-sm file:font-medium  read-only:leading-9 read-only:bg-background  disabled:cursor-not-allowed disabled:opacity-50  transition duration-300 ",
+  " w-full rounded-xl bg-card border-default-300 px-3 h-11 text-sm  file:border-0 file:bg-transparent file:text-sm file:font-medium  read-only:leading-9 read-only:bg-background  disabled:cursor-not-allowed disabled:opacity-50  transition duration-300 ",
   {
     variants: {
       color: {
