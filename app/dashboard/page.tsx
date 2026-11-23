@@ -1,16 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import useSWR from "swr";
 import {
-  BadgeCheck,
-  ChartNoAxesColumnIncreasing,
-  ClipboardCheck,
-  FileCheck2,
-  Files,
-  Hourglass,
-  Network,
-  ShieldCheck,
-  UserRound,
+  ArrowLeft, BadgeCheck, ChartNoAxesColumnIncreasing, CircleDot, ClipboardCheck,
+  FileCheck2, Files, Hourglass, Network, Plus, ShieldCheck, UserRound,
 } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
@@ -25,160 +19,115 @@ interface DashboardSummary {
   pendingProfiles: number;
 }
 
+const persian = (value: number) => value.toLocaleString("fa-IR");
+
 export default function DashboardPage() {
   const { data: session, error, isLoading } = useSession();
-  const {
-    data: summary,
-    error: summaryError,
-    isLoading: summaryLoading,
-  } = useSWR<DashboardSummary>(session ? "/reports/dashboard-summary" : null);
-
+  const { data: summary, error: summaryError, isLoading: summaryLoading } =
+    useSWR<DashboardSummary>(session ? "/reports/dashboard-summary" : null);
   const isProvider = session?.user.roles.includes("Providers") ?? false;
   const { data: providerPlans } = useSWR<EnrichedProviderPlan[]>(
-    isProvider ? "/plan-providers/my/plans/enriched" : null,
+    isProvider ? "/plan-providers/my/plans/enriched" : null
   );
-
-  const assignedNetworkCount = isProvider
-    ? new Set(
-        (providerPlans ?? [])
-          .map(plan => plan.networkId)
-          .filter((id): id is number => typeof id === "number" && id > 0),
-      ).size
+  const networkCount = isProvider
+    ? new Set((providerPlans ?? []).map(plan => plan.networkId).filter(id => typeof id === "number" && id > 0)).size
     : (session?.user.networkIds.length ?? 0);
 
-  const cards = summary ? [
-    {
-      label: "کل پیش‌بینی‌ها",
-      value: summary.totalForecasts,
-      detail: `${summary.pendingForecasts} مورد در جریان بررسی`,
-      icon: ChartNoAxesColumnIncreasing,
-      className: "from-sky-50 to-blue-50 border-sky-100 text-sky-800",
-      iconClass: "bg-sky-100 text-sky-700",
-    },
-    {
-      label: "پیش‌بینی‌های تاییدشده",
-      value: summary.approvedForecasts,
-      detail: "تایید نهایی فرآیند پیش‌بینی",
-      icon: BadgeCheck,
-      className: "from-emerald-50 to-green-50 border-emerald-100 text-emerald-800",
-      iconClass: "bg-emerald-100 text-emerald-700",
-    },
-    {
-      label: "کل شناسنامه‌ها",
-      value: summary.totalProfiles,
-      detail: `${summary.pendingProfiles} مورد در گردش تایید`,
-      icon: Files,
-      className: "from-violet-50 to-purple-50 border-violet-100 text-violet-800",
-      iconClass: "bg-violet-100 text-violet-700",
-    },
-    {
-      label: "شناسنامه‌های تایید نهایی",
-      value: summary.approvedProfiles,
-      detail: "شناسنامه‌های تکمیل‌شده",
-      icon: FileCheck2,
-      className: "from-amber-50 to-orange-50 border-amber-100 text-amber-800",
-      iconClass: "bg-amber-100 text-amber-700",
-    },
+  const metrics = summary ? [
+    { title: "کل پیش‌بینی‌ها", value: summary.totalForecasts, detail: persian(summary.pendingForecasts) + " در انتظار بررسی", icon: ChartNoAxesColumnIncreasing, tone: "bg-[#eee9ff] text-[#5845ae] dark:bg-[#30264d] dark:text-[#d4c6ff]", href: "/forecasts" },
+    { title: "پیش‌بینی‌های تأییدشده", value: summary.approvedForecasts, detail: "تأیید نهایی", icon: BadgeCheck, tone: "bg-[#e2f5ee] text-[#187258] dark:bg-[#224238] dark:text-[#9ce7cb]", href: "/reports/approved-forecasts" },
+    { title: "کل شناسنامه‌ها", value: summary.totalProfiles, detail: persian(summary.pendingProfiles) + " در گردش تأیید", icon: Files, tone: "bg-[#fceee7] text-[#a54c30] dark:bg-[#4c302b] dark:text-[#ffbca5]", href: "/program-profiles" },
+    { title: "شناسنامه‌های نهایی", value: summary.approvedProfiles, detail: "تکمیل‌شده", icon: FileCheck2, tone: "bg-[#e7effe] text-[#385a9e] dark:bg-[#283653] dark:text-[#adcbff]", href: "/reports/approved-profiles" },
   ] : [];
 
   return (
     <DashboardShell>
-      <Breadcrumb items={[{ label: "داشبورد" }]} />
-      <div className="page-head">
-        <div>
-          <h1 className="page-title">داشبورد</h1>
-          <p className="page-description">
-            نمای کلی سامانه ثبت عملکرد متناسب با سطح دسترسی شما
-          </p>
+      <div className="grid gap-5">
+        <Breadcrumb items={[{ label: "داشبورد" }]} />
+        <div className="page-head">
+          <div>
+            <h1 className="page-title">نمای کلی عملکرد</h1>
+            <p className="page-description">وضعیت برنامه‌ها و گردش‌کارها، متناسب با دسترسی شما</p>
+          </div>
+          {isProvider ? (
+            <Link href="/forecasts/new" className="btn btn-primary"><Plus size={16}/>ثبت پیش‌بینی جدید</Link>
+          ) : null}
         </div>
-      </div>
 
-      {error ? <div className="alert alert-error">دریافت اطلاعات کاربر انجام نشد.</div> : null}
-      {isLoading ? <div className="card">در حال بارگذاری اطلاعات...</div> : null}
+        {error ? <div role="alert" className="alert alert-error">دریافت اطلاعات کاربر انجام نشد.</div> : null}
+        {isLoading ? <div className="panel animate-pulse p-6">در حال بارگذاری اطلاعات...</div> : null}
 
-      {session ? (
-        <>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="card stat-card shadow-sm">
-              <div className="stat-icon"><UserRound size={22}/></div>
-              <div>
-                <div className="stat-label">کاربر جاری</div>
-                <div className="stat-value">{session.user.fullName || session.user.userName}</div>
-              </div>
-            </div>
-            <div className="card stat-card shadow-sm">
-              <div className="stat-icon"><ShieldCheck size={22}/></div>
-              <div>
-                <div className="stat-label">سطح دسترسی</div>
-                <div className="stat-value" style={{fontSize:15}}>
-                  {session.roleLabels.join("، ") || "کاربر"}
-                </div>
-              </div>
-            </div>
-            <div className="card stat-card shadow-sm">
-              <div className="stat-icon"><Network size={22}/></div>
-              <div>
-                <div className="stat-label">{isProvider ? "شبکه‌های دارای برنامه" : "شبکه‌های تخصیص‌یافته"}</div>
-                <div className="stat-value">{assignedNetworkCount}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 flex items-center gap-2">
-            <ClipboardCheck size={20}/>
-            <h2 className="text-lg font-semibold">نمای کلی عملکرد</h2>
-          </div>
-
-          {summaryLoading ? (
-            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {[0,1,2,3].map(x=><div key={x} className="h-36 animate-pulse rounded-2xl border bg-default-50 shadow-sm"/>)}
-            </div>
-          ) : null}
-
-          {summaryError ? (
-            <div className="alert alert-error mt-3">دریافت آمار داشبورد انجام نشد.</div>
-          ) : null}
-
-          {summary ? (
-            <div className="mt-3 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {cards.map(card => {
-                const Icon=card.icon;
-                return (
-                  <article
-                    key={card.label}
-                    className={`rounded-2xl border bg-gradient-to-br p-5 shadow-lg shadow-black/5 ${card.className}`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-medium opacity-80">{card.label}</div>
-                        <div className="mt-3 text-4xl font-black tabular-nums">{card.value.toLocaleString("fa-IR")}</div>
-                      </div>
-                      <div className={`rounded-xl p-3 shadow-sm ${card.iconClass}`}><Icon size={24}/></div>
-                    </div>
-                    <div className="mt-5 flex items-center gap-2 text-xs opacity-75">
-                      <Hourglass size={14}/>{card.detail}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : null}
-
-          {session.isSystemAdmin ? (
-            <section className="card mt-5 shadow-sm">
-              <div className="flex items-center gap-3">
-                <ShieldCheck size={20}/>
-                <div>
-                  <strong>مدیریت سامانه</strong>
-                  <p className="muted mt-1 mb-0">
-                    آمار بالا بر اساس سطح دسترسی و داده واقعی پیش‌بینی‌ها و شناسنامه‌ها محاسبه شده است.
-                  </p>
-                </div>
+        {session ? (
+          <>
+            <section className="hero-reference relative isolate overflow-hidden rounded-2xl bg-linear-to-l from-[#2f2557] via-[#3b2b72] to-[#493784] px-5 py-6 text-white sm:px-7 sm:py-8">
+              <div className="hero-orbits pointer-events-none absolute inset-y-[-80%] end-0 -z-10 hidden w-[48%] -rotate-18 opacity-85 sm:block" aria-hidden="true"/>
+              <div className="relative grid max-w-2xl gap-2">
+                <span className="flex items-center gap-2 text-xs font-medium text-[#d9cfff]">
+                  <CircleDot className="size-3.5 text-[#ffb59e]"/>سامانه ثبت عملکرد
+                </span>
+                <h2 className="text-xl font-extrabold sm:text-2xl">خوش آمدید، {session.user.fullName || session.user.userName}</h2>
+                <p className="text-sm leading-7 text-[#ded6f7]">پیش‌بینی برنامه، شناسنامه عملکرد و وضعیت تأییدها را در یک فضای کاری مدیریت کنید.</p>
+                <Link href="/forecasts" className="mt-2 inline-flex w-fit items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-bold text-[#332762] transition-colors hover:bg-[#e9e0ff]">
+                  مشاهده پیش‌بینی‌ها <ArrowLeft size={16}/>
+                </Link>
               </div>
             </section>
-          ) : null}
-        </>
-      ) : null}
+
+            {summaryLoading ? (
+              <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label="بارگذاری شاخص‌ها">
+                {[0,1,2,3].map(i => <div key={i} className="panel h-32 animate-pulse bg-muted"/>)}
+              </section>
+            ) : null}
+            {summaryError ? <div role="alert" className="alert alert-error">دریافت آمار داشبورد انجام نشد.</div> : null}
+            {summary ? (
+              <section aria-label="شاخص‌های عملکرد" className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                {metrics.map(metric => {
+                  const Icon = metric.icon;
+                  return (
+                    <Link href={metric.href} key={metric.title} className="panel grid min-w-0 gap-2 p-3.5 transition-shadow hover:shadow-md sm:p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className={`grid size-9 place-items-center rounded-xl ${metric.tone}`}><Icon className="size-[18px]"/></span>
+                        <span className="text-[.64rem] font-semibold text-muted-foreground">{metric.detail}</span>
+                      </div>
+                      <strong className="text-2xl leading-tight font-black tabular-nums">{persian(metric.value)}</strong>
+                      <span className="text-xs font-medium text-muted-foreground">{metric.title}</span>
+                    </Link>
+                  );
+                })}
+              </section>
+            ) : null}
+
+            <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+              <section className="panel min-w-0">
+                <div className="border-b border-border px-5 py-4"><h2 className="text-base font-extrabold">دسترسی‌های سریع</h2></div>
+                <div className="grid gap-2 p-4 sm:grid-cols-2">
+                  {[
+                    { href: "/forecasts", title: "پیش‌بینی برنامه", icon: ClipboardCheck },
+                    { href: "/program-profiles", title: "شناسنامه برنامه", icon: Files },
+                    { href: "/reports/approved-forecasts", title: "گزارش پیش‌بینی‌های تأییدشده", icon: BadgeCheck },
+                    { href: "/reports/program-profiles", title: "گزارش شناسنامه‌ها", icon: FileCheck2 },
+                  ].map(link => {
+                    const Icon=link.icon;
+                    return <Link key={link.href} href={link.href} className="flex items-center gap-3 rounded-xl border border-border p-4 text-sm font-bold hover:border-primary/40 hover:bg-muted">
+                      <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary"><Icon size={18}/></span>
+                      <span className="flex-1">{link.title}</span><ArrowLeft size={15} className="text-muted-foreground"/>
+                    </Link>;
+                  })}
+                </div>
+              </section>
+              <section className="panel min-w-0">
+                <div className="border-b border-border px-5 py-4"><h2 className="text-base font-extrabold">حساب و دسترسی</h2></div>
+                <div className="grid gap-4 px-5 py-5 text-sm">
+                  <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><UserRound size={20}/></span><div><span className="block text-xs text-muted-foreground">کاربر جاری</span><strong>{session.user.fullName || session.user.userName}</strong></div></div>
+                  <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><ShieldCheck size={20}/></span><div><span className="block text-xs text-muted-foreground">نقش‌ها</span><strong>{session.roleLabels.join("، ") || "کاربر"}</strong></div></div>
+                  <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><Network size={20}/></span><div><span className="block text-xs text-muted-foreground">{isProvider ? "شبکه‌های دارای برنامه" : "شبکه‌های تخصیص‌یافته"}</span><strong>{persian(networkCount)}</strong></div></div>
+                  {summary ? <div className="flex items-center gap-2 border-t border-border pt-4 text-xs text-muted-foreground"><Hourglass size={14}/>داده‌ها از گزارش واقعی سامانه دریافت می‌شوند.</div> : null}
+                </div>
+              </section>
+            </div>
+          </>
+        ) : null}
+      </div>
     </DashboardShell>
   );
 }
