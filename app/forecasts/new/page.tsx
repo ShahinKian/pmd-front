@@ -5,7 +5,7 @@ import { NetworkSelect } from "@/components/ui/network-field";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormEvent, useMemo, useState } from "react";
 import useSWR from "swr";
-import { Loader2, Save, CalendarDays, Layers3, UserRoundSearch } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Save, CalendarDays, Layers3, UserRoundSearch } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
@@ -49,6 +49,17 @@ export default function NewForecastPage() {
   const [topicAxes, setTopicAxes] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [wizardStep, setWizardStep] = useState(0);
+  const [mainTopic, setMainTopic] = useState("");
+  const wizardTitles = ["اطلاعات برنامه", "محورهای موضوعی", "کارشناس", "بازبینی و ثبت"];
+  function nextWizardStep() {
+    if (wizardStep === 0 && (!networkId || !networkGroupId || !planId || !broadcastDate || !mainTopic.trim() || !episode || Boolean(episodeError))) {
+      setMessage("شبکه، گروه، برنامه، موضوع اصلی، تاریخ پخش و شماره قسمت را تکمیل کنید.");
+      return;
+    }
+    setMessage("");
+    setWizardStep(current => Math.min(current + 1, 3));
+  }
 
   const { data: groups } = useSWR<BaseInfoListResponse>(
     networkId ? `/base-info/network-groups/${networkId}` : null,
@@ -155,8 +166,21 @@ export default function NewForecastPage() {
         </div>
       </div>
 
-      <form className="grid" style={{ gap: 18 }} onSubmit={submit}>
-        <section className="form-section">
+      <form noValidate className="grid" style={{ gap: 18 }} onSubmit={submit}>
+        <nav aria-label="مراحل ثبت پیش‌بینی" className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <ol className="grid grid-cols-2 gap-3 md:grid-cols-4">{wizardTitles.map((title,index) => (
+            <li key={title}>
+              <button type="button" disabled={index > wizardStep || saving} onClick={() => setWizardStep(index)}
+                aria-current={wizardStep===index ? "step" : undefined}
+                className={`flex w-full items-center gap-2 rounded-xl border px-3 py-3 text-right text-xs font-semibold ${wizardStep===index ? "border-primary bg-primary/10 text-primary" : index<wizardStep ? "border-border bg-muted text-foreground" : "border-border text-muted-foreground"}`}>
+                <span className={`grid size-7 shrink-0 place-items-center rounded-full ${index<=wizardStep ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                  {index<wizardStep ? <Check size={15} /> : index + 1}
+                </span>{title}
+              </button>
+            </li>
+          ))}</ol>
+        </nav>
+        <section className={`form-section ${wizardStep===0 ? "" : "hidden"}`}>
           <div className="form-section-head">
             <div>
               <strong>اطلاعات برنامه</strong>
@@ -248,13 +272,13 @@ export default function NewForecastPage() {
 
               <label className="field">
                 <span className="label">موضوع اصلی *</span>
-                <input className="input" name="mainTopic" required />
+                <input className="input" name="mainTopic" value={mainTopic} onChange={event => setMainTopic(event.target.value)} aria-invalid={wizardStep===0 && Boolean(message) && !mainTopic.trim()} required />
               </label>
             </div>
           </div>
         </section>
 
-        <section className="form-section">
+        <section className={`form-section ${wizardStep===1 ? "" : "hidden"}`}>
           <div className="form-section-head">
             <div>
               <strong>محورهای موضوعی</strong>
@@ -267,7 +291,7 @@ export default function NewForecastPage() {
           </div>
         </section>
 
-        <section className="form-section">
+        <section className={`form-section ${wizardStep===2 ? "" : "hidden"}`}>
           <div className="form-section-head">
             <div>
               <strong>کارشناس برنامه</strong>
@@ -304,13 +328,25 @@ export default function NewForecastPage() {
           </div>
         </section>
 
-        {message ? <div className="alert alert-error">{message}</div> : null}
+        {wizardStep===3 ? (
+          <section className="form-section">
+            <div className="form-section-head"><strong>بازبینی اطلاعات پیش‌بینی</strong></div>
+            <div className="form-section-body grid gap-4 text-sm sm:grid-cols-2">
+              <div><span className="text-muted-foreground">برنامه</span><p className="mt-1 font-bold">{selectedPlan?.title ?? planOptions.find(x => x.id===planId)?.label ?? "—"}</p></div>
+              <div><span className="text-muted-foreground">تاریخ پخش</span><p className="mt-1 font-bold">{broadcastDate || "—"}</p></div>
+              <div><span className="text-muted-foreground">موضوع</span><p className="mt-1 font-bold">{mainTopic}</p></div>
+              <div><span className="text-muted-foreground">کارشناس</span><p className="mt-1 font-bold">{hasExpert ? selectedExpertIds.length + " نفر" : "ندارد"}</p></div>
+            </div>
+          </section>
+        ) : null}
+        {message ? <div role="alert" className="alert alert-error">{message}</div> : null}
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button className="btn btn-primary" disabled={saving || !session || !planId || episodeLoading || !episode || Boolean(episodeError)}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button type="button" className="btn btn-outline" disabled={wizardStep===0 || saving} onClick={() => setWizardStep(current=>Math.max(0,current-1))}><ArrowRight size={16}/>مرحله قبل</button>
+          {wizardStep < 3 ? <button type="button" className="btn btn-primary" onClick={nextWizardStep}>مرحله بعد<ArrowLeft size={16}/></button> : <button type="submit" className="btn btn-primary" disabled={saving || !session || !planId || episodeLoading || !episode || Boolean(episodeError)}>
             {saving ? <Loader2 size={17} /> : <Save size={17} />}
             {saving ? "در حال ثبت..." : "ثبت پیش‌بینی"}
-          </button>
+          </button>}
         </div>
       </form>
     </DashboardShell>
