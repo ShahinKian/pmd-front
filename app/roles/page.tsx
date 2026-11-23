@@ -116,15 +116,15 @@ export default function RolesPage() {
           role={notice.error ? "alert" : "status"}>{notice.text}</p>}
       </form>
       {items?.length === 0 && <p>هنوز نقشی ثبت نشده است.</p>}
-      {items && items.length > 0 && <section className="card overflow-x-auto" aria-label="فهرست نقش‌ها">
-        <table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
+      {items && items.length > 0 && <section className="panel table-scroll" aria-label="فهرست نقش‌ها">
+        <table className="data-table">
           <thead><tr><th scope="col"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("label")}>نام نمایشی<ArrowDownUp size={14} aria-hidden/>{sort.key==="label"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th scope="col"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("name")}>نام فنی<ArrowDownUp size={14} aria-hidden/>{sort.key==="name"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th scope="col"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("type")}>نوع<ArrowDownUp size={14} aria-hidden/>{sort.key==="type"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th scope="col">عملیات</th></tr></thead>
           <tbody>{items.map((role) => <tr className="border-t" key={role.id}>
             <td><bdi>{roleLabel(role)}</bdi></td>
             <td><bdi>{role.name}</bdi></td>
             <td>{role.isSystemRole ? "سیستمی" : "سفارشی"}</td>
             <td><div className="flex flex-wrap gap-2">
-              <button className="btn btn-info" type="button" disabled={busy}
+              <button className="btn btn-outline" type="button" disabled={busy}
                 aria-label={`ویرایش ${roleLabel(role)}`} onClick={() => edit(role)}><Pencil size={15} aria-hidden />ویرایش</button>
               {!role.isSystemRole && <button className="btn btn-danger" type="button" disabled={busy}
                 aria-label={`حذف ${roleLabel(role)}`} onClick={() => setDeleteTarget(role)}><Trash2 size={15} aria-hidden />حذف</button>}
