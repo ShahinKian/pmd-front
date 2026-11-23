@@ -6,7 +6,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Eye, Filter, Plus, RefreshCcw } from "lucide-react";
+import { ArrowDownUp, Eye, Filter, Plus, RefreshCcw } from "lucide-react";
 import { useSession } from "@/hooks/use-session";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import { apiClient } from "@/lib/http/client";
@@ -49,6 +49,8 @@ export default function ProfilesPage(){
   const [networkGroupId,setNetworkGroupId]=useState("");
   const [planId,setPlanId]=useState("");
   const [page,setPage]=useState(1);
+  const [sort,setSort]=useState<{key:"mainTopic"|"broadcastDate"|"status";direction:"asc"|"desc"}>({key:"broadcastDate",direction:"desc"});
+  function toggleSort(key:typeof sort.key){setSort(current=>({key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"}));}
 
   const {data:groups}=useSWR<BaseInfoListResponse>(
     networkId?`/base-info/network-groups/${networkId}`:null
@@ -72,6 +74,12 @@ export default function ProfilesPage(){
   },[status,topic,fromDate,toDate,networkId,planId,page]);
 
   const {data,error,isLoading,mutate}=useSWR<ProfileListPayload>(session && !networkLoading ? query : null,profileListFetcher);
+
+  const sortedItems=useMemo(()=>[...(data?.items??[])].sort((a,b)=>{
+    const va=a[sort.key];const vb=b[sort.key];
+    const result=typeof va==="number"&&typeof vb==="number"?va-vb:String(va??"").localeCompare(String(vb??""),"fa",{numeric:true});
+    return sort.direction==="asc"?result:-result;
+  }),[data?.items,sort]);
 
   function resetFilters(){
     setStatus("");
@@ -151,15 +159,16 @@ export default function ProfilesPage(){
     </section>
 
     <section className="card" style={{padding:0,overflow:"hidden"}}>
-      <div className="pmd-table-scroll">\n        <table className="pmd-table">
+      <div className="pmd-table-scroll">
+        <table className="pmd-table">
         <thead style={{background:"#f8fafc"}}><tr>
-          <th style={{padding:12,textAlign:"right"}}>موضوع</th>
+          <th style={{padding:12,textAlign:"right"}}><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("mainTopic")}>موضوع<ArrowDownUp size={14} aria-hidden />{sort.key==="mainTopic"?<span className="text-primary">{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
           <th style={{padding:12,textAlign:"right"}}>نام برنامه</th>
-          <th style={{padding:12,textAlign:"right"}}>تاریخ پخش</th>
-          <th style={{padding:12,textAlign:"right"}}>وضعیت</th>
+          <th style={{padding:12,textAlign:"right"}}><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("broadcastDate")}>تاریخ پخش<ArrowDownUp size={14} aria-hidden />{sort.key==="broadcastDate"?<span className="text-primary">{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
+          <th style={{padding:12,textAlign:"right"}}><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("status")}>وضعیت<ArrowDownUp size={14} aria-hidden />{sort.key==="status"?<span className="text-primary">{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
           <th style={{padding:12,textAlign:"right"}}>عملیات</th>
         </tr></thead>
-        <tbody>{(data?.items??[]).map(p=>{
+        <tbody>{sortedItems.map(p=>{
           const approved=p.status===PROFILE_STATUS.Approved;
           return <tr key={p.id} className={approved?"bg-green-50/80":""} style={{borderTop:"1px solid var(--border)"}}>
             <td style={{padding:12,fontWeight:700}}>{p.mainTopic}</td>
@@ -173,7 +182,8 @@ export default function ProfilesPage(){
             <td style={{padding:12}}><Link href={`/program-profiles/${p.id}`} className="btn btn-info"><Eye size={15} aria-hidden />مشاهده</Link></td>
           </tr>;
         })}</tbody>
-      </table>\n        </div>
+      </table>
+        </div>
       {isLoading?<div style={{padding:24}} className="muted">در حال دریافت...</div>:null}
       {error?<div className="alert alert-error" style={{margin:16}}>دریافت شناسنامه‌ها انجام نشد.</div>:null}
       {!isLoading&&!error&&(data?.items.length??0)===0?<div style={{padding:30,textAlign:"center"}} className="muted">موردی برای نمایش وجود ندارد.</div>:null}
