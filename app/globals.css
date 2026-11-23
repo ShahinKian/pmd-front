@@ -773,3 +773,146 @@ textarea {
   .dash-tail-app .pmd-wizard-nav { position: static; }
   .dash-tail-app .pmd-table { min-width: 42rem; }
 }
+
+
+/* Reference design system: admin-app-fa-rtl — components use these same tokens */
+.dash-tail-app {
+  --color-background: #f6f7fb;
+  --color-foreground: #24233a;
+  --color-card: #ffffff;
+  --color-card-foreground: #24233a;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #24233a;
+  --color-muted: #f0eff7;
+  --color-muted-foreground: #64647c;
+  --color-border: #e8e7f0;
+  --color-input: #e8e7f0;
+  --color-primary: #5a42cf;
+  --color-primary-foreground: #ffffff;
+  --color-ring: #5a42cf;
+  --color-success: #14785d;
+  --color-destructive: #bb344a;
+  --color-default-50: #f8f8fc;
+  --color-default-100: #f0eff7;
+  --color-default-200: #e8e7f0;
+  --color-default-300: #cecbdb;
+  --color-default-500: #64647c;
+  --color-default-600: #55536b;
+  --color-default-700: #39374f;
+  --color-default-800: #2e2c45;
+  --color-default-900: #24233a;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  min-height: 100dvh;
+}
+.dark .dash-tail-app {
+  --color-background: #161623;
+  --color-foreground: #efedf9;
+  --color-card: #202034;
+  --color-card-foreground: #efedf9;
+  --color-popover: #202034;
+  --color-popover-foreground: #efedf9;
+  --color-muted: #2a2a41;
+  --color-muted-foreground: #b7b4d2;
+  --color-border: #34334d;
+  --color-input: #34334d;
+  --color-primary: #b8a8ff;
+  --color-primary-foreground: #231a51;
+  --color-ring: #b8a8ff;
+  --color-success: #6cd4b1;
+  --color-destructive: #ee8292;
+  --color-default-50: #242438;
+  --color-default-100: #2a2a41;
+  --color-default-200: #34334d;
+  --color-default-300: #4c4a65;
+  --color-default-500: #b7b4d2;
+  --color-default-600: #c4c1dd;
+  --color-default-700: #d6d2e8;
+  --color-default-800: #e5e2f3;
+  --color-default-900: #efedf9;
+}
+body { background: #f6f7fb; }
+html.dark body { background: #161623; }
+.dash-tail-app .panel,
+.dash-tail-app .card,
+.dash-tail-app .form-section,
+.dash-tail-app .expert-panel,
+.dash-tail-app .relation-editor {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-card);
+  color: var(--color-foreground);
+  box-shadow: 0 3px 14px -10px #2a23403d;
+}
+.dash-tail-app .page-head { align-items: flex-end; gap: 1rem; margin-bottom: 1.25rem; }
+.dash-tail-app .page-title {
+  color: var(--color-foreground);
+  font-size: clamp(1.65rem, 2.4vw, 2rem);
+  font-weight: 900;
+  line-height: 1.35;
+  letter-spacing: -.025em;
+}
+.dash-tail-app .page-description { margin-top: .25rem; font-size: .875rem; line-height: 1.8; color: var(--color-muted-foreground); }
+.dash-tail-app .form-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.25rem 1.25rem .75rem;
+  border-bottom: 0;
+  background: transparent;
+}
+.dash-tail-app .form-section-head strong { font-size: 1rem; font-weight: 800; color: var(--color-foreground); }
+.dash-tail-app .form-section-body { padding: 1.25rem; }
+.dash-tail-app .section-kicker { font-size: .75rem; line-height: 1.8; color: var(--color-muted-foreground); }
+.dash-tail-app .field { display: flex; min-width: 0; flex-direction: column; align-items: stretch; gap: .375rem; }
+.dash-tail-app .field .label,
+.dash-tail-app label .label { font-size: .85rem; font-weight: 700; color: var(--color-foreground); }
+.dash-tail-app .field-input,
+.dash-tail-app .input,
+.dash-tail-app .select,
+.dash-tail-app .date-picker-button {
+  min-height: 2.75rem; width: 100%; min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: .75rem;
+  background-color: var(--color-card);
+  color: var(--color-foreground);
+  padding-inline: .75rem;
+  font-size: .875rem;
+  box-shadow: none;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.dash-tail-app textarea.input,
+.dash-tail-app textarea.field-input { padding-block: .7rem; min-height: 6rem; }
+.dash-tail-app :is(.field-input,.input,.select,.date-picker-button):focus-visible {
+  outline: none;
+  border-color: var(--color-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb,var(--color-ring) 20%,transparent);
+}
+.dash-tail-app :is(.field-input,.input,.select)[aria-invalid="true"] { border-color: var(--color-destructive); }
+.dash-tail-app :is(.field-input,.input,.select)[data-valid="true"] { border-color: var(--color-success); }
+.dash-tail-app .btn {
+  min-height: 2.5rem;
+  border-radius: .75rem;
+  padding: .6rem 1rem;
+  font-size: .875rem;
+  font-weight: 700;
+}
+.dash-tail-app .btn-primary { background: var(--color-primary); color: var(--color-primary-foreground); }
+.dash-tail-app .btn-primary:hover { opacity: .9; }
+.dash-tail-app .btn-outline { border: 1px solid var(--color-border); background: var(--color-card); color: var(--color-foreground); }
+.dash-tail-app .btn-outline:hover { background: var(--color-muted); }
+.dash-tail-app .table-scroll,
+.dash-tail-app .pmd-table-scroll { width: 100%; overflow-x: auto; }
+.dash-tail-app .data-table,
+.dash-tail-app .pmd-table { width: 100%; min-width: 35rem; border-collapse: separate; border-spacing: 0; text-align: right; font-size: .875rem; }
+.dash-tail-app :is(.data-table,.pmd-table) th { padding: .85rem 1rem !important; background: var(--color-muted) !important; text-align: right !important; font-size: .76rem; font-weight: 800; color: var(--color-muted-foreground); }
+.dash-tail-app :is(.data-table,.pmd-table) td { padding: .9rem 1rem !important; border-top: 1px solid var(--color-border); }
+.dash-tail-app :is(.data-table,.pmd-table) tbody tr:hover { background: color-mix(in srgb,var(--color-primary) 4%,transparent); }
+.dash-tail-app .hero-orbits {
+  background: repeating-radial-gradient(ellipse at 38% 50%, transparent 0 15px, #ddd3ff2b 16px 17px, transparent 18px 29px);
+}
+.dash-tail-app .hero-reference { isolation: isolate; }
+.dash-tail-app .brand-mark { display: grid; place-items: center; border-radius: .75rem; background: #b8a6ff; color: #242044; }
+@media(max-width:640px) {
+  .dash-tail-app .form-section-head,.dash-tail-app .form-section-body { padding-inline: 1rem; }
+  .dash-tail-app .page-head { align-items: flex-start; }
+}
