@@ -710,3 +710,66 @@ textarea {
 .dash-tail-app .form-section table:not(.pmd-table) tbody tr:hover {
   background: color-mix(in srgb, var(--color-primary) 4%, transparent);
 }
+
+
+/* Interactive data tables, wizard steps, field validation, and template-matched toasts */
+.dash-tail-app .pmd-sort-button {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .4rem;
+  padding: .25rem .15rem;
+  border-radius: .4rem;
+  color: inherit;
+  font-size: inherit;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dash-tail-app .pmd-sort-button:hover { color: var(--color-primary); }
+.dash-tail-app .pmd-sort-button:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+.dash-tail-app input[aria-invalid="true"],
+.dash-tail-app textarea[aria-invalid="true"],
+.dash-tail-app select[aria-invalid="true"],
+.dash-tail-app input:user-invalid,
+.dash-tail-app textarea:user-invalid,
+.dash-tail-app select:user-invalid {
+  border-color: var(--color-destructive) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-destructive) 11%, transparent);
+}
+.dash-tail-app input[data-valid="true"],
+.dash-tail-app textarea[data-valid="true"],
+.dash-tail-app select[data-valid="true"] { border-color: var(--color-success) !important; }
+.dash-tail-app .field > [role="alert"] { margin-top: .125rem; color: var(--color-destructive); font-size: .75rem; }
+.dash-tail-app .pmd-wizard-nav {
+  position: sticky;
+  top: 5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-card);
+  padding: .85rem;
+  box-shadow: 0 3px 14px -10px rgb(42 35 64 / 24%);
+}
+.dash-tail-app .pmd-wizard-nav button[aria-current="step"] {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-card));
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 800;
+}
+.dash-tail-app .pmd-wizard-panel {
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-card);
+  padding: 1.25rem;
+}
+.dash-tail-app .form-section input:focus,
+.dash-tail-app .form-section select:focus,
+.dash-tail-app .form-section textarea:focus {
+  border-color: var(--color-primary);
+}
+@media (max-width: 767px) {
+  .dash-tail-app .pmd-wizard-nav { position: static; }
+  .dash-tail-app .pmd-table { min-width: 42rem; }
+}
