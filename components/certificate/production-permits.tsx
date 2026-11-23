@@ -6,7 +6,7 @@ import { useNetworkScope } from "@/hooks/use-network-scope";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Calculator, CalendarDays, CheckCheck, Eye, FileCheck, Files, Save, Send } from "lucide-react";
+import { ArrowDownUp, Calculator, CalendarDays, CheckCheck, Eye, FileCheck, Files, Save, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
@@ -36,6 +36,8 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
   const [paymentPeriod, setPaymentPeriod] = useState({ network: initialNetwork, id: initialPeriod });
   const periodId = Number(paymentPeriod.network) === Number(network) ? paymentPeriod.id : "";
   const [status, setStatus] = useState<PermitSummary["status"] | "">("");
+  const [sort,setSort] = useState<{key:"planId"|"episodeCount"|"status"|"grossAmount"|"netAmount";direction:"asc"|"desc"}>({key:"planId",direction:"asc"});
+  function toggleSort(key:typeof sort.key){setSort(current=>({key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"}));}
   const [permitId, setPermitId] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
@@ -49,7 +51,13 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
   const preparation = useSWR<PermitIssuePreparation>(canPrepare ? `${base}/periods/${periodId}/issue` : null);
   const readyPlans = preparation.data?.planIds.length ?? 0;
   const issuedHref = `/production-permits/issued?${new URLSearchParams({ network, periodId })}`;
-  const visiblePermits = permits.data?.filter((permit) => !status || permit.status === status);
+  const visiblePermits = permits.data?.filter((permit) => !status || permit.status === status).sort((a,b)=>{
+    const aValue=a[sort.key]; const bValue=b[sort.key];
+    const numeric=(value:unknown)=>typeof value==="number"?value:Number(value);
+    const av=numeric(aValue),bv=numeric(bValue);
+    const result=Number.isFinite(av)&&Number.isFinite(bv)?av-bv:String(aValue).localeCompare(String(bValue),"fa",{numeric:true});
+    return sort.direction==="asc"?result:-result;
+  });
 
   async function run(label: string, action: () => Promise<void>, success: string) {
     if (busy) return;
@@ -178,7 +186,7 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
         {permits.isLoading && <p role="status">در حال بارگذاری اسناد…</p>}
         {visiblePermits?.length === 0 && <p>سندی با فیلترهای انتخاب‌شده پیدا نشد.</p>}
         {Boolean(visiblePermits?.length) && <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
-          <thead><tr><th>برنامه</th><th>قسمت‌ها</th><th>وضعیت</th><th>ناخالص</th><th>کسورات</th><th>قابل پرداخت</th><th>سند</th></tr></thead>
+          <thead><tr><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("planId")}>برنامه<ArrowDownUp size={14} aria-hidden/>{sort.key==="planId"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th>قسمت‌ها</th><th>وضعیت</th><th>ناخالص</th><th>کسورات</th><th>قابل پرداخت</th><th>سند</th></tr></thead>
           <tbody>{visiblePermits?.map((permit) => <tr key={permit.id} className="border-t">
             <td>{planTitle(permit.planId, permit.planName)}</td><td>{displayNumber(permit.episodeCount)}</td><td><span className="table-tag">{statusLabels[permit.status]}</span></td>
             <td>{displayNumber(permit.grossAmount)}</td><td>{displayNumber(permit.deductionAmount)}</td><td>{displayNumber(permit.netAmount)}</td>
