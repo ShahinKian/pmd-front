@@ -42,7 +42,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
           mobileMenu ? "w-[240px] translate-x-0" : "w-[240px] translate-x-full xl:translate-x-0",
         )}
       >
-        <div className={cn("flex h-[68px] shrink-0 items-center border-b border-white/10 px-3", collapsed ? "xl:justify-center" : "justify-between")}>
+        <div className={cn("flex min-h-[76px] shrink-0 items-center px-2 pt-3", collapsed ? "xl:justify-center" : "justify-between")}>
           <Link
             href="/dashboard"
             onClick={() => setMobileMenu(false)}
@@ -68,7 +68,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
           </Button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-5 [scrollbar-width:thin] [scrollbar-color:#514775_transparent]" aria-label="منوی اصلی">
+        <nav className="flex-1 overflow-y-auto px-3 py-6 [scrollbar-width:thin] [scrollbar-color:#514775_transparent]" aria-label="منوی اصلی">
           <div className="grid gap-5">
             {menus.map((group, groupIndex) => (
               <div key={group.title + groupIndex}>
@@ -92,7 +92,8 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
                         )}
                       >
                         {Icon ? <Icon className={cn("size-[18px] shrink-0", active && "text-[#d8caff]")} /> : null}
-                        <span className={cn("min-w-0 flex-1 truncate", collapsed && "xl:sr-only")}>{item.title}</span>\n                        {item.badge && !collapsed ? <span className="rounded-full bg-[#6956ac] px-2 py-0.5 text-[10px] text-white">{item.badge}</span> : null}
+                        <span className={cn("min-w-0 flex-1 truncate", collapsed && "xl:sr-only")}>{item.title}</span>
+                        {item.badge && !collapsed ? <span className="rounded-full bg-[#6956ac] px-2 py-0.5 text-[10px] text-white">{item.badge}</span> : null}
                       </Link>
                     ) : null;
                   })}
