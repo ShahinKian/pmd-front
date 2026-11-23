@@ -394,3 +394,39 @@ textarea {
     grid-template-columns:1fr;
   }
 }
+
+
+/* Admin RTL shell inspired by admin-app-fa-rtl */
+body {
+  background: #f6f7fb;
+}
+
+.dark body {
+  background: var(--color-background);
+}
+
+.panel,
+.card,
+.form-section,
+.relation-editor,
+.expert-panel {
+  box-shadow: 0 3px 14px -10px rgb(42 35 64 / 24%);
+}
+
+.card,
+.form-section,
+.relation-editor,
+.expert-panel {
+  border-radius: 1rem;
+}
+
+.page-title {
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+@media (max-width: 1279px) {
+  body {
+    overflow-x: hidden;
+  }
+}
