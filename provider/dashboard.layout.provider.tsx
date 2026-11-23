@@ -30,7 +30,7 @@ const DashBoardLayoutProvider = ({ children }: { children: React.ReactNode }) =>
       <div
         className={cn(
           "flex min-h-dvh min-w-0 flex-col transition-[margin] duration-300",
-          collapsed ? "xl:mr-[76px]" : "xl:mr-[240px]",
+          collapsed ? "lg:mr-[76px]" : "lg:mr-[236px]",
         )}
       >
         <Header handleOpenSearch={() => {}} trans={{}} />
