@@ -179,8 +179,8 @@ export default function ForecastsPage() {
         </div>
       </section>
 
-      <section className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <section className="card" style={{ padding: 0, overflow: "hidden" }}>\n        <div className="pmd-table-scroll">
+        <table className="pmd-table">
           <thead style={{ background: "#f8fafc" }}>
             <tr>
               <th style={{ padding: 12, textAlign: "right" }}>موضوع</th>
@@ -213,7 +213,7 @@ export default function ForecastsPage() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table>\n        </div>
 
         {!isLoading && !error && (data?.items.length ?? 0) === 0 ? (
           <div style={{ padding: 30, textAlign: "center" }} className="muted">
