@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CalendarPlus, Pencil, Power, X } from "lucide-react";
+import { ArrowDownUp, CalendarPlus, Pencil, Power, X } from "lucide-react";
 import useSWR from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { PaymentPeriodForm, refreshPaymentPeriods } from "@/components/certificate/payment-period-form";
@@ -20,6 +20,14 @@ export default function PaymentPeriodsPage() {
   const periods = useSWR<ManagedPaymentPeriod[]>(canCreatePeriod ? path : null);
   const [editing, setEditing] = useState<ManagedPaymentPeriod | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sort,setSort]=useState<{key:"period"|"fromDate"|"toDate"|"isActive";direction:"asc"|"desc"}>({key:"period",direction:"desc"});
+  function toggleSort(key:typeof sort.key){setSort(previous=>({key,direction:previous.key===key&&previous.direction==="asc"?"desc":"asc"}));}
+  const sortedPeriods=[...(periods.data??[])].sort((a,b)=>{
+    const value=(period:ManagedPaymentPeriod)=>sort.key==="period"?period.paymentYear*100+period.paymentMonth:sort.key==="isActive"?Number(period.isActive):period[sort.key];
+    const va=value(a);const vb=value(b);
+    const result=typeof va==="number"&&typeof vb==="number"?va-vb:String(va).localeCompare(String(vb),"fa",{numeric:true});
+    return sort.direction==="asc"?result:-result;
+  });
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
 
   async function changeState(period: ManagedPaymentPeriod) {
@@ -70,8 +78,8 @@ export default function PaymentPeriodsPage() {
         {periods.data?.length === 0 && <p>هنوز دوره‌ای ثبت نشده است.</p>}
         {Boolean(periods.data?.length) && <div className="overflow-x-auto">
           <table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
-            <thead><tr><th>ماه پرداخت</th><th>از تاریخ</th><th>تا تاریخ</th><th>دامنه</th><th>وضعیت</th><th>عملیات</th></tr></thead>
-            <tbody>{periods.data?.map((period) => <tr key={period.id} className="border-t">
+            <thead><tr><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("period")}>ماه پرداخت<ArrowDownUp size={14} aria-hidden/>{sort.key==="period"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("fromDate")}>از تاریخ<ArrowDownUp size={14} aria-hidden/>{sort.key==="fromDate"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("toDate")}>تا تاریخ<ArrowDownUp size={14} aria-hidden/>{sort.key==="toDate"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th>دامنه</th><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("isActive")}>وضعیت<ArrowDownUp size={14} aria-hidden/>{sort.key==="isActive"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th>عملیات</th></tr></thead>
+            <tbody>{sortedPeriods.map((period) => <tr key={period.id} className="border-t">
               <td>{paymentMonths[period.paymentMonth - 1]} {displayNumber(period.paymentYear)}</td>
               <td>{displayDate(period.fromDate)}</td><td>{displayDate(period.toDate)}</td>
               <td>{period.legacyNetworkId == null ? "همه شبکه‌ها" : `شبکه ${displayNumber(period.legacyNetworkId)}`}</td>
