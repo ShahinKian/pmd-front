@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 const selectVariants = cva(
-  " w-full  px-3 h-10 text-sm flex [&>svg]:h-5 [&>svg]:w-5    justify-between items-center  read-only:bg-background  disabled:cursor-not-allowed disabled:opacity-50  transition duration-300 ",
+  " w-full rounded-xl bg-card px-3 h-11 text-sm flex [&>svg]:h-5 [&>svg]:w-5    justify-between items-center  read-only:bg-background  disabled:cursor-not-allowed disabled:opacity-50  transition duration-300 ",
   {
     variants: {
       color: {
