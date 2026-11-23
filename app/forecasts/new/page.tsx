@@ -167,8 +167,8 @@ export default function NewForecastPage() {
       </div>
 
       <form noValidate className="grid" style={{ gap: 18 }} onSubmit={submit}>
-        <nav aria-label="مراحل ثبت پیش‌بینی" className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <ol className="grid grid-cols-2 gap-3 md:grid-cols-4">{wizardTitles.map((title,index) => (
+        <nav aria-label="مراحل ثبت پیش‌بینی" className="pmd-wizard-nav rounded-2xl border border-border bg-card p-3 shadow-sm sm:p-4">
+          <ol className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">{wizardTitles.map((title,index) => (
             <li key={title}>
               <button type="button" disabled={index > wizardStep || saving} onClick={() => setWizardStep(index)}
                 aria-current={wizardStep===index ? "step" : undefined}
@@ -341,9 +341,9 @@ export default function NewForecastPage() {
         ) : null}
         {message ? <div role="alert" className="alert alert-error">{message}</div> : null}
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <button type="button" className="btn btn-outline" disabled={wizardStep===0 || saving} onClick={() => setWizardStep(current=>Math.max(0,current-1))}><ArrowRight size={16}/>مرحله قبل</button>
-          {wizardStep < 3 ? <button type="button" className="btn btn-primary" onClick={nextWizardStep}>مرحله بعد<ArrowLeft size={16}/></button> : <button type="submit" className="btn btn-primary" disabled={saving || !session || !planId || episodeLoading || !episode || Boolean(episodeError)}>
+        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <button type="button" className="btn btn-outline w-full justify-center sm:w-auto" disabled={wizardStep===0 || saving} onClick={() => setWizardStep(current=>Math.max(0,current-1))}><ArrowRight size={16}/>مرحله قبل</button>
+          {wizardStep < 3 ? <button type="button" className="btn btn-primary w-full justify-center sm:w-auto" onClick={nextWizardStep}>مرحله بعد<ArrowLeft size={16}/></button> : <button type="submit" className="btn btn-primary w-full justify-center sm:w-auto" disabled={saving || !session || !planId || episodeLoading || !episode || Boolean(episodeError)}>
             {saving ? <Loader2 size={17} /> : <Save size={17} />}
             {saving ? "در حال ثبت..." : "ثبت پیش‌بینی"}
           </button>}
