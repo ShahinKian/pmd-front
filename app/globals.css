@@ -1001,3 +1001,51 @@ html.dark body { background: #161623; }
   .dash-tail-app .pmd-wizard-nav button { padding: .5rem; font-size: .7rem; }
   .dash-tail-app .form-section-body { padding: .85rem; }
 }
+
+
+/* Legacy table pages inherit the reference's responsive table system. */
+.dash-tail-app :is(.card,.panel,.form-section):has(> table) {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.dash-tail-app :is(.card,.panel,.form-section) table:not(.data-table):not(.pmd-table) {
+  width: 100%;
+  min-width: 35rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: .82rem;
+  text-align: right;
+}
+.dash-tail-app :is(.card,.panel,.form-section) table:not(.data-table):not(.pmd-table) thead th {
+  padding: .85rem .9rem;
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+  font-size: .78rem;
+  font-weight: 800;
+  text-align: right;
+}
+.dash-tail-app :is(.card,.panel,.form-section) table:not(.data-table):not(.pmd-table) tbody td {
+  padding: .9rem;
+  border-top: 1px solid var(--color-border);
+}
+.dash-tail-app :is(.card,.panel,.form-section) table:not(.data-table):not(.pmd-table) tbody tr:hover {
+  background: color-mix(in srgb, var(--color-primary) 4%, transparent);
+}
+@media (max-width: 640px) {
+  .dash-tail-app :is(.card,.panel,.form-section) table {
+    font-size: .78rem;
+  }
+  .dash-tail-app .form-section .flex.justify-end,
+  .dash-tail-app .form-section .flex.justify-between {
+    flex-wrap: wrap;
+    gap: .7rem;
+  }
+  .dash-tail-app .form-section .flex.justify-end > .btn,
+  .dash-tail-app .form-section .flex.justify-between > .btn {
+    flex: 1 1 9rem;
+  }
+  .dash-tail-app :is(.panel,.card,.form-section) select,
+  .dash-tail-app :is(.panel,.card,.form-section) input,
+  .dash-tail-app :is(.panel,.card,.form-section) textarea { min-width: 0; }
+}
