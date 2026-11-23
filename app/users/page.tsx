@@ -4,7 +4,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { KeyRound, Pencil, Plus, Save, ShieldAlert, X } from "lucide-react";
+import { ArrowDownUp, KeyRound, Pencil, Plus, Save, Search, ShieldAlert, X } from "lucide-react";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
@@ -55,6 +55,12 @@ export default function UsersPage() {
   const [passwordUser, setPasswordUser] = useState<AdminUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [query,setQuery] = useState("");
+  const [sort,setSort] = useState<{key:"fullName"|"userName"|"isActive";direction:"asc"|"desc"}>({key:"fullName",direction:"asc"});
+  function toggleSort(key:typeof sort.key){setSort(current=>({key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"}));}
+  const filteredUsers = useMemo(()=>[...(users??[])].filter(user=>`${user.fullName} ${user.userName} ${user.email??""} ${user.roles.join(" ")}`.toLocaleLowerCase("fa").includes(query.trim().toLocaleLowerCase("fa"))).sort((a,b)=>{
+    const av=a[sort.key],bv=b[sort.key];const compare=typeof av==="boolean"?Number(av)-Number(bv):String(av).localeCompare(String(bv),"fa",{numeric:true});return sort.direction==="asc"?compare:-compare;
+  }),[users,query,sort]);
 
   function beginEdit(user: AdminUser) {
     setEditingId(user.id);
@@ -127,23 +133,27 @@ export default function UsersPage() {
       ) : null}
 
       {session?.isSystemAdmin ? (
-        <section className="card" style={{padding:0,overflow:"hidden"}}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-right text-sm">
+        <section className="panel" style={{padding:0,overflow:"hidden"}}>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+            <div><h2 className="text-base font-extrabold">فهرست کاربران</h2><p className="mt-1 text-xs text-muted-foreground">{filteredUsers.length.toLocaleString("fa-IR")} کاربر</p></div>
+            <label className="relative w-full sm:max-w-80"><span className="sr-only">جست‌وجوی کاربران</span><Search className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/><input className="field-input pr-9" placeholder="نام، نام کاربری یا نقش" value={query} onChange={event=>setQuery(event.target.value)}/></label>
+          </div>
+          <div className="table-scroll">
+            <table className="data-table">
               <thead className="bg-default-50">
                 <tr>
-                  <th className="p-3">نام و نام خانوادگی</th>
-                  <th className="p-3">نام کاربری</th>
+                  <th className="p-3" aria-sort={sort.key==="fullName"?(sort.direction==="asc"?"ascending":"descending"):"none"}><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("fullName")}>نام و نام خانوادگی<ArrowDownUp size={14} aria-hidden/>{sort.key==="fullName"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
+                  <th className="p-3" aria-sort={sort.key==="userName"?(sort.direction==="asc"?"ascending":"descending"):"none"}><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("userName")}>نام کاربری<ArrowDownUp size={14} aria-hidden/>{sort.key==="userName"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
                   <th className="p-3">نقش‌ها</th>
                   <th className="p-3">شبکه‌های دارای دسترسی</th>
                   <th className="p-3">شماره تماس</th>
                   <th className="p-3">تهیه‌کننده</th>
-                  <th className="p-3">وضعیت</th>
+                  <th className="p-3" aria-sort={sort.key==="isActive"?(sort.direction==="asc"?"ascending":"descending"):"none"}><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("isActive")}>وضعیت<ArrowDownUp size={14} aria-hidden/>{sort.key==="isActive"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
                   <th className="p-3">عملیات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-default-100">
-                {(users ?? []).map(user => {
+                {filteredUsers.map(user => {
                   const editing = editingId === user.id;
                   const providerName = providerOptions.find(x => x.id === user.providerId)?.text;
                   return (
@@ -204,7 +214,7 @@ export default function UsersPage() {
           {isLoading ? <div className="p-6 muted">در حال دریافت کاربران...</div> : null}
           {networksError ? <div className="alert alert-error m-4">دریافت نام شبکه‌ها انجام نشد؛ شناسه شبکه نمایش داده می‌شود.</div> : null}
           {error ? <div className="alert alert-error m-4">دریافت کاربران انجام نشد.</div> : null}
-          {!isLoading && !error && (users?.length ?? 0) === 0 ? <div className="p-8 text-center muted">کاربری برای نمایش وجود ندارد.</div> : null}
+          {!isLoading && !error && filteredUsers.length === 0 ? <div className="p-8 text-center muted">کاربری برای نمایش وجود ندارد.</div> : null}
         </section>
       ) : null}
 
