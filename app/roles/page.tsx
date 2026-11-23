@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type FormEvent } from "react";
-import { Pencil, Plus, Save, Trash2, X } from "lucide-react";
+import { ArrowDownUp, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import useSWR, { useSWRConfig } from "swr";
 import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell";
 import { useSession } from "@/hooks/use-session";
@@ -20,6 +20,8 @@ export default function RolesPage() {
   const [name, setName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sort,setSort] = useState<{key:"label"|"name"|"type";direction:"asc"|"desc"}>({key:"label",direction:"asc"});
+  function toggleSort(key:typeof sort.key){setSort(current=>({key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"}));}
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const displayNameInput = useRef<HTMLInputElement>(null);
 
@@ -74,7 +76,11 @@ export default function RolesPage() {
   }
 
   const error = sessionError || roles.error;
-  const items = roles.data && [...roles.data].sort((left, right) => roleLabel(left).localeCompare(roleLabel(right), "fa"));
+  const items = roles.data && [...roles.data].sort((left, right) => {
+    const value = (role:RoleResponse) => sort.key==="label"?roleLabel(role):sort.key==="type"?(role.isSystemRole?"سیستمی":"سفارشی"):role.name;
+    const result=value(left).localeCompare(value(right),"fa",{numeric:true});
+    return sort.direction==="asc"?result:-result;
+  });
 
   return <DashboardShell>
     <Breadcrumb items={[{ label: "داشبورد", href: "/dashboard" }, { label: "مدیریت نقش‌ها" }]} />
@@ -109,7 +115,7 @@ export default function RolesPage() {
       {items?.length === 0 && <p>هنوز نقشی ثبت نشده است.</p>}
       {items && items.length > 0 && <section className="card overflow-x-auto" aria-label="فهرست نقش‌ها">
         <table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
-          <thead><tr><th scope="col">نام نمایشی</th><th scope="col">نام فنی</th><th scope="col">نوع</th><th scope="col">عملیات</th></tr></thead>
+          <thead><tr><th scope="col"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("label")}>نام نمایشی<ArrowDownUp size={14} aria-hidden/>{sort.key==="label"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th scope="col"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("name")}>نام فنی<ArrowDownUp size={14} aria-hidden/>{sort.key==="name"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th scope="col"><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("type")}>نوع<ArrowDownUp size={14} aria-hidden/>{sort.key==="type"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th scope="col">عملیات</th></tr></thead>
           <tbody>{items.map((role) => <tr className="border-t" key={role.id}>
             <td><bdi>{roleLabel(role)}</bdi></td>
             <td><bdi>{role.name}</bdi></td>
