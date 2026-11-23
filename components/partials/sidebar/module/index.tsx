@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronLeft, LogOut, Orbit, X } from "lucide-react";
-import { cn, isLocationMatch } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useSidebar } from "@/store";
 import { usePmdMenu } from "@/hooks/use-pmd-menu";
 import { apiClient } from "@/lib/http/client";
@@ -14,6 +14,9 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
   const menus = usePmdMenu();
   const pathname = usePathname();
   const router = useRouter();
+  const selectedHref = menus.flatMap((group) => group.child ?? [])
+    .filter((item) => item.href && (pathname === item.href || pathname.startsWith(item.href + "/")))
+    .sort((a, b) => (b.href?.length ?? 0) - (a.href?.length ?? 0))[0]?.href;
   const { collapsed, setCollapsed, mobileMenu, setMobileMenu } = useSidebar();
 
   async function logout() {
@@ -39,7 +42,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
           mobileMenu ? "w-[240px] translate-x-0" : "w-[240px] translate-x-full xl:translate-x-0",
         )}
       >
-        <div className={cn("flex h-[68px] items-center border-b border-white/10 px-3", collapsed ? "xl:justify-center" : "justify-between")}>
+        <div className={cn("flex h-[68px] shrink-0 items-center border-b border-white/10 px-3", collapsed ? "xl:justify-center" : "justify-between")}>
           <Link
             href="/dashboard"
             onClick={() => setMobileMenu(false)}
@@ -65,7 +68,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
           </Button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-5" aria-label="منوی اصلی">
+        <nav className="flex-1 overflow-y-auto px-3 py-5 [scrollbar-width:thin] [scrollbar-color:#514775_transparent]" aria-label="منوی اصلی">
           <div className="grid gap-5">
             {menus.map((group, groupIndex) => (
               <div key={group.title + groupIndex}>
@@ -74,7 +77,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
                 </div>
                 <div className="grid gap-1">
                   {(group.child ?? []).map((item) => {
-                    const active = Boolean(item.href && isLocationMatch(item.href, pathname));
+                    const active = Boolean(item.href && item.href === selectedHref);
                     const Icon = item.icon;
                     return item.href ? (
                       <Link
@@ -83,7 +86,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
                         title={collapsed ? item.title : undefined}
                         onClick={() => setMobileMenu(false)}
                         className={cn(
-                          "flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium text-[#d3d1ea] transition-colors hover:bg-white/8 hover:text-white",
+                          "flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium text-[#d3d1ea] transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-[#b8a6ff]",
                           collapsed && "xl:justify-center xl:px-0",
                           active && "bg-[#493b7e] text-white ring-1 ring-[#6956ac]",
                         )}
@@ -118,7 +121,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
           type="button"
           aria-label={collapsed ? "باز کردن نوار کناری" : "جمع کردن نوار کناری"}
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -left-3 top-24 hidden size-7 place-items-center rounded-full border border-[#4a416c] bg-[#2b254a] text-[#d9d3f5] shadow-md hover:bg-[#3a3262] xl:grid"
+          className="absolute left-2 top-[76px] hidden size-7 place-items-center rounded-full border border-[#4a416c] bg-[#2b254a] text-[#d9d3f5] shadow-md hover:bg-[#3a3262] xl:grid"
         >
           <ChevronLeft className={cn("size-4 transition-transform", collapsed && "rotate-180")} />
         </button>
