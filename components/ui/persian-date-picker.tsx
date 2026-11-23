@@ -35,7 +35,8 @@ export function PersianDatePicker({
       calendar={persian}
       locale={persianFa}
       format="YYYY/MM/DD"
-      calendarPosition="bottom-right"\n      containerClassName="pmd-date-picker"
+      calendarPosition="bottom-right"
+      containerClassName="pmd-date-picker"
       disabled={disabled}
       onChange={(date: DateObject | null) => {
         if (!date) {
@@ -54,7 +55,9 @@ export function PersianDatePicker({
       render={(displayValue, openCalendar) => (
         <button
           type="button"
-          className="date-picker-button"\n          aria-label={placeholder}\n          aria-haspopup="dialog"
+          className="date-picker-button"
+          aria-label={placeholder}
+          aria-haspopup="dialog"
           onClick={openCalendar}
           disabled={disabled}
         >
