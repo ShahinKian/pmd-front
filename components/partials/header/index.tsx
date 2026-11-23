@@ -49,10 +49,10 @@ const Header = ({ handleOpenSearch: _handleOpenSearch }: { handleOpenSearch: () 
     <>
       <header className="sticky top-0 z-30 flex min-h-[68px] items-center justify-between gap-2 border-b border-border bg-card/95 px-3 backdrop-blur sm:px-7 print:hidden">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-          <Button size="icon" variant="ghost" aria-label="باز کردن منوی اصلی" className="xl:hidden"
+          <Button size="icon" variant="ghost" aria-label="باز کردن منوی اصلی" className="lg:hidden"
             onClick={() => setMobileMenu(true)}><Menu className="size-5"/></Button>
           <Button size="icon" variant="ghost" aria-label={collapsed ? "باز کردن نوار کناری" : "جمع کردن نوار کناری"}
-            aria-expanded={!collapsed} className="hidden xl:inline-flex"
+            aria-expanded={!collapsed} className="hidden lg:inline-flex"
             onClick={() => setCollapsed(!collapsed)}><PanelRight className={cn("size-5", collapsed && "rotate-180")}/></Button>
           <nav aria-label="مسیر صفحه" className="flex min-w-0 items-center gap-2 text-xs sm:text-sm">
             <Link href="/dashboard" className="hidden shrink-0 text-muted-foreground hover:text-primary sm:inline">فضای کار</Link>
