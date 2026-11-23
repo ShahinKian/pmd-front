@@ -383,17 +383,17 @@ export default function IssueProfilePage(){
     <div className="page-head"><div><h1 className="page-title">صدور شناسنامه عملکرد</h1><p className="page-description">فقط از پیش‌بینی تاییدشده صادر می‌شود.</p></div></div>
     {savedDrafts?.length?<section className="card mb-4"><h2 className="mb-3 font-semibold">ادامه پیش‌نویس‌های ذخیره‌شده</h2><div className="flex flex-wrap gap-2">{savedDrafts.map(draft=><button key={draft.forecastId} type="button" className="btn btn-outline" disabled={saving} onClick={()=>{if(changeForecast(draft.forecastId))setSelectedNetwork("");}}>{draft.title} — {stepTitles[draft.step]}</button>)}</div></section>:null}
     {draftsError?<p role="alert" className="alert alert-error">خواندن فهرست پیش‌نویس‌ها ناموفق بود. <button type="button" className="underline" onClick={()=>void refreshDrafts()}>تلاش مجدد</button></p>:null}
-    <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-    <nav aria-label="مراحل صدور شناسنامه" className="pmd-wizard-nav lg:self-start">
-      <ol className="space-y-2">{stepTitles.map((title,index)=><li key={title}>
+    <div className="grid min-w-0 gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+    <nav aria-label="مراحل صدور شناسنامه" className="pmd-wizard-nav min-w-0 lg:self-start">
+      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">{stepTitles.map((title,index)=><li key={title}>
         <button type="button" disabled={saving||!draftReady} onClick={()=>goToStep(index)} aria-current={step===index?"step":undefined}
-          className={"flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-3 text-right text-sm transition-colors "+(step===index?"font-bold":"text-muted-foreground hover:bg-muted") }>
+          className={"flex h-full min-w-0 w-full items-center gap-2 rounded-xl border border-transparent px-2 py-3 text-right text-xs transition-colors sm:gap-3 sm:px-3 sm:text-sm "+(step===index?"font-bold":"text-muted-foreground hover:bg-muted") }>
           <span className={"flex size-8 shrink-0 items-center justify-center rounded-full border text-xs "+(step===index?"border-primary bg-primary text-primary-foreground":index<step?"border-primary text-primary":"border-border")}>{index<step?<Check size={15}/>:index+1}</span>
           {title}
         </button>
       </li>)}</ol>
     </nav>
-    <form className="card min-w-0" onSubmit={submit} noValidate>
+    <form className="panel min-w-0 p-4 sm:p-5" onSubmit={submit} noValidate>
       <p className="mb-3 text-sm text-default-500">با «ذخیره مرحله» یا رفتن به مرحله دیگر، اطلاعات روی سرور ذخیره می‌شود و پس از ورود مجدد قابل ادامه است.</p>
       {savedAt&&draftReady?<p role="status" className="mb-3 text-sm text-green-700">آخرین ذخیره: {new Date(savedAt).toLocaleString("fa-IR")}</p>:null}
       {planDetailError?<p className="alert alert-error">دریافت اطلاعات برنامه ناموفق بود. <button type="button" onClick={()=>void retryPlan()}>تلاش مجدد</button></p>:null}
