@@ -205,7 +205,7 @@ export default function ProfilesPage(){
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-2 text-xs text-muted-foreground">ردیف در صفحه
           <select className="select !h-9 !min-h-9 !w-20" value={pageSize} onChange={event=>{setPageSize(Number(event.target.value));setPage(1);}}>
-            {[10,20,50,100].map(size=><option key={size} value={size}>{size.toLocaleString("fa-IR")}</option>)}
+            {[10,20,50,100].map(size=><option key={size} value={size}>{size.toLocaleString("fa-IR", { useGrouping: false })}</option>)}
           </select>
         </label>
         <button className="btn btn-outline" disabled={!data.pagination.HasPrevious} onClick={()=>setPage(x=>Math.max(1,x-1))}>قبلی</button>
