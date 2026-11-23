@@ -1,12 +1,13 @@
 "use client";
+
 import React from "react";
 import Header from "@/components/partials/header";
 import Sidebar from "@/components/partials/sidebar";
+import Footer from "@/components/partials/footer";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/store";
 import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
-import Footer from "@/components/partials/footer";
 import { useMounted } from "@/hooks/use-mounted";
 
 const DashBoardLayoutProvider = ({ children }: { children: React.ReactNode }) => {
@@ -15,35 +16,41 @@ const DashBoardLayoutProvider = ({ children }: { children: React.ReactNode }) =>
   const mounted = useMounted();
 
   if (!mounted) {
-    return <div className="h-screen flex items-center justify-center text-default-500">در حال بارگذاری...</div>;
+    return (
+      <div className="grid min-h-dvh place-items-center bg-[#f6f7fb] text-sm text-default-500 dark:bg-background">
+        در حال بارگذاری...
+      </div>
+    );
   }
 
   return (
-    <>
-      <Header handleOpenSearch={() => {}} trans={{}} />
+    <div className="min-h-dvh bg-[#f6f7fb] dark:bg-background">
       <Sidebar trans={{}} />
 
       <div
-        className={cn("content-wrapper transition-all duration-150", {
-          "ltr:xl:ml-[300px] rtl:xl:mr-[300px]": !collapsed,
-          "ltr:xl:ml-[72px] rtl:xl:mr-[72px]": collapsed,
-        })}
+        className={cn(
+          "flex min-h-dvh min-w-0 flex-col transition-[margin] duration-300",
+          collapsed ? "xl:mr-[76px]" : "xl:mr-[240px]",
+        )}
       >
-        <div className="layout-padding px-6 pt-6 page-min-height">
-          <motion.div
+        <Header handleOpenSearch={() => {}} trans={{}} />
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <motion.main
             key={location}
-            initial={{ opacity: 0, y: 50 }}
+            id="main-content"
+            className="w-full min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-7 lg:py-7"
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            transition={{ type: "tween", ease: "easeInOut", duration: 0.5 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ type: "tween", ease: "easeInOut", duration: 0.2 }}
           >
-            <main>{children}</main>
-          </motion.div>
+            {children}
+          </motion.main>
+          <Footer />
         </div>
       </div>
-
-      <Footer />
-    </>
+    </div>
   );
 };
 
