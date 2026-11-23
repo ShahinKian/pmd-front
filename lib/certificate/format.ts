@@ -5,10 +5,14 @@ export const paymentMonths = [
   "مهر", "آبان", "آذر", "دی", "بهمن", "اسفند",
 ];
 
-const number = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2 });
+const money = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2, useGrouping: true });
+const plain = new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 2, useGrouping: false });
 const date = new Intl.DateTimeFormat("fa-IR-u-ca-persian", { dateStyle: "medium", timeZone: "UTC" });
 
-export const displayNumber = (value: number | Money) => number.format(value);
+/** Counts, years and identifiers never receive thousands separators. */
+export const displayNumber = (value: number) => plain.format(value);
+/** Thousands separators are reserved for monetary values. */
+export const displayMoney = (value: number | Money) => money.format(value);
 export const displayDate = (value: string) => date.format(new Date(value + "T00:00:00Z"));
 
 export function parseDeduction(value: string): Money | null {
