@@ -6,7 +6,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { ArrowDownUp, Eye, Filter, Plus, RefreshCcw } from "lucide-react";
+import { ArrowDownUp, Eye, Filter, Plus, RefreshCcw, Search } from "lucide-react";
 import { useSession } from "@/hooks/use-session";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import { apiClient } from "@/lib/http/client";
@@ -49,6 +49,7 @@ export default function ProfilesPage(){
   const [networkGroupId,setNetworkGroupId]=useState("");
   const [planId,setPlanId]=useState("");
   const [page,setPage]=useState(1);
+  const [listSearch,setListSearch]=useState("");
   const [pageSize,setPageSize]=useState(20);
   const [sort,setSort]=useState<{key:"mainTopic"|"broadcastDate"|"status";direction:"asc"|"desc"}>({key:"broadcastDate",direction:"desc"});
   function toggleSort(key:typeof sort.key){setSort(current=>({key,direction:current.key===key&&current.direction==="asc"?"desc":"asc"}));}
@@ -76,13 +77,14 @@ export default function ProfilesPage(){
 
   const {data,error,isLoading,mutate}=useSWR<ProfileListPayload>(session && !networkLoading ? query : null,profileListFetcher);
 
-  const sortedItems=useMemo(()=>[...(data?.items??[])].sort((a,b)=>{
+  const sortedItems=useMemo(()=>[...(data?.items??[])].filter(item=>`${item.mainTopic} ${item.planId}`.toLocaleLowerCase("fa").includes(listSearch.trim().toLocaleLowerCase("fa"))).sort((a,b)=>{
     const va=a[sort.key];const vb=b[sort.key];
     const result=typeof va==="number"&&typeof vb==="number"?va-vb:String(va??"").localeCompare(String(vb??""),"fa",{numeric:true});
     return sort.direction==="asc"?result:-result;
-  }),[data?.items,sort]);
+  }),[data?.items,sort,listSearch]);
 
   function resetFilters(){
+    setListSearch("");
     setStatus("");
     setTopic("");
     setFromDate("");
@@ -159,8 +161,16 @@ export default function ProfilesPage(){
       </div>
     </section>
 
-    <section className="card" style={{padding:0,overflow:"hidden"}}>
-      <div className="pmd-table-scroll">
+    <section className="panel" style={{padding:0,overflow:"hidden"}}>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+        <div><h2 className="text-base font-extrabold">فهرست شناسنامه‌ها</h2><p className="mt-1 text-xs text-muted-foreground">جست‌وجو و مرتب‌سازی در صفحه جاری</p></div>
+        <label className="relative w-full sm:max-w-72">
+          <Search className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+          <span className="sr-only">جست‌وجو در فهرست</span>
+          <input className="field-input pr-9" value={listSearch} onChange={event=>setListSearch(event.target.value)} placeholder="جست‌وجو در صفحه جاری"/>
+        </label>
+      </div>
+      <div className="table-scroll">
         <table className="pmd-table">
         <thead style={{background:"#f8fafc"}}><tr>
           <th style={{padding:12,textAlign:"right"}}><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("mainTopic")}>موضوع<ArrowDownUp size={14} aria-hidden />{sort.key==="mainTopic"?<span className="text-primary">{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
@@ -187,7 +197,7 @@ export default function ProfilesPage(){
         </div>
       {isLoading?<div style={{padding:24}} className="muted">در حال دریافت...</div>:null}
       {error?<div className="alert alert-error" style={{margin:16}}>دریافت شناسنامه‌ها انجام نشد.</div>:null}
-      {!isLoading&&!error&&(data?.items.length??0)===0?<div style={{padding:30,textAlign:"center"}} className="muted">موردی برای نمایش وجود ندارد.</div>:null}
+      {!isLoading&&!error&&sortedItems.length===0?<div style={{padding:30,textAlign:"center"}} className="muted">موردی برای نمایش وجود ندارد.</div>:null}
     </section>
 
     {data?.pagination?<div className="mt-4 flex items-center justify-between">
