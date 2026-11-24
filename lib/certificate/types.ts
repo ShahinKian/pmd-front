@@ -27,6 +27,10 @@ export interface PermitIssuePreparation {
     broadcastDate: string;
     productionMethod: string;
     eligible: boolean;
+    estimateId?: number | null;
+    estimateOrganizationCode?: string | null;
+    estimatePartNumber?: number | null;
+    requiresRecalculation?: boolean;
   }[];
 }
 
@@ -35,6 +39,11 @@ export interface PermitSummary {
   periodId: string;
   planId: number;
   planName?: string | null;
+  estimateId?: number | null;
+  estimateOrganizationCode?: string | null;
+  estimatePartNumber?: number | null;
+  recalculationOfPermitId?: string | null;
+  isSupplemental?: boolean;
   status: "Draft" | "Approved" | "SentToFinance";
   episodeCount: number;
   grossAmount: Money;
