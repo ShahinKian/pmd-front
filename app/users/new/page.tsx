@@ -21,6 +21,10 @@ import { ProviderPicker } from "@/components/providers/provider-picker";
 
 const PROVIDERS_ROLE = "Providers";
 const NETWORK_GROUP_MANAGER_ROLE = "NetworkGroupManager";
+const NETWORK_REQUIRED_ROLES = new Set<string>([
+  "NetworkManager", "NetworkGroupManager", "BroadcastManager",
+  "LiveSupervisor", "Supervisor", "PlanManager",
+]);
 
 function toPositiveInt(value: string): number | null {
   const parsed = Number(value);
@@ -50,8 +54,10 @@ export default function NewUserPage() {
       setReviewName(fullName);
     }
     if(wizardStep===1 && selectedRoleIds.length===0){setMessage({type:"error",text:"حداقل یک نقش انتخاب کنید."});return;}
-    if(wizardStep===2 && ((isProvider&&!providerId)||(isNetworkGroupManager&&(!groupNetworkId||!networkGroupId)))){
-      setMessage({type:"error",text:"دسترسی سازمانی و تهیه‌کننده یا گروه برنامه‌ساز را تکمیل کنید."});return;
+    if(wizardStep===1 && isProvider && requiresNetwork){setMessage({type:"error",text:"نقش تهیه‌کننده را نمی‌توان با نقش‌های نیازمند شبکه در این فرم ترکیب کرد."});return;}
+    if(wizardStep===2){
+      const error = assignmentError();
+      if(error){setMessage({type:"error",text:error});return;}
     }
     setMessage(null);
     setWizardStep(v=>Math.min(v+1,3));
@@ -78,6 +84,15 @@ export default function NewUserPage() {
     .map((role) => role.systemKey ?? (role.isSystemRole ? role.name : null));
   const isProvider = selectedSystemKeys.includes(PROVIDERS_ROLE);
   const isNetworkGroupManager = selectedSystemKeys.includes(NETWORK_GROUP_MANAGER_ROLE);
+  const requiresNetwork = selectedSystemKeys.some(key => key !== null && NETWORK_REQUIRED_ROLES.has(key));
+
+  function assignmentError(): string | null {
+    if (isProvider && requiresNetwork) return "نقش تهیه‌کننده را نمی‌توان با نقش‌های نیازمند شبکه در این فرم ترکیب کرد.";
+    if (isProvider && !providerId) return "برای نقش تهیه‌کننده، انتخاب تهیه‌کننده الزامی است.";
+    if (requiresNetwork && selectedNetworkIds.length === 0) return "برای نقش‌های انتخاب‌شده، انتخاب حداقل یک شبکه الزامی است.";
+    if (isNetworkGroupManager && (!groupNetworkId || !selectedNetworkIds.includes(groupNetworkId) || !networkGroupId)) return "برای مدیر گروه برنامه‌ساز، شبکه و گروه همان شبکه الزامی است.";
+    return null;
+  }
 
   const { data: groups, isLoading: groupsLoading } =
     useSWR<BaseInfoListResponse>(
@@ -192,22 +207,10 @@ export default function NewUserPage() {
       return;
     }
 
-    if (isProvider && !providerId) {
-      setMessage({
-        type: "error",
-        text: "برای نقش تهیه‌کننده، انتخاب تهیه‌کننده الزامی است.",
-      });
-      return;
-    }
-
-    if (
-      isNetworkGroupManager &&
-      (!groupNetworkId || !networkGroupId)
-    ) {
-      setMessage({
-        type: "error",
-        text: "برای مدیر گروه برنامه‌ساز، شبکه و گروه همان شبکه الزامی است.",
-      });
+    const assignmentValidation = assignmentError();
+    if (assignmentValidation) {
+      setMessage({ type: "error", text: assignmentValidation });
+      setWizardStep(isProvider && requiresNetwork ? 1 : 2);
       return;
     }
 
@@ -432,9 +435,9 @@ export default function NewUserPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>دسترسی شبکه</CardTitle>
+                <CardTitle>دسترسی شبکه {requiresNetwork ? "*" : ""}</CardTitle>
                 <CardDescription>
-                  شبکه‌های مجاز برای نقش‌های سازمانی این کاربر
+                  {requiresNetwork ? "انتخاب حداقل یک شبکه برای نقش‌های انتخاب‌شده الزامی است." : "شبکه‌های مجاز برای نقش‌های سازمانی این کاربر (اختیاری)"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -442,6 +445,9 @@ export default function NewUserPage() {
                   <div className="muted">در حال دریافت شبکه‌ها...</div>
                 ) : null}
 
+                {requiresNetwork && selectedNetworkIds.length === 0 ? (
+                  <p className="mb-3 text-sm text-destructive" role="status">حداقل یک شبکه را انتخاب کنید.</p>
+                ) : null}
                 <div className="role-grid">
                   {networkOptions.map((network) => {
                     const active = selectedNetworkIds.includes(network.id);
@@ -538,7 +544,7 @@ export default function NewUserPage() {
             <div className="grid gap-4 text-sm md:grid-cols-2">
               <div><span className="text-muted-foreground">نام کاربر</span><p className="mt-1 font-semibold">{reviewName}</p></div>
               <div><span className="text-muted-foreground">تعداد نقش‌ها</span><p className="mt-1 font-semibold">{selectedRoleIds.length.toLocaleString("fa-IR", { useGrouping: false })}</p></div>
-              <div><span className="text-muted-foreground">دسترسی شبکه</span><p className="mt-1 font-semibold">{isProvider?"بر اساس تهیه‌کننده":selectedNetworkIds.length.toLocaleString("fa-IR", { useGrouping: false })+" شبکه"}</p></div>
+              <div><span className="text-muted-foreground">دسترسی شبکه</span><p className="mt-1 font-semibold">{isProvider?"بر اساس تهیه‌کننده":(networkOptions.filter(network => selectedNetworkIds.includes(network.id)).map(network => network.label).join("، ") || "شبکه‌ای انتخاب نشده")}</p></div>
             </div>
           </section> : null}
 
