@@ -77,50 +77,73 @@ function failure(code: string, status: number, planId?: number, field?: string) 
   return Response.json({ code, planId, field }, { status, headers: noStore });
 }
 
-async function getEstimates(networkId: number, planIds: number[]) {
+async function getEstimates(networkId: number, profiles: PermitIssuePreparation["profiles"]) {
+  const unique = new Map<string, PermitIssuePreparation["profiles"][number]>();
+  for (const profile of profiles) {
+    const key = `${profile.planId}:${profile.estimateId ?? 0}`;
+    if (!unique.has(key)) unique.set(key, profile);
+  }
+
+  const selections = [...unique.values()];
   const estimates = [];
-  for (let offset = 0; offset < planIds.length; offset += 6) {
-    const batch = await Promise.all(planIds.slice(offset, offset + 6).map(async (planId) => {
-      const [header, rates] = await Promise.all([
+  for (let offset = 0; offset < selections.length; offset += 6) {
+    const batch = await Promise.all(selections.slice(offset, offset + 6).map(async (profile) => {
+      const planId = profile.planId;
+      const [currentHeader, detailRows] = await Promise.all([
         readEstimate(planId, "EstimateHeader", async () => {
           const data = fields((await baseInfoService.getEstimate(planId)).Data);
           if (requiredId(data.PlanId, "PlanId") !== planId) throw new EstimateFieldError("PlanId");
           if (requiredId(data.NetworkId, "NetworkId") !== networkId) throw new EstimateFieldError("NetworkId");
           const planName = optionalText(data.PlanName, "PlanName");
           if (!planName) throw new EstimateFieldError("PlanName");
-          const organizationCode = data.EstimateOrganizationCode;
           return {
-            id: requiredId(data.Id, "Id"), planId, networkId, planName,
-            estimateOrganizationCode: typeof organizationCode === "number" && Number.isSafeInteger(organizationCode)
-              ? String(organizationCode) : optionalText(organizationCode, "EstimateOrganizationCode"),
-            partNumber: optionalInteger(data.PartNumber, "PartNumber"),
+            currentId: requiredId(data.Id, "Id"),
+            planName,
             networkGroupId: optionalInteger(data.NetworkGroupId, "NetworkGroupId") || null,
             networkGroupName: optionalText(data.NetworkGroupName, "NetworkGroupName"),
+            currentOrganizationCode: typeof data.EstimateOrganizationCode === "number" && Number.isSafeInteger(data.EstimateOrganizationCode)
+              ? String(data.EstimateOrganizationCode) : optionalText(data.EstimateOrganizationCode, "EstimateOrganizationCode"),
+            currentPartNumber: optionalInteger(data.PartNumber, "PartNumber"),
           };
         }),
         readEstimate(planId, "EstimateDetail", async () => {
           const { Data } = await baseInfoService.getEstimateDetail(planId);
           if (!Array.isArray(Data)) throw new EstimateFieldError("Data");
-          const rates = [];
-          for (const row of Data) {
-            const data = fields(row);
-            if (!Object.hasOwn(data, "PersonnelId")) throw new EstimateFieldError("PersonnelId");
-            const personnelId = optionalInteger(data.PersonnelId, "PersonnelId");
-            // Unassigned estimate lines cannot match an attending crew member.
-            if (!personnelId) continue;
-            rates.push({
-              id: requiredId(data.Id, "Id"),
-              estimateId: requiredId(data.EstimateId, "EstimateId"),
-              personnelId,
-              activityTypeId: requiredId(data.ActivityTypeId, "ActivityTypeId"),
-              calculated: calculatedRate(data.Calculated),
-              bussinessTypeId: optionalInteger(data.BussinessTypeId, "BussinessTypeId") || null,
-            });
-          }
-          return rates;
+          return Data;
         }),
       ]);
-      return { ...header, rates };
+
+      const estimateId = positiveId(profile.estimateId) ? profile.estimateId : currentHeader.currentId;
+      const rates = [];
+      for (const row of detailRows) {
+        const data = fields(row);
+        const rowEstimateId = requiredId(data.EstimateId, "EstimateId");
+        if (rowEstimateId !== estimateId) continue;
+        if (!Object.hasOwn(data, "PersonnelId")) throw new EstimateFieldError("PersonnelId");
+        const personnelId = optionalInteger(data.PersonnelId, "PersonnelId");
+        if (!personnelId) continue;
+        rates.push({
+          id: requiredId(data.Id, "Id"),
+          estimateId: rowEstimateId,
+          personnelId,
+          activityTypeId: requiredId(data.ActivityTypeId, "ActivityTypeId"),
+          calculated: calculatedRate(data.Calculated),
+          bussinessTypeId: optionalInteger(data.BussinessTypeId, "BussinessTypeId") || null,
+        });
+      }
+      if (rates.length === 0) throw new SourceFailure("EstimateDetail", 502, planId, "EstimateId");
+
+      return {
+        id: estimateId,
+        planId,
+        networkId,
+        planName: currentHeader.planName,
+        estimateOrganizationCode: profile.estimateOrganizationCode?.trim() || currentHeader.currentOrganizationCode,
+        partNumber: profile.estimatePartNumber ?? currentHeader.currentPartNumber,
+        networkGroupId: currentHeader.networkGroupId,
+        networkGroupName: currentHeader.networkGroupName,
+        rates,
+      };
     }));
     estimates.push(...batch);
   }
@@ -149,7 +172,7 @@ export async function POST(request: NextRequest) {
         return failure("PreparationUnavailable", 502);
       }
 
-      const estimates = preparation.alreadyIssued ? [] : await getEstimates(networkId, preparation.planIds);
+      const estimates = preparation.alreadyIssued ? [] : await getEstimates(networkId, preparation.profiles);
       return Response.json(estimates, { headers: noStore });
     }
 
