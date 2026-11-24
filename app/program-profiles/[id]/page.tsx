@@ -30,6 +30,7 @@ export default function ProfileDetailsPage(){
   const {data:comments,mutate:mutateComments}=useSWR<SupervisorComment[]>("/program-profiles/"+id+"/supervisor-comments");
   const [busy,setBusy]=useState("");
   const [comment,setComment]=useState("");
+  const [isBroadcastable,setIsBroadcastable]=useState(false);
   const [returnAction,setReturnAction]=useState<{key:string;label:string}|null>(null);
   const [returnReason,setReturnReason]=useState("");
   const {data:forecast}=useSWR<{expertIds:string[];topicAxes:{id:string;title:string}[]}>(data?.forecastId?`/forecasts/${data.forecastId}`:null);
@@ -73,11 +74,11 @@ export default function ProfileDetailsPage(){
   }
 
   async function saveComment(){
-    if(!comment.trim())return;
+    if(!comment.trim()&&!isBroadcastable){setMessage({type:"error",text:"ناظر باید نظر وارد کند یا گزینه «قابل پخش» را انتخاب کند."});return;}
     setBusy("comment");setMessage(null);
     try{
-      await apiClient.post("/program-profiles/"+id+"/supervisor-comments",{comment:comment.trim()});
-      setComment("");await mutateComments();
+      await apiClient.post("/program-profiles/"+id+"/supervisor-comments",{comment:comment.trim()||null,isBroadcastable});
+      setComment("");setIsBroadcastable(false);await mutateComments();
       setMessage({type:"success",text:"نظر ناظر ثبت شد. اکنون می‌توانید مرحله را تایید کنید."});
     }catch(e){setMessage({type:"error",text:apiErrorMessage(e,"ثبت نظر ناظر انجام نشد.")});}
     finally{setBusy("");}
@@ -87,6 +88,7 @@ export default function ProfileDetailsPage(){
     <Breadcrumb items={[{label:"داشبورد",href:"/dashboard"},{label:"شناسنامه برنامه",href:"/program-profiles"},{label:"جزئیات"}]}/>
     {isLoading?<div className="card shadow-sm">در حال دریافت شناسنامه...</div>:null}
     {error?<div className="alert alert-error">دریافت شناسنامه انجام نشد.</div>:null}
+    {message?.type==="error"?<div className="alert alert-error mb-4" role="alert">{message.text}</div>:null}
     {data?<><div className="page-head"><div><h1 className="page-title">{data.mainTopic}</h1><p className="page-description">{programName||"در حال دریافت نام برنامه..."} — {profileStatusLabel(data.status,data.statusDisplayName)}</p></div><span className="admin-badge">{profileStatusLabel(data.status,data.statusDisplayName)}</span></div>
       {data.lastReturnReason?<div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-md dark:border-amber-900 dark:bg-amber-950/20"><h2 className="mb-2 font-semibold text-amber-900 dark:text-amber-200">علت بازگشت برای اصلاح</h2><p className="whitespace-pre-wrap text-sm text-amber-900 dark:text-amber-100">{data.lastReturnReason}</p></div>:null}
       <div className="grid grid-2">
@@ -126,8 +128,8 @@ export default function ProfileDetailsPage(){
       </section>:null}
       {((comments?.length??0)>0||canComment)?<section className="card" style={{marginTop:18}}>
         <h2 style={{fontSize:16}}>نظرات ناظر</h2>
-        {(comments??[]).map(c=><div key={c.id} style={{padding:"10px 0",borderBottom:"1px solid var(--border)"}}><strong>{c.supervisorName}</strong><div className="muted" style={{fontSize:11}}>{new Date(c.createdDate).toLocaleString("fa-IR")}</div><p style={{marginBottom:0}}>{c.comment}</p></div>)}
-        {canComment?<div style={{marginTop:16}}><textarea className="input" style={{height:100,paddingTop:10,width:"100%"}} value={comment} onChange={e=>setComment(e.target.value)} placeholder="نظر ناظر را وارد کنید"/><button className="btn btn-primary" style={{marginTop:10}} onClick={saveComment} disabled={busy==="comment"||!comment.trim()}>{busy==="comment"?<Loader2 size={16}/>:<MessageSquare size={16}/>}ثبت نظر ناظر</button></div>:null}
+        {(comments??[]).map(c=><div key={c.id} style={{padding:"10px 0",borderBottom:"1px solid var(--border)"}}><strong>{c.supervisorName}</strong><div className="muted" style={{fontSize:11}}>{new Date(c.createdDate).toLocaleString("fa-IR")}</div>{c.isBroadcastable?<div className="mt-2 inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">قابل پخش</div>:null}{c.comment?<p style={{marginBottom:0}}>{c.comment}</p>:null}</div>)}
+        {canComment?<div className="mt-4 grid gap-3"><label className="flex cursor-pointer items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-800"><input type="checkbox" checked={isBroadcastable} onChange={e=>setIsBroadcastable(e.target.checked)}/>قابل پخش</label><textarea className="input" style={{height:100,paddingTop:10,width:"100%"}} value={comment} onChange={e=>setComment(e.target.value)} placeholder="نظر ناظر را وارد کنید (در صورت انتخاب «قابل پخش» اختیاری است)"/><button className="btn btn-primary" onClick={saveComment} disabled={busy==="comment"||(!comment.trim()&&!isBroadcastable)}>{busy==="comment"?<Loader2 size={16}/>:<MessageSquare size={16}/>}ثبت نظر / وضعیت ناظر</button></div>:null}
       </section>:null}
       {returnAction?<div role="dialog" aria-modal="true" aria-label="ثبت علت بازگشت" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"><div className="w-full max-w-lg rounded-xl bg-card p-6 shadow-xl"><h2 className="mb-2 text-lg font-semibold">{returnAction.label}</h2><p className="mb-4 text-sm text-default-500">لطفاً علت بازگشت و موارد لازم برای اصلاح را ثبت کنید.</p><textarea className="input min-h-32 w-full" value={returnReason} onChange={e=>setReturnReason(e.target.value)} placeholder="علت بازگشت..." autoFocus/><div className="mt-5 flex justify-end gap-2"><button type="button" className="btn btn-outline" onClick={()=>setReturnAction(null)}>انصراف</button><button type="button" className="btn bg-amber-500 text-white hover:bg-amber-600" disabled={!returnReason.trim()||Boolean(busy)} onClick={submitReturn}>ثبت بازگشت</button></div></div></div>:null}
       {message?<div className={"alert "+(message.type==="error"?"alert-error":"alert-success")} style={{marginTop:18}}>{message.text}</div>:null}
