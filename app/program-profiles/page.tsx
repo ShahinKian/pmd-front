@@ -11,6 +11,7 @@ import { useSession } from "@/hooks/use-session";
 import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import { apiClient } from "@/lib/http/client";
 import { PROFILE_STATUS, profileStatusLabel, type ProgramProfileResponse } from "@/lib/program-profiles/types";
+import type { DraftSummary } from "@/lib/program-profiles/draft";
 import type { PaginationMeta } from "@/lib/forecasts/types";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
@@ -39,6 +40,8 @@ function ProgramName({profile}:{profile:ProgramProfileResponse}){
 export default function ProfilesPage(){
   const {data:session}=useSession();
   const isStarter=session?.user.roles.includes("Providers")??false;
+  const {data:incompleteDrafts}=useSWR<DraftSummary[]>(session&&isStarter?"/program-profiles/drafts":null);
+  const draftSteps=["اطلاعات برنامه","آیتم‌های برنامه","عوامل برنامه","محورهای موضوعی","کارشناسان","کلیدواژه‌ها","بررسی و صدور"];
 
   const [status,setStatus]=useState("");
   const [topic,setTopic]=useState("");
@@ -179,7 +182,15 @@ export default function ProfilesPage(){
           <th style={{padding:12,textAlign:"right"}}><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("status")}>وضعیت<ArrowDownUp size={14} aria-hidden />{sort.key==="status"?<span className="text-primary">{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th>
           <th style={{padding:12,textAlign:"right"}}>عملیات</th>
         </tr></thead>
-        <tbody>{sortedItems.map(p=>{
+        <tbody>
+        {isStarter&&(incompleteDrafts??[]).map(draft=><tr key={"draft-"+draft.forecastId} className="border-t border-amber-200 bg-amber-50/90 dark:border-amber-900 dark:bg-amber-950/20">
+          <td style={{padding:12,fontWeight:700}}>{draft.title||"شناسنامه در حال تکمیل"}</td>
+          <td style={{padding:12}}><span className="text-xs text-muted-foreground">پیش‌نویس ذخیره‌شده</span></td>
+          <td style={{padding:12}}>{new Date(draft.updatedAt).toLocaleString("fa-IR")}</td>
+          <td style={{padding:12}}><span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">ناقص · {draftSteps[draft.step]??"در حال تکمیل"}</span></td>
+          <td style={{padding:12}}><Link href={`/program-profiles/issue?forecastId=${encodeURIComponent(draft.forecastId)}`} className="btn border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100">ادامه تکمیل</Link></td>
+        </tr>)}
+        {sortedItems.map(p=>{
           const approved=p.status===PROFILE_STATUS.Approved;
           return <tr key={p.id} className={approved?"bg-green-50/80":""} style={{borderTop:"1px solid var(--border)"}}>
             <td style={{padding:12,fontWeight:700}}>{p.mainTopic}</td>
@@ -197,7 +208,7 @@ export default function ProfilesPage(){
         </div>
       {isLoading?<div style={{padding:24}} className="muted">در حال دریافت...</div>:null}
       {error?<div className="alert alert-error" style={{margin:16}}>دریافت شناسنامه‌ها انجام نشد.</div>:null}
-      {!isLoading&&!error&&sortedItems.length===0?<div style={{padding:30,textAlign:"center"}} className="muted">موردی برای نمایش وجود ندارد.</div>:null}
+      {!isLoading&&!error&&sortedItems.length===0&&(incompleteDrafts?.length??0)===0?<div style={{padding:30,textAlign:"center"}} className="muted">موردی برای نمایش وجود ندارد.</div>:null}
     </section>
 
     {data?.pagination?<div className="mt-4 flex items-center justify-between">
