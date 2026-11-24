@@ -29,6 +29,9 @@ export interface ProgramProfileResponse {
   planId: number;
   networkId: number;
   networkGroupId: number;
+  estimateId?: number | null;
+  estimateOrganizationCode?: string | null;
+  estimatePartNumber?: number | null;
   mainTopic: string;
   duration: string;
   broadcastDate: string;
