@@ -8,6 +8,7 @@ import DashboardShell,{Breadcrumb} from "@/components/layout/dashboard-shell";
 import {apiClient,apiErrorMessage} from "@/lib/http/client";
 import {useSession} from "@/hooks/use-session";
 import {PROFILE_STATUS,profileStatusLabel,type ProgramProfileResponse,type SupervisorComment} from "@/lib/program-profiles/types";
+import { WorkflowStatusPanel } from "@/components/workflows/workflow-status-panel";
 
 function roleForStage(profile:ProgramProfileResponse):string|null{
   switch(profile.status){
@@ -97,10 +98,15 @@ export default function ProfileDetailsPage(){
           <p>تاریخ پخش: {new Date(data.broadcastDate).toLocaleDateString("fa-IR-u-ca-persian")}</p><p>مدت: {data.duration}</p><p>ساعت شروع: {data.startTime}</p>
           <p><span className="text-default-500">ساختار: </span>{data.programStructureName}</p><p><span className="text-default-500">درجه: </span>{data.programDegreeName}</p><p><span className="text-default-500">طبقه: </span>{data.floorName}</p></div>
         </section>
-        <section className="card"><h2 className="mb-4 border-b border-default-200 pb-3 text-base font-semibold">گردش‌کار</h2>
-          {canSubmit?<p className="muted">شناسنامه نزد تهیه‌کننده است. برای ورود به گردش‌کار، دکمه «ارسال به گردش‌کار» را بزنید.</p>:null}
-          <p className="muted">مرحله فعلی: {profileStatusLabel(data.status,data.statusDisplayName)}</p>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:14}}>
+        <section className="grid gap-3">
+          <WorkflowStatusPanel
+            workflowName="گردش‌کار شناسنامه برنامه"
+            currentStage={profileStatusLabel(data.status,data.statusDisplayName)}
+            responsibleRole={canSubmit ? "تهیه‌کننده" : activeStageRole || "—"}
+            completed={data.status===PROFILE_STATUS.Approved}
+            hint={canSubmit ? "شناسنامه هنوز برای گردش‌کار ارسال نشده است." : "وضعیت جاری شناسنامه و مسئول اقدام بعدی"}
+          />
+          <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-card p-4">
             {canSubmit?<button className="btn btn-primary" onClick={()=>action("submit")} disabled={Boolean(busy)}>{busy==="submit"?<Loader2 size={16}/>:<Send size={16}/>}ارسال به گردش‌کار</button>:null}
             {canAct&&permittedActions?.some(x=>x.key==="approve")?<button className="btn btn-primary" onClick={()=>action("approve")} disabled={Boolean(busy)}>{busy==="approve"?<Loader2 size={16}/>:<CheckCircle2 size={16}/>}تایید مرحله</button>:null}
             {canReturn?returnActions.map(x=><button key={x.transitionId} className="btn border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={()=>setReturnAction({key:x.key,label:x.label})} disabled={Boolean(busy)}><Undo2 size={16}/>{x.label}</button>):null}
