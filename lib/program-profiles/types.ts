@@ -62,6 +62,7 @@ export interface SupervisorComment {
   supervisorName: string;
   comment: string;
   createdDate: string;
+  isBroadcastable: boolean;
 }
 
 export const PROFILE_STATUS = {
