@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { TopicAxesEditor } from "@/components/forecasts/topic-axes-editor";
 import { ExpertSelector, type ExpertOption } from "@/components/forecasts/expert-selector";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { WorkflowStatusPanel } from "@/components/workflows/workflow-status-panel";
 
 function isoToDateOnly(value: string): string {
   const date = new Date(value);
@@ -199,7 +200,12 @@ export default function ForecastDetailsPage() {
           </div>
 
           {data.lastActionReason ? <div className="alert" style={{ marginBottom: 16 }}><strong>دلیل آخرین بازگشت یا رد:</strong> {data.lastActionReason}</div> : null}
-          {data.workflow ? <section className="card" style={{ marginBottom: 18 }}><strong>وضعیت گردش‌کار</strong><p>فرآیند: {data.workflow.workflowName || "—"}</p><p>مرحله جاری: {data.workflow.currentNodeName || (data.status === FORECAST_STATUS.Approved ? "پایان فرآیند" : "—")}</p><p>مسئول مرحله: {stageRoleName}</p></section> : null}
+          {data.workflow ? <div className="mb-[18px]"><WorkflowStatusPanel
+            workflowName={data.workflow.workflowName}
+            currentStage={data.workflow.currentNodeName}
+            responsibleRole={stageRoleName}
+            completed={data.status === FORECAST_STATUS.Approved}
+          /></div> : null}
           <form className="grid" style={{ gap: 18 }} onSubmit={save}>
             <section className="form-section">
               <div className="form-section-head">
