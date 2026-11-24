@@ -6,7 +6,7 @@ import { NetworkSelect } from "@/components/ui/network-field";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ProgramAssignmentFields } from "@/components/plan-providers/program-assignment-fields";
 import {FormEvent,useEffect,useMemo,useRef,useState} from "react";
-import {useRouter} from "next/navigation";
+import {useRouter,useSearchParams} from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 import {RefreshCcw,Loader2,Save,Trash2,Clock3,Users,Layers3,Plus,PenLine,Check, X, UserRound,ChevronDown,ChevronUp} from "lucide-react";
@@ -116,6 +116,7 @@ type EstimateHeaderResponse={IsSuccess:boolean;Data:EstimateHeader|null;Message:
 
 export default function IssueProfilePage(){
   const router=useRouter();
+  const searchParams=useSearchParams();
   const { data: session } = useSession();
   const isProvider = session?.user.roles.includes("Providers") ?? false;
   const [selectedNetwork, setSelectedNetwork] = useState("");
@@ -123,7 +124,7 @@ export default function IssueProfilePage(){
   const forecastList = session && !networkLoading
     ? `/forecasts?status=3&pageNumber=1&pageSize=100${networkId ? `&networkId=${networkId}` : ""}` : null;
   const {data:forecasts,error:forecastsError,isLoading:forecastsLoading,mutate:reloadForecasts}=useSWR<ForecastResponse[]>(forecastList,forecastListFetcher);
-  const [forecastId,setForecastId]=useState("");
+  const [forecastId,setForecastId]=useState(()=>searchParams.get("forecastId")??"");
   const {data:savedDrafts,mutate:refreshDrafts,error:draftsError}=useSWR<DraftSummary[]>("/program-profiles/drafts");
   const {data:restoredForecast}=useSWR<ForecastResponse>(forecastId?`/forecasts/${forecastId}`:null);
   const availableForecasts=useMemo(()=>{
