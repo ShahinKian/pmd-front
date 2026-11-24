@@ -23,6 +23,7 @@ export interface ForecastResponse {
   userCreatorName: string;
   createdDate: string;
   hasProfile: boolean;
+  canEdit?: boolean;
 }
 
 export interface PaginationMeta {
