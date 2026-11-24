@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, LogOut, Orbit, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, LogOut, Orbit, X } from "lucide-react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/store";
 import { usePmdMenu } from "@/hooks/use-pmd-menu";
@@ -18,6 +19,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
     .filter((item) => item.href && (pathname === item.href || pathname.startsWith(item.href + "/")))
     .sort((a, b) => (b.href?.length ?? 0) - (a.href?.length ?? 0))[0]?.href;
   const { collapsed, setCollapsed, mobileMenu, setMobileMenu } = useSidebar();
+  const [openGroups, setOpenGroups] = useState<Record<number, boolean>>({ 0: true, 1: true });
 
   async function logout() {
     await apiClient.post("/auth/logout");
@@ -72,10 +74,18 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
           <div className="grid gap-5">
             {menus.map((group, groupIndex) => (
               <div key={group.title + groupIndex}>
-                <div className={cn("mb-2 px-3 text-[11px] font-bold text-[#aaa7ca]", collapsed && "lg:sr-only")}>
-                  {group.title}
-                </div>
-                <div className="grid gap-1">
+                <button
+                  type="button"
+                  title={collapsed ? group.title : undefined}
+                  aria-expanded={openGroups[groupIndex] !== false}
+                  onClick={() => setOpenGroups(current => ({ ...current, [groupIndex]: current[groupIndex] === false }))}
+                  className={cn("mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-[11px] font-bold text-[#aaa7ca] transition-colors hover:bg-white/5 hover:text-white", collapsed && "lg:justify-center lg:px-0")}
+                >
+                  <group.icon className="size-4 shrink-0" />
+                  <span className={cn("min-w-0 flex-1 truncate", collapsed && "lg:sr-only")}>{group.title}</span>
+                  <ChevronDown className={cn("size-3.5 shrink-0 transition-transform", openGroups[groupIndex] === false && "-rotate-90", collapsed && "lg:hidden")} />
+                </button>
+                <div className={cn("grid gap-1 overflow-hidden transition-all", openGroups[groupIndex] === false && "hidden")}>
                   {(group.child ?? []).map((item) => {
                     const active = Boolean(item.href && item.href === selectedHref);
                     const Icon = item.icon;
