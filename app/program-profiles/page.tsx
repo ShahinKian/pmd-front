@@ -14,8 +14,8 @@ export default function ProfilesPage(){
       <div><h1 className="page-title">شناسنامه عملکرد</h1><p className="page-description">صدور و پیگیری شناسنامه‌های برنامه</p></div>
       <Link href="/program-profiles/issue" className="btn btn-primary"><Plus size={17}/>صدور شناسنامه</Link>
     </div>
-    <section className="card" style={{padding:0,overflow:"hidden"}}>
-      <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+    <section className="card" style={{ padding: 0, overflow: "hidden" }}>\n        <div className="pmd-table-scroll">
+      <table className="pmd-table">
         <thead style={{background:"#f8fafc"}}><tr>
           <th style={{padding:12,textAlign:"right"}}>موضوع</th><th style={{padding:12,textAlign:"right"}}>طرح</th>
           <th style={{padding:12,textAlign:"right"}}>تاریخ پخش</th><th style={{padding:12,textAlign:"right"}}>وضعیت</th>
@@ -28,7 +28,7 @@ export default function ProfilesPage(){
           <td style={{padding:12}}><span className="admin-badge">{p.statusDisplayName}</span></td>
           <td style={{padding:12}}><Link href={"/program-profiles/"+p.id} className="btn btn-outline">مشاهده</Link></td>
         </tr>)}</tbody>
-      </table>
+      </table>\n        </div>
       {isLoading?<div style={{padding:24}} className="muted">در حال دریافت...</div>:null}
       {error?<div className="alert alert-error" style={{margin:16}}>دریافت شناسنامه‌ها انجام نشد.</div>:null}
       {!isLoading&&!error&&(data?.length??0)===0?<div style={{padding:30,textAlign:"center"}} className="muted">موردی برای نمایش وجود ندارد.</div>:null}

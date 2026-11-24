@@ -1,29 +1,18 @@
 "use client";
-import React from "react";
-import { useSidebar, useThemeStore } from "@/store";
-import { cn } from "@/lib/utils";
-import FooterLayout from "./footer-layout";
+
+import Link from "next/link";
 
 const Footer = () => {
-  const { collapsed } = useSidebar();
-  const { footerType } = useThemeStore();
-
-  if (footerType === "hidden") return null;
-
   return (
-    <FooterLayout
-      className={cn("", {
-        "ltr:xl:ml-[300px] rtl:xl:mr-[300px]": !collapsed,
-        "ltr:xl:ml-[72px] rtl:xl:mr-[72px]": collapsed,
-        "sticky bottom-0": footerType === "sticky",
-      })}
-    >
-      <div className="block md:flex md:justify-between text-muted-foreground">
-        <p className="sm:mb-0 text-xs md:text-sm">
-          © {new Date().getFullYear()} سامانه ثبت عملکرد
-        </p>
+    <footer className="border-t border-border bg-card px-4 py-4 text-xs text-muted-foreground sm:px-6 lg:px-7 print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span>© {new Date().getFullYear()} سامانه ثبت عملکرد</span>
+        <nav aria-label="پیوندهای فوتر" className="flex items-center gap-4">
+          <Link href="/dashboard" className="hover:text-primary">داشبورد</Link>
+          <Link href="/program-profiles" className="hover:text-primary">شناسنامه عملکرد</Link>
+        </nav>
       </div>
-    </FooterLayout>
+    </footer>
   );
 };
 
