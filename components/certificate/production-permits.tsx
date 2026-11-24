@@ -47,7 +47,7 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
   const detail = useSWR<PermitDetail>(issuedMode && base && periodId && permitId ? `${base}/permits/${permitId}` : null);
   const planTitle = (id: number, name?: string | null) => name?.trim() || `برنامه با شناسه طرح ${displayNumber(id)}`;
   const period = periods.data?.find((item) => item.id === periodId);
-  const canPrepare = Boolean(!issuedMode && base && access.canIssue && period?.isActive && !period.issuedAt);
+  const canPrepare = Boolean(!issuedMode && base && access.canIssue && period?.isActive);
   const preparation = useSWR<PermitIssuePreparation>(canPrepare ? `${base}/periods/${periodId}/issue` : null);
   const readyPlans = preparation.data?.planIds.length ?? 0;
   const issuedHref = `/production-permits/issued?${new URLSearchParams({ network, periodId })}`;
@@ -150,8 +150,11 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
             </SearchableSelect>
           </label>}
         </div>
-        {!issuedMode && access.canIssue && period?.issuedAt && <p>صدور این دوره انجام شده است. <Link className="underline" href={issuedHref}>مشاهده مجوزهای این دوره</Link></p>}
-        {!issuedMode && access.canIssue && period && !period.isActive && !period.issuedAt &&
+        {!issuedMode && access.canIssue && period?.issuedAt && <p className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
+          برای این دوره قبلاً مجوز صادر شده است؛ سامانه فقط شناسنامه‌های جدید و پرداخت‌نشده را بررسی می‌کند و در صورت نیاز سند تکمیلی می‌سازد.
+          {" "}<Link className="underline" href={issuedHref}>مشاهده مجوزهای این دوره</Link>
+        </p>}
+        {!issuedMode && access.canIssue && period && !period.isActive &&
           <p>این دوره غیرفعال است. مدیر سیستم می‌تواند آن را دوباره فعال کند.</p>}
       </section>
       {canPrepare && <section className="card grid gap-3">
@@ -160,7 +163,7 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
         {preparation.error && <p role="alert" className="alert alert-error">
           {apiErrorMessage(preparation.error, "بررسی شناسنامه‌ها انجام نشد.")}
         </p>}
-        {preparation.data?.alreadyIssued && <p>صدور این دوره برای شبکهٔ انتخاب‌شده انجام شده است.</p>}
+        {preparation.data?.alreadyIssued && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-800">همه شناسنامه‌های تأییدشده این بازه قبلاً در مجوزها محاسبه شده‌اند؛ مورد جدیدی برای صدور وجود ندارد.</p>}
         {preparation.data && !preparation.error && !preparation.data.alreadyIssued && <>
           {readyPlans > 0 && <div className="flex flex-wrap items-center gap-3">
             <button type="button" className="btn btn-success" disabled={Boolean(busy)} onClick={issue}>
@@ -172,11 +175,13 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
           {preparation.data.profiles.length === 0
             ? <p>در این شبکه، شناسنامه‌ای با وضعیت «تأیید نهایی» و تاریخ پخش داخل بازهٔ این دوره پیدا نشد.</p>
             : <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
-                <thead><tr><th>برنامه</th><th>قسمت</th><th>تاریخ پخش</th></tr></thead>
-                <tbody>{preparation.data.profiles.map((profile) => <tr key={profile.profileId} className="border-t">
+                <thead><tr><th>برنامه</th><th>کد برآورد</th><th>قسمت</th><th>تاریخ پخش</th><th>نوع صدور</th></tr></thead>
+                <tbody>{preparation.data.profiles.map((profile) => <tr key={profile.profileId} className={`border-t ${profile.requiresRecalculation ? "bg-amber-50/90 dark:bg-amber-950/20" : ""}`}>
                   <td>{planTitle(profile.planId)}{profile.mainTopic?.trim() && <div>موضوع {profile.mainTopic}</div>}</td>
+                  <td>{profile.estimateOrganizationCode?.trim() || (profile.estimateId ? `#${displayNumber(profile.estimateId)}` : "برآورد جاری")}</td>
                   <td>{displayNumber(profile.episodeNumber)}</td>
                   <td>{displayDate(profile.broadcastDate)}</td>
+                  <td>{profile.requiresRecalculation ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">محاسبه مجدد / تکمیلی</span> : <span className="text-default-500">اولیه</span>}</td>
                 </tr>)}</tbody>
               </table></div>}
         </>}
@@ -186,9 +191,13 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
         {permits.isLoading && <p role="status">در حال بارگذاری اسناد…</p>}
         {visiblePermits?.length === 0 && <p>سندی با فیلترهای انتخاب‌شده پیدا نشد.</p>}
         {Boolean(visiblePermits?.length) && <div className="overflow-x-auto"><table className="w-full text-right text-sm [&_td]:p-2 [&_th]:p-2">
-          <thead><tr><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("planId")}>برنامه<ArrowDownUp size={14} aria-hidden/>{sort.key==="planId"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th>قسمت‌ها</th><th>وضعیت</th><th>ناخالص</th><th>کسورات</th><th>قابل پرداخت</th><th>سند</th></tr></thead>
-          <tbody>{visiblePermits?.map((permit) => <tr key={permit.id} className="border-t">
-            <td>{planTitle(permit.planId, permit.planName)}</td><td>{displayNumber(permit.episodeCount)}</td><td><span className="table-tag">{statusLabels[permit.status]}</span></td>
+          <thead><tr><th><button type="button" className="pmd-sort-button" onClick={()=>toggleSort("planId")}>برنامه<ArrowDownUp size={14} aria-hidden/>{sort.key==="planId"?<span>{sort.direction==="asc"?"↑":"↓"}</span>:null}</button></th><th>کد برآورد</th><th>قسمت‌ها</th><th>نوع سند</th><th>وضعیت</th><th>ناخالص</th><th>کسورات</th><th>قابل پرداخت</th><th>سند</th></tr></thead>
+          <tbody>{visiblePermits?.map((permit) => <tr key={permit.id} className={`border-t ${permit.isSupplemental ? "bg-amber-50/90 dark:bg-amber-950/20" : ""}`}>
+            <td>{planTitle(permit.planId, permit.planName)}</td>
+            <td>{permit.estimateOrganizationCode?.trim() || (permit.estimateId ? `#${displayNumber(permit.estimateId)}` : "—")}</td>
+            <td>{displayNumber(permit.episodeCount)}</td>
+            <td>{permit.isSupplemental ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">تکمیلی / محاسبه مجدد</span> : "اولیه"}</td>
+            <td><span className="table-tag">{statusLabels[permit.status]}</span></td>
             <td>{displayMoney(permit.grossAmount)}</td><td>{displayMoney(permit.deductionAmount)}</td><td>{displayMoney(permit.netAmount)}</td>
             <td><button className="btn btn-info" type="button" disabled={Boolean(busy)} aria-pressed={permitId === permit.id}
               onClick={() => { setPermitId(permit.id); setMessage(null); }}><Eye size={15} aria-hidden />مشاهده سند</button></td>
@@ -199,7 +208,8 @@ export function ProductionPermits({ mode, initialNetwork = "", initialPeriod = "
       {detail.data && <section className="card grid gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div><h2 className="font-semibold">{planTitle(detail.data.permit.planId, detail.data.permit.planName)}</h2>
-            <p>{statusLabels[detail.data.permit.status]} · قابل پرداخت {displayMoney(detail.data.permit.netAmount)}</p></div>
+            <p>{statusLabels[detail.data.permit.status]} · کد برآورد {detail.data.permit.estimateOrganizationCode?.trim() || "—"} · قابل پرداخت {displayMoney(detail.data.permit.netAmount)}</p>
+            {detail.data.permit.isSupplemental ? <p className="mt-1 text-sm font-medium text-amber-700">این سند تکمیلی/محاسبه مجدد برای قسمت‌های باقیمانده است.</p> : null}</div>
           {access.canApprove && detail.data.permit.status !== "SentToFinance" &&
             <button className={detail.data.permit.status === "Draft" ? "btn btn-success" : "btn btn-primary"} type="button" disabled={Boolean(busy)} onClick={() =>
               transition(detail.data?.permit.status === "Draft" ? "approve" : "send-to-finance")}>
