@@ -111,6 +111,8 @@ function totalDuration(items:ExternalItem[]):string {
 }
 type PlanDetail={PlanId:number;ApplicationType:number;ApplicationTypeName:string;ProgramType:number;ProgramTypeName:string;ProgramDegreeId:number;ProgramDegreeName:string;FloorPlanId:number;FloorPlanName:string;StructureProgramId:number;StructureProgramName:string;ProduceType:number;ProduceTypeName:string;PartNumber:number;Duration:number};
 type PlanDetailResponse={IsSuccess:boolean;Data:PlanDetail|null;Message:string|null};
+type EstimateHeader={Id:number;PlanId:number;NetworkId:number;PlanName?:string|null;EstimateOrganizationCode?:string|number|null;PartNumber?:number|null};
+type EstimateHeaderResponse={IsSuccess:boolean;Data:EstimateHeader|null;Message:string|null};
 
 export default function IssueProfilePage(){
   const router=useRouter();
@@ -146,6 +148,9 @@ export default function IssueProfilePage(){
   }
   const {data:planDetail,error:planDetailError,mutate:retryPlan}=useSWR<PlanDetailResponse>(selected?`/base-info/plan-detail/${selected.planId}`:null);
   const planData=planDetail?.IsSuccess&&planDetail.Data?.PlanId===selected?.planId?planDetail.Data:null;
+  const {data:estimateHeader,error:estimateHeaderError,mutate:reloadEstimateHeader}=useSWR<EstimateHeaderResponse>(selected?`/base-info/estimate/${selected.planId}`:null,{revalidateOnFocus:false});
+  const estimateData=estimateHeader?.IsSuccess&&estimateHeader.Data?.PlanId===selected?.planId?estimateHeader.Data:null;
+  const estimateCode=estimateData?.EstimateOrganizationCode==null?"":String(estimateData.EstimateOrganizationCode).trim();
   const {data:estimateDetail,error:estimateError,mutate:reloadEstimate,isValidating:crewLoading}=useSWR<ExternalResponse<ExternalCrew>>(selected?`/base-info/estimate-detail/${selected.planId}`:null,{revalidateOnFocus:false,revalidateOnReconnect:false});
   const {data:planItems,error:itemsError,mutate:reloadItems,isValidating:itemsLoading}=useSWR<ExternalResponse<ExternalItem>>(selected?`/base-info/plan-items/${selected.planId}`:null,{revalidateOnFocus:false,revalidateOnReconnect:false});
   const externalCrew=estimateDetail?.IsSuccess&&Array.isArray(estimateDetail.Data)?estimateDetail.Data:null;
@@ -334,6 +339,9 @@ export default function IssueProfilePage(){
         planId:selected.planId,
         networkId:selected.networkId,
         networkGroupId:selected.networkGroupId,
+        estimateId:estimateData?.Id??null,
+        estimateOrganizationCode:estimateCode||null,
+        estimatePartNumber:estimateData?.PartNumber??null,
         duration:programDuration,
         broadcastDate:selected.broadcastDate,
         productionMethod:productionMethod||planData.ProgramTypeName,
@@ -397,8 +405,16 @@ export default function IssueProfilePage(){
       <p className="mb-3 text-sm text-default-500">با «ذخیره مرحله» یا رفتن به مرحله دیگر، اطلاعات روی سرور ذخیره می‌شود و پس از ورود مجدد قابل ادامه است.</p>
       {savedAt&&draftReady?<p role="status" className="mb-3 text-sm text-green-700">آخرین ذخیره: {new Date(savedAt).toLocaleString("fa-IR")}</p>:null}
       {planDetailError?<p className="alert alert-error">دریافت اطلاعات برنامه ناموفق بود. <button type="button" onClick={()=>void retryPlan()}>تلاش مجدد</button></p>:null}
+      {estimateHeaderError?<p className="alert alert-error">دریافت کد برآورد ناموفق بود. <button type="button" onClick={()=>void reloadEstimateHeader()}>تلاش مجدد</button></p>:null}
       {draftLoading?<p role="status">در حال خواندن پیش‌نویس...</p>:null}
       {selected&&!draftReady&&!draftLoading?<button type="button" className="btn btn-outline" onClick={()=>setLoadAttempt(x=>x+1)}>تلاش مجدد برای خواندن پیش‌نویس</button>:null}
+      {selected?<div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-sm dark:border-indigo-900 dark:bg-indigo-950/20">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <span><strong>کد برآورد:</strong> {estimateCode||"ثبت نشده / در حال دریافت"}</span>
+          {estimateData?.Id?<span><strong>شناسه برآورد:</strong> {estimateData.Id.toLocaleString("fa-IR",{useGrouping:false})}</span>:null}
+          {estimateData?.PartNumber!=null?<span><strong>بخش برآورد:</strong> {estimateData.PartNumber.toLocaleString("fa-IR",{useGrouping:false})}</span>:null}
+        </div>
+      </div>:null}
       <fieldset disabled={saving}>
 
       <div className={step===0?"grid grid-cols-1 gap-4 md:grid-cols-3":"hidden"}>
