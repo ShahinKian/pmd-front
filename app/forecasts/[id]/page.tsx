@@ -65,9 +65,7 @@ export default function ForecastDetailsPage() {
     setExpertIds(data.expertIds);
   }, [data]);
 
-  const editable =
-    data?.status === FORECAST_STATUS.Draft ||
-    data?.status === FORECAST_STATUS.ReturnedForEdit;
+  const editable = Boolean(data?.canEdit);
   const canReview = Boolean(permittedActions?.some((item) =>
     ["approve", "reject", "return-for-edit"].includes(item.key)
   ));
@@ -200,6 +198,9 @@ export default function ForecastDetailsPage() {
           </div>
 
           {data.lastActionReason ? <div className="alert" style={{ marginBottom: 16 }}><strong>دلیل آخرین بازگشت یا رد:</strong> {data.lastActionReason}</div> : null}
+          {data.status===FORECAST_STATUS.PendingReview && editable ? <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950/20 dark:text-sky-200">
+            این پیش‌بینی ارسال شده، اما مرحله بعد هنوز آن را باز نکرده است؛ تا آن زمان امکان ویرایش دارید.
+          </div> : null}
           {data.workflow ? <div className="mb-[18px]"><WorkflowStatusPanel
             workflowName={data.workflow.workflowName}
             currentStage={data.workflow.currentNodeName}
