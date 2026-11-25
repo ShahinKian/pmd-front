@@ -4,6 +4,7 @@ export type DraftItem = { rowId:string; itemName:string; subject:string; duratio
 export type DraftCrew = { rowId:string; personnelId:number; personnelName:string; activityTypeId:number; activityTypeName:string; isPresent:boolean; jobId:number; jobName:string };
 export type ProfileDraft = {
   version:1; forecastId:string; title:string; step:number; startTime:string; occasion:string;
+  broadcastDate?:string;
   items:DraftItem[]; crew:DraftCrew[]; itemsLoaded:boolean; crewLoaded:boolean;
   keywords:string[]; axes:{id:string;title:string}[];
   experts:{expertId:string;topicAxisId:string;duration:string;attendanceType:number;hasPayment:boolean}[];
@@ -42,7 +43,7 @@ export function isProfileDraft(value:unknown):value is ProfileDraft {
   const number=(x:unknown) => typeof x==="number" && Number.isFinite(x);
   const list=(x:unknown):x is unknown[] => Array.isArray(x) && x.length<=2000;
   return typeof d.completed==="boolean" && d.version===1 && text(d.forecastId) && text(d.title) && Number.isInteger(d.step) && d.step>=0 && d.step<=6
-    && text(d.startTime) && text(d.occasion) && typeof d.itemsLoaded==="boolean" && typeof d.crewLoaded==="boolean"
+    && text(d.startTime) && text(d.occasion) && (d.broadcastDate === undefined || text(d.broadcastDate)) && typeof d.itemsLoaded==="boolean" && typeof d.crewLoaded==="boolean"
     && (d.issuedProfileId===null || (text(d.issuedProfileId) && /^[0-9a-f-]{36}$/i.test(d.issuedProfileId)))
     && list(d.items) && d.items.every(x=>x && [x.rowId,x.itemName,x.subject,x.duration,x.productionType].every(text))
     && list(d.crew) && d.crew.every(x=>x && [x.rowId,x.personnelName,x.activityTypeName,x.jobName].every(text) && [x.personnelId,x.activityTypeId,x.jobId].every(number) && typeof x.isPresent==="boolean")

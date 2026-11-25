@@ -4,6 +4,16 @@ on:
   push:
     branches:
       - feat/certificate-payment-periods
+  pull_request:
+    paths:
+      - "app/**"
+      - "components/**"
+      - "hooks/**"
+      - "lib/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/ui-checks.yml"
   workflow_dispatch:
 
 jobs:

@@ -11,7 +11,7 @@ import DashboardShell, { Breadcrumb } from "@/components/layout/dashboard-shell"
 import { apiClient, apiErrorMessage } from "@/lib/http/client";
 import { useSession } from "@/hooks/use-session";
 import type { BaseInfoListResponse } from "@/lib/base-info/browser-types";
-import type { EnrichedProviderPlan } from "@/lib/plan-providers/types";
+import type { ActiveProviderPlans } from "@/lib/plan-providers/types";
 import { ProgramAssignmentFields } from "@/components/plan-providers/program-assignment-fields";
 import { PersianDatePicker } from "@/components/ui/persian-date-picker";
 import { Switch } from "@/components/ui/switch";
@@ -31,9 +31,10 @@ export default function NewForecastPage() {
   const { data: session } = useSession();
   const isProvider = session?.user.roles.includes("Providers") ?? false;
 
-  const { data: myPlans, isLoading: myPlansLoading, error: myPlansError, mutate: reloadMyPlans } = useSWR<EnrichedProviderPlan[]>(
-    isProvider ? "/plan-providers/my/plans/enriched" : null,
+  const { data: activePlans, isLoading: myPlansLoading, error: myPlansError, mutate: reloadMyPlans } = useSWR<ActiveProviderPlans>(
+    isProvider ? "/plan-providers/my/plans/enriched?activeOnly=true" : null,
   );
+  const myPlans = activePlans?.plans;
   const { data: networks } = useSWR<BaseInfoListResponse>(isProvider ? "/base-info/networks" : null);
 
   const [selectedNetwork, setNetworkId] = useState<number | null>(null);
@@ -205,11 +206,12 @@ export default function NewForecastPage() {
                       </option>;
                     })}
                   </SearchableSelect>
+                  {activePlans?.scheduleUnavailableCount ? <small role="alert" className="text-destructive">بازه زمانی برخی برنامه‌ها دریافت نشده است.</small> : null}
                   {myPlansError && <small role="alert" className="text-destructive">دریافت برنامه‌های شما ناموفق بود.</small>}
                   {myPlans?.some(plan => !plan.networkId || !plan.networkGroupId) && <small className="text-destructive">اطلاعات شبکه یا گروه برخی برنامه‌ها دریافت نشده است.</small>}
-                  {(myPlansError || myPlans?.some(plan => !plan.networkId || !plan.networkGroupId)) && <button
+                  {(myPlansError || activePlans?.scheduleUnavailableCount || myPlans?.some(plan => !plan.networkId || !plan.networkGroupId)) && <button
                     type="button" className="btn btn-outline" onClick={() => void reloadMyPlans()}>دریافت مجدد اطلاعات برنامه‌ها</button>}
-                  {!myPlansLoading && !myPlansError && myPlans?.length === 0 && <small className="muted">برنامه‌ای به شما تخصیص داده نشده است.</small>}
+                  {!myPlansLoading && !myPlansError && myPlans?.length === 0 && <small className="muted">برنامه‌ای با بازه زمانی معتبر برای امروز یافت نشد.</small>}
                 </label>
                 <ProgramAssignmentFields networkId={networkId} networkGroupId={networkGroupId}
                   episodeNumber={episode?.episodeNumber} />

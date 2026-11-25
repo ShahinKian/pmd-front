@@ -125,15 +125,18 @@ textarea {
   padding:.75rem 1rem;
   border-radius:.5rem;
   font-size:.875rem;
+  line-height:1.75;
+  overflow-wrap:anywhere;
+  white-space:pre-wrap;
 }
 .alert-error {
-  color:var(--color-destructive);
-  background:color-mix(in srgb,var(--color-destructive) 8%,transparent);
+  color:var(--color-card-foreground);
+  background:color-mix(in srgb,var(--color-destructive) 9%,var(--color-card));
   border:1px solid color-mix(in srgb,var(--color-destructive) 20%,transparent);
 }
 .alert-success {
-  color:var(--color-success);
-  background:color-mix(in srgb,var(--color-success) 8%,transparent);
+  color:var(--color-card-foreground);
+  background:color-mix(in srgb,var(--color-success) 9%,var(--color-card));
   border:1px solid color-mix(in srgb,var(--color-success) 20%,transparent);
 }
 

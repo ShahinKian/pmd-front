@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { TopicAxesEditor } from "@/components/forecasts/topic-axes-editor";
 import { ExpertSelector, type ExpertOption } from "@/components/forecasts/expert-selector";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { WorkflowStatusPanel } from "@/components/workflows/workflow-status-panel";
 
 function isoToDateOnly(value: string): string {
   const date = new Date(value);
@@ -64,9 +65,7 @@ export default function ForecastDetailsPage() {
     setExpertIds(data.expertIds);
   }, [data]);
 
-  const editable =
-    data?.status === FORECAST_STATUS.Draft ||
-    data?.status === FORECAST_STATUS.ReturnedForEdit;
+  const editable = Boolean(data?.canEdit);
   const canReview = Boolean(permittedActions?.some((item) =>
     ["approve", "reject", "return-for-edit"].includes(item.key)
   ));
@@ -198,8 +197,16 @@ export default function ForecastDetailsPage() {
             </span>
           </div>
 
-          {data.lastActionReason ? <div className="alert" style={{ marginBottom: 16 }}><strong>دلیل آخرین بازگشت یا رد:</strong> {data.lastActionReason}</div> : null}
-          {data.workflow ? <section className="card" style={{ marginBottom: 18 }}><strong>وضعیت گردش‌کار</strong><p>فرآیند: {data.workflow.workflowName || "—"}</p><p>مرحله جاری: {data.workflow.currentNodeName || (data.status === FORECAST_STATUS.Approved ? "پایان فرآیند" : "—")}</p><p>مسئول مرحله: {stageRoleName}</p></section> : null}
+          {data.lastActionReason ? <div className="alert mb-4 border border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"><strong>دلیل آخرین بازگشت یا رد:</strong> {data.lastActionReason}</div> : null}
+          {data.status===FORECAST_STATUS.PendingReview && editable ? <div className="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950/20 dark:text-sky-200">
+            این پیش‌بینی ارسال شده، اما مرحله بعد هنوز آن را باز نکرده است؛ تا آن زمان امکان ویرایش دارید.
+          </div> : null}
+          {data.workflow ? <div className="mb-[18px]"><WorkflowStatusPanel
+            workflowName={data.workflow.workflowName}
+            currentStage={data.workflow.currentNodeName}
+            responsibleRole={stageRoleName}
+            completed={data.status === FORECAST_STATUS.Approved}
+          /></div> : null}
           <form className="grid" style={{ gap: 18 }} onSubmit={save}>
             <section className="form-section">
               <div className="form-section-head">

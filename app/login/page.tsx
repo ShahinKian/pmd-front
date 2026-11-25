@@ -128,7 +128,7 @@ export default function LoginPage() {
           <RadioArtwork/>
           <div className="relative z-10">
             <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-[#e8dfff] backdrop-blur-lg"><RadioTower size={15}/> رادیو، در یک نگاه</span>
-            <h2 className="max-w-md text-3xl font-black leading-[1.65]">از پیش‌بینی برنامه تا شناسنامه عملکرد؛ همه‌چیز در یک فضای یکپارچه</h2>
+            <h2 className="max-w-md text-3xl font-black leading-[1.65]">از پیش‌بینی برنامه تا پرداخت ؛ همه‌چیز در یک فضای یکپارچه</h2>
             <p className="mt-3 max-w-sm text-sm leading-8 text-[#d8cdf6]">مدیریت برنامه‌ها، شبکه‌ها و گردش‌کارها با دسترسی امن و تجربه‌ای سریع و ساده.</p>
             <div className="mt-6 flex items-center gap-2" aria-hidden="true">
               <span className="h-1.5 w-12 rounded-full bg-[#d1beff]"/><span className="size-1.5 rounded-full bg-white/40"/><span className="size-1.5 rounded-full bg-white/40"/>
@@ -141,7 +141,7 @@ export default function LoginPage() {
             <span className="text-lg font-black">سامانه ثبت عملکرد</span>
           </div>
           <div className="mb-7">
-            <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary"><LockKeyhole size={13}/> ورود امن</span>
+            <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-bold text-primary"><LockKeyhole size={13}/> ورود ایمن</span>
             <h1 className="text-2xl font-black tracking-tight text-foreground sm:text-3xl">خوش آمدید</h1>
             <p className="mt-2 text-sm leading-7 text-muted-foreground">برای ورود، اطلاعات حساب و کد امنیتی را وارد کنید.</p>
           </div>
