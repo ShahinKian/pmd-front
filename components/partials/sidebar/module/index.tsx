@@ -19,7 +19,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
     .filter((item) => item.href && (pathname === item.href || pathname.startsWith(item.href + "/")))
     .sort((a, b) => (b.href?.length ?? 0) - (a.href?.length ?? 0))[0]?.href;
   const { collapsed, setCollapsed, mobileMenu, setMobileMenu } = useSidebar();
-  const [openGroups, setOpenGroups] = useState<Record<number, boolean>>({ 0: true, 1: true });
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   async function logout() {
     await apiClient.post("/auth/logout");
@@ -72,20 +72,20 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
 
         <nav className="flex-1 overflow-y-auto px-3 py-6 [scrollbar-width:thin] [scrollbar-color:#514775_transparent]" aria-label="منوی اصلی">
           <div className="grid gap-5">
-            {menus.map((group, groupIndex) => (
-              <div key={group.title + groupIndex}>
+            {menus.map((group) => (
+              <div key={group.title}>
                 <button
                   type="button"
                   title={collapsed ? group.title : undefined}
-                  aria-expanded={openGroups[groupIndex] !== false}
-                  onClick={() => setOpenGroups(current => ({ ...current, [groupIndex]: current[groupIndex] === false }))}
-                  className={cn("mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-[11px] font-bold text-[#aaa7ca] transition-colors hover:bg-white/5 hover:text-white", collapsed && "lg:justify-center lg:px-0")}
+                  aria-expanded={Boolean(openGroups[group.title])}
+                  onClick={() => setOpenGroups(current => ({ ...current, [group.title]: !current[group.title] }))}
+                  className={cn("mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-[13px] font-bold text-[#aaa7ca] transition-colors hover:bg-white/5 hover:text-white", collapsed && "lg:justify-center lg:px-0")}
                 >
                   <group.icon className="size-4 shrink-0" />
                   <span className={cn("min-w-0 flex-1 truncate", collapsed && "lg:sr-only")}>{group.title}</span>
-                  <ChevronDown className={cn("size-3.5 shrink-0 transition-transform", openGroups[groupIndex] === false && "-rotate-90", collapsed && "lg:hidden")} />
+                  <ChevronDown className={cn("size-3.5 shrink-0 transition-transform", !openGroups[group.title] && "-rotate-90", collapsed && "lg:hidden")} />
                 </button>
-                <div className={cn("grid gap-1 overflow-hidden transition-all", openGroups[groupIndex] === false && "hidden")}>
+                <div className={cn("grid gap-1 overflow-hidden transition-all", !openGroups[group.title] && "hidden")}>
                   {(group.child ?? []).map((item) => {
                     const active = Boolean(item.href && item.href === selectedHref);
                     const Icon = item.icon;
