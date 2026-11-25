@@ -70,22 +70,28 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
           </Button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-6 [scrollbar-width:thin] [scrollbar-color:#514775_transparent]" aria-label="منوی اصلی">
-          <div className="grid gap-5">
+        <nav className={cn(
+          "flex-1 overflow-y-auto px-3 py-6 [scrollbar-width:thin] [scrollbar-color:#514775_transparent]",
+          collapsed && "lg:pt-9",
+        )} aria-label="منوی اصلی">
+          <div className={cn("grid gap-5", collapsed && "lg:gap-2 lg:divide-y lg:divide-white/10")}>
             {menus.map((group) => (
-              <div key={group.title}>
+              <div key={group.title} className={cn(collapsed && "lg:pt-2 lg:first:pt-0")}>
                 <button
                   type="button"
-                  title={collapsed ? group.title : undefined}
                   aria-expanded={Boolean(openGroups[group.title])}
                   onClick={() => setOpenGroups(current => ({ ...current, [group.title]: !current[group.title] }))}
-                  className={cn("mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-[13px] font-bold text-[#aaa7ca] transition-colors hover:bg-white/5 hover:text-white", collapsed && "lg:justify-center lg:px-0")}
+                  className={cn("mb-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-right text-[13px] font-bold text-[#aaa7ca] transition-colors hover:bg-white/5 hover:text-white", collapsed && "lg:hidden")}
                 >
                   <group.icon className="size-4 shrink-0" />
-                  <span className={cn("min-w-0 flex-1 truncate", collapsed && "lg:sr-only")}>{group.title}</span>
-                  <ChevronDown className={cn("size-3.5 shrink-0 transition-transform", !openGroups[group.title] && "-rotate-90", collapsed && "lg:hidden")} />
+                  <span className="min-w-0 flex-1 truncate">{group.title}</span>
+                  <ChevronDown className={cn("size-3.5 shrink-0 transition-transform", !openGroups[group.title] && "-rotate-90")} />
                 </button>
-                <div className={cn("grid gap-1 overflow-hidden transition-all", !openGroups[group.title] && "hidden")}>
+                <div className={cn(
+                  "gap-1 overflow-hidden",
+                  openGroups[group.title] ? "grid" : "hidden",
+                  collapsed && "lg:grid",
+                )}>
                   {(group.child ?? []).map((item) => {
                     const active = Boolean(item.href && item.href === selectedHref);
                     const Icon = item.icon;
@@ -94,6 +100,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
                         key={item.href}
                         href={item.href}
                         title={collapsed ? item.title : undefined}
+                        aria-current={active ? "page" : undefined}
                         onClick={() => setMobileMenu(false)}
                         className={cn(
                           "flex min-h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium text-[#d3d1ea] transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-[#b8a6ff]",
@@ -103,7 +110,7 @@ const ModuleSidebar = ({ trans: _trans }: { trans: any }) => {
                       >
                         {Icon ? <Icon className={cn("size-[18px] shrink-0", active && "text-[#d8caff]")} /> : null}
                         <span className={cn("min-w-0 flex-1 truncate", collapsed && "lg:sr-only")}>{item.title}</span>
-                        {item.badge && !collapsed ? <span className="rounded-full bg-[#6956ac] px-2 py-0.5 text-[10px] text-white">{item.badge}</span> : null}
+                        {item.badge ? <span className={cn("rounded-full bg-[#6956ac] px-2 py-0.5 text-[10px] text-white", collapsed && "lg:hidden")}>{item.badge}</span> : null}
                       </Link>
                     ) : null;
                   })}
