@@ -32,8 +32,8 @@ export function WorkflowStatusPanel({
     <section className="overflow-hidden rounded-2xl border border-indigo-100 bg-gradient-to-l from-white via-indigo-50/60 to-violet-50/70 shadow-sm dark:border-indigo-950 dark:from-card dark:via-indigo-950/20 dark:to-violet-950/20">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-100/80 px-5 py-4 dark:border-indigo-900/60">
         <div>
-          <h2 className="font-extrabold text-foreground">وضعیت گردش‌کار</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{hint || "آخرین وضعیت ثبت‌شده در فرآیند"}</p>
+          <h2 className="font-extrabold text-card-foreground">وضعیت گردش‌کار</h2>
+          <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-card-foreground [overflow-wrap:anywhere]">{hint || "آخرین وضعیت ثبت‌شده در فرآیند"}</p>
         </div>
         <span className={cn(
           "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold",
@@ -51,8 +51,8 @@ export function WorkflowStatusPanel({
             <div className="mb-3 flex size-9 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
               <Icon className="size-[18px]" />
             </div>
-            <div className="text-[11px] font-semibold text-muted-foreground">{label}</div>
-            <div className="mt-1 line-clamp-2 min-h-10 text-sm font-extrabold leading-5 text-foreground">{value}</div>
+            <div className="text-xs font-semibold text-card-foreground">{label}</div>
+            <div className="mt-1 whitespace-pre-wrap text-sm font-bold leading-6 text-card-foreground [overflow-wrap:anywhere]">{value}</div>
           </div>
         ))}
       </div>

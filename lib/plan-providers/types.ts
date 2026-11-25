@@ -9,3 +9,8 @@ export interface EnrichedProviderPlan extends PlanProviderLink {
   networkId: number | null;
   networkGroupId: number | null;
 }
+
+export interface ActiveProviderPlans {
+  plans: (EnrichedProviderPlan & { startDate: string; endDate: string })[];
+  scheduleUnavailableCount: number;
+}

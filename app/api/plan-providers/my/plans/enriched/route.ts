@@ -4,12 +4,14 @@ import { authenticatedPmdFetch } from "@/lib/auth/request";
 import { readUpstreamBody } from "@/lib/auth/upstream";
 import { baseInfoService } from "@/lib/base-info/service";
 import type { BaseInfoItem } from "@/lib/base-info/types";
-import type { PlanProviderLink } from "@/lib/plan-providers/types";
+import { currentTehranDate, readPlanPeriod } from "@/lib/base-info/plan-period";
+import type { ActiveProviderPlans, PlanProviderLink } from "@/lib/plan-providers/types";
 
 type ResolvedPlan = {
   title: string;
   networkId: number;
   networkGroupId: number;
+  period: ReturnType<typeof readPlanPeriod>;
 };
 
 function positiveInt(value: string): number | null {
@@ -59,6 +61,7 @@ async function resolvePlanNames(planIds: number[]): Promise<Map<number, Resolved
             title: plan.Text?.trim() || "نام برنامه در دسترس نیست",
             networkId,
             networkGroupId: batch[index],
+            period: readPlanPeriod(plan, planId),
           });
         }
       }
@@ -89,15 +92,34 @@ export async function GET(request: NextRequest) {
     // صفحه همچنان پاسخ می‌دهد؛ فقط موارد resolve نشده پیام مناسب خواهند داشت.
   }
 
-  return NextResponse.json(
-    links.map(link => {
-      const plan = resolved.get(link.planId);
-      return {
-        ...link,
-        title: plan?.title ?? "نام برنامه در دسترس نیست",
-        networkId: plan?.networkId ?? null,
-        networkGroupId: plan?.networkGroupId ?? null,
-      };
-    }),
-  );
+  const enriched = links.map(link => {
+    const plan = resolved.get(link.planId);
+    return {
+      ...link,
+      title: plan?.title ?? "نام برنامه در دسترس نیست",
+      networkId: plan?.networkId ?? null,
+      networkGroupId: plan?.networkGroupId ?? null,
+    };
+  });
+
+  if (request.nextUrl.searchParams.get("activeOnly") !== "true")
+    return NextResponse.json(enriched);
+
+  const today = currentTehranDate();
+  const result: ActiveProviderPlans = { plans: [], scheduleUnavailableCount: 0 };
+  const batchSize = 6;
+  for (let offset = 0; offset < enriched.length; offset += batchSize) {
+    const batch = enriched.slice(offset, offset + batchSize);
+    const periods = await Promise.allSettled(batch.map(async plan =>
+      resolved.get(plan.planId)?.period ?? readPlanPeriod((await baseInfoService.getPlanDetail(plan.planId)).Data, plan.planId)));
+    for (const [index, response] of periods.entries()) {
+      if (response.status === "rejected" || !response.value) {
+        result.scheduleUnavailableCount++;
+      } else if (response.value.startDate <= today && today <= response.value.endDate) {
+        result.plans.push({ ...batch[index], ...response.value });
+      }
+    }
+  }
+
+  return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
 }

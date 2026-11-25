@@ -3,6 +3,8 @@
 import { useNetworkScope } from "@/hooks/use-network-scope";
 import { useSession } from "@/hooks/use-session";
 import { NetworkSelect } from "@/components/ui/network-field";
+import { PersianDatePicker } from "@/components/ui/persian-date-picker";
+import type { EstimateHeader } from "@/lib/base-info/estimate";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { ProgramAssignmentFields } from "@/components/plan-providers/program-assignment-fields";
 import {FormEvent,useEffect,useMemo,useRef,useState} from "react";
@@ -111,7 +113,6 @@ function totalDuration(items:ExternalItem[]):string {
 }
 type PlanDetail={PlanId:number;ApplicationType:number;ApplicationTypeName:string;ProgramType:number;ProgramTypeName:string;ProgramDegreeId:number;ProgramDegreeName:string;FloorPlanId:number;FloorPlanName:string;StructureProgramId:number;StructureProgramName:string;ProduceType:number;ProduceTypeName:string;PartNumber:number;Duration:number};
 type PlanDetailResponse={IsSuccess:boolean;Data:PlanDetail|null;Message:string|null};
-type EstimateHeader={Id:number;PlanId:number;NetworkId:number;PlanName?:string|null;EstimateOrganizationCode?:string|number|null;PartNumber?:number|null};
 type EstimateHeaderResponse={IsSuccess:boolean;Data:EstimateHeader|null;Message:string|null};
 
 export default function IssueProfilePage(){
@@ -149,9 +150,13 @@ export default function IssueProfilePage(){
   }
   const {data:planDetail,error:planDetailError,mutate:retryPlan}=useSWR<PlanDetailResponse>(selected?`/base-info/plan-detail/${selected.planId}`:null);
   const planData=planDetail?.IsSuccess&&planDetail.Data?.PlanId===selected?.planId?planDetail.Data:null;
-  const {data:estimateHeader,error:estimateHeaderError,mutate:reloadEstimateHeader}=useSWR<EstimateHeaderResponse>(selected?`/base-info/estimate/${selected.planId}`:null,{revalidateOnFocus:false});
-  const estimateData=estimateHeader?.IsSuccess&&estimateHeader.Data?.PlanId===selected?.planId?estimateHeader.Data:null;
-  const estimateCode=estimateData?.EstimateOrganizationCode==null?"":String(estimateData.EstimateOrganizationCode).trim();
+  const {data:estimateHeader,error:estimateHeaderError,isLoading:estimateLoading,mutate:reloadEstimateHeader}=useSWR<EstimateHeaderResponse>(selected?`/base-info/estimate/${selected.planId}`:null,{revalidateOnFocus:false});
+  const estimateData=estimateHeader?.Data?.planId===selected?.planId?estimateHeader?.Data:null;
+  const {data:broadcastStats,error:broadcastStatsError,mutate:reloadBroadcastStats}=useSWR<{broadcastCount:number}>(
+    estimateData&&selected?`/program-profiles/estimates/${estimateData.id}/broadcast-count?forecastId=${selected.id}`:null);
+  const broadcastCount=broadcastStats?.broadcastCount;
+  const totalEpisodes=estimateData?.partNumber ?? null;
+  const remainingEpisodes=totalEpisodes!==null&&broadcastCount!==undefined?Math.max(0,totalEpisodes-broadcastCount):null;
   const {data:estimateDetail,error:estimateError,mutate:reloadEstimate,isValidating:crewLoading}=useSWR<ExternalResponse<ExternalCrew>>(selected?`/base-info/estimate-detail/${selected.planId}`:null,{revalidateOnFocus:false,revalidateOnReconnect:false});
   const {data:planItems,error:itemsError,mutate:reloadItems,isValidating:itemsLoading}=useSWR<ExternalResponse<ExternalItem>>(selected?`/base-info/plan-items/${selected.planId}`:null,{revalidateOnFocus:false,revalidateOnReconnect:false});
   const externalCrew=estimateDetail?.IsSuccess&&Array.isArray(estimateDetail.Data)?estimateDetail.Data:null;
@@ -198,6 +203,7 @@ export default function IssueProfilePage(){
       setItemsLoaded(draft?.itemsLoaded??false);setCrewLoaded(draft?.crewLoaded??false);
       setExpertRows(draft?.experts??selected.expertIds?.map(expertId=>({expertId,topicAxisId:"",duration:"00:05:00",attendanceType:1,hasPayment:false}))??[]);
       setNewAxes(draft?.axes??[]);setKeywords(draft?.keywords??[]);
+      setBroadcastDate(draft?.broadcastDate??selected.broadcastDate.slice(0,10));
       setStartTime(draft?.startTime??"");setOccasion(draft?.occasion??"");setStep(draft?.step??0);
       setDraftRevision(saved?.revision??0);setSavedAt(saved?.updatedAt??"");setIssuedProfileId(draft?.issuedProfileId??null);
       setEditingCrewId(null);setEditingItemId(null);setItemEdit(null);setAddItemOpen(false);
@@ -250,6 +256,7 @@ export default function IssueProfilePage(){
   const crewValid=crewDraft.filter(x=>x.personnelId>0&&x.personnelName.trim()&&x.activityTypeId>0);
   const programDuration=planData?minutesToTime(planData.Duration):"";
   const [startTime,setStartTime]=useState("");
+  const [broadcastDate,setBroadcastDate]=useState("");
   function changeStartTime(part:"hour"|"minute",value:string){
     const digits=asciiDigits(value);
     if(!/^\d{0,2}$/.test(digits))return;
@@ -269,6 +276,7 @@ export default function IssueProfilePage(){
     let error="";
     if(index===0){
       if(!selected)error="ابتدا پیش‌بینی تأییدشده را انتخاب کنید.";
+      else if(!broadcastDate)error="تاریخ پخش شناسنامه را انتخاب کنید.";
       else if(!planData)error="اطلاعات طرح هنوز دریافت نشده است.";
       else if(durationSeconds(programDuration)<=0)error="مدت برنامه الزامی و باید معتبر باشد.";
       else if(!isValidStartTime(startTime))error="ساعت شروع را وارد کنید؛ ساعت از ۰۰ تا ۲۳ و دقیقه از ۰۰ تا ۵۹ باشد.";
@@ -285,7 +293,7 @@ export default function IssueProfilePage(){
     setMessage("");return true;
   }
   function snapshot(target=step,profileId=issuedProfileId):ProfileDraft{
-    return {version:1,forecastId,title:selected?.planName||selected?.mainTopic||"شناسنامه برنامه",step:target,startTime:normalizeStartTime(startTime)??startTime,occasion,items:itemsDraft,crew:crewDraft.map(normalizeDraftCrew),itemsLoaded,crewLoaded,keywords,axes:newAxes,experts:expertRows,issuedProfileId:profileId,completed:false};
+    return {version:1,forecastId,title:selected?.planName||selected?.mainTopic||"شناسنامه برنامه",step:target,startTime:normalizeStartTime(startTime)??startTime,broadcastDate,occasion,items:itemsDraft,crew:crewDraft.map(normalizeDraftCrew),itemsLoaded,crewLoaded,keywords,axes:newAxes,experts:expertRows,issuedProfileId:profileId,completed:false};
   }
   async function persistDraft(target=step,profileId=issuedProfileId,revision=draftRevision,completed=false){
     const {data}=await apiClient.put<SavedProfileDraft>(`/program-profiles/drafts/${forecastId}`,{revision,data:{...snapshot(target,profileId),completed}});
@@ -312,6 +320,8 @@ export default function IssueProfilePage(){
     if(durationSeconds(programDuration)>0&&itemTotalSeconds>durationSeconds(programDuration))errors.items="مجموع مدت آیتم‌ها از مدت برنامه بیشتر است.";
     if(Object.keys(errors).length){setFieldErrors(errors);setMessage("موارد مشخص‌شده را اصلاح کنید.");return;}
     if(!selected){setMessage("پیش‌بینی تاییدشده را انتخاب کنید.");return;}
+    if(!broadcastDate){setStep(0);setMessage("تاریخ پخش شناسنامه الزامی است.");return;}
+    if(!issuedProfileId&&!estimateData){setStep(0);setMessage("برای صدور شناسنامه، دریافت شناسه برآورد الزامی است.");return;}
 
     if(!programDuration.trim()||!startTime.trim()){setMessage("مدت برنامه و ساعت شروع الزامی هستند.");return;}
     if(!isValidStartTime(startTime)){setMessage("ساعت شروع معتبر نیست.");return;}
@@ -340,11 +350,11 @@ export default function IssueProfilePage(){
         planId:selected.planId,
         networkId:selected.networkId,
         networkGroupId:selected.networkGroupId,
-        estimateId:estimateData?.Id??null,
-        estimateOrganizationCode:estimateCode||null,
-        estimatePartNumber:estimateData?.PartNumber??null,
+        estimateId:estimateData?.id,
+        estimateOrganizationCode:estimateData?.organizationCode??null,
+        estimatePartNumber:totalEpisodes,
         duration:programDuration,
-        broadcastDate:selected.broadcastDate,
+        broadcastDate:broadcastDate+"T00:00:00",
         productionMethod:productionMethod||planData.ProgramTypeName,
         occasion:occasion.trim()||planData.ApplicationTypeName,
         floorId:planData.FloorPlanId,
@@ -406,16 +416,20 @@ export default function IssueProfilePage(){
       <p className="mb-3 text-sm text-default-500">با «ذخیره مرحله» یا رفتن به مرحله دیگر، اطلاعات روی سرور ذخیره می‌شود و پس از ورود مجدد قابل ادامه است.</p>
       {savedAt&&draftReady?<p role="status" className="mb-3 text-sm text-green-700">آخرین ذخیره: {new Date(savedAt).toLocaleString("fa-IR")}</p>:null}
       {planDetailError?<p className="alert alert-error">دریافت اطلاعات برنامه ناموفق بود. <button type="button" onClick={()=>void retryPlan()}>تلاش مجدد</button></p>:null}
-      {estimateHeaderError?<p className="alert alert-error">دریافت کد برآورد ناموفق بود. <button type="button" onClick={()=>void reloadEstimateHeader()}>تلاش مجدد</button></p>:null}
       {draftLoading?<p role="status">در حال خواندن پیش‌نویس...</p>:null}
       {selected&&!draftReady&&!draftLoading?<button type="button" className="btn btn-outline" onClick={()=>setLoadAttempt(x=>x+1)}>تلاش مجدد برای خواندن پیش‌نویس</button>:null}
-      {selected?<div className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4 text-sm dark:border-indigo-900 dark:bg-indigo-950/20">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <span><strong>کد برآورد:</strong> {estimateCode||"ثبت نشده / در حال دریافت"}</span>
-          {estimateData?.Id?<span><strong>شناسه برآورد:</strong> {estimateData.Id.toLocaleString("fa-IR",{useGrouping:false})}</span>:null}
-          {estimateData?.PartNumber!=null?<span><strong>بخش برآورد:</strong> {estimateData.PartNumber.toLocaleString("fa-IR",{useGrouping:false})}</span>:null}
-        </div>
-      </div>:null}
+      {selected?<section className="mb-4 rounded-xl border border-border bg-card p-4 text-sm text-card-foreground" aria-label="برآورد برنامه">
+        {estimateLoading?<p role="status">در حال دریافت برآورد…</p>:null}
+        {estimateHeaderError?<p className="alert alert-error" role="alert">دریافت اطلاعات برآورد ناموفق بود. <button type="button" className="underline" onClick={()=>void reloadEstimateHeader()}>تلاش مجدد</button></p>:null}
+        {estimateData?<dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div><dt className="font-semibold">کد برآورد</dt><dd>{estimateData.organizationCode??"در سرویس مرجع ثبت نشده"}</dd></div>
+          <div><dt className="font-semibold">شناسه برآورد</dt><dd>{estimateData.id.toLocaleString("fa-IR",{useGrouping:false})}</dd></div>
+          <div><dt className="font-semibold">تعداد کل قسمت‌ها</dt><dd>{totalEpisodes?.toLocaleString("fa-IR")??"در سرویس مرجع ثبت نشده"}</dd></div>
+          <div><dt className="font-semibold">قسمت‌های پخش‌شده</dt><dd>{broadcastCount?.toLocaleString("fa-IR")??"—"}</dd></div>
+          <div><dt className="font-semibold">قسمت‌های باقی‌مانده</dt><dd>{remainingEpisodes?.toLocaleString("fa-IR")??"—"}</dd></div>
+        </dl>:null}
+        {broadcastStatsError?<p className="mt-2" role="alert">دریافت تعداد قسمت‌های پخش‌شده ناموفق بود. <button type="button" className="underline" onClick={()=>void reloadBroadcastStats()}>تلاش مجدد</button></p>:null}
+      </section>:null}
       <fieldset disabled={saving}>
 
       <div className={step===0?"grid grid-cols-1 gap-4 md:grid-cols-3":"hidden"}>
@@ -431,6 +445,9 @@ export default function IssueProfilePage(){
         {isProvider && <ProgramAssignmentFields networkId={selected?.networkId} networkGroupId={selected?.networkGroupId}
           episodeNumber={selected?.episodeNumber} />}
         <fieldset className="contents" disabled={!draftReady||!!issuedProfileId}>
+        <div className="field"><span className="label">تاریخ پخش *</span>
+          <PersianDatePicker value={broadcastDate} onChange={setBroadcastDate} placeholder="انتخاب تاریخ پخش" disabled={!draftReady||!!issuedProfileId}/>
+        </div>
         <label className="field"><span className="label">مدت برنامه (ساعت:دقیقه)</span><input className={"input bg-default-50 "+(fieldErrors.duration?"border-red-500":"")} dir="ltr" value={programDuration} readOnly placeholder="از اطلاعات پایه طرح"/>{fieldErrors.duration?<span className="text-xs text-red-600">{fieldErrors.duration}</span>:null}</label>
         <label className="field"><span className="label">نحوه تولید</span><input className="input bg-default-50" value={productionMethod} readOnly placeholder="از اطلاعات پایه طرح"/></label>
         <label className="field"><span className="label">مناسبت</span><input className="input" value={occasion} onChange={e=>setOccasion(e.target.value)} placeholder={planData?.ApplicationTypeName||"اختیاری"}/></label>
@@ -536,7 +553,7 @@ export default function IssueProfilePage(){
       </fieldset>
       <section className={step===6?"pmd-wizard-panel":"hidden"}>
         <h2 className="mb-4 font-semibold">بازبینی و صدور شناسنامه</h2>
-        <div className="grid gap-3 text-sm md:grid-cols-2"><p>برنامه: {selected?.planName||selected?.mainTopic||"انتخاب نشده"}</p><p>مدت: {programDuration||"وارد نشده"}</p><p>آیتم‌ها: {itemsDraft.length} مورد</p><p>عوامل: {crewDraft.length} نفر</p><p>کارشناسان: {expertRows.length} ارتباط</p><p>کلیدواژه‌ها: {keywords.length} مورد</p><p>ساعت شروع: {startTime||"وارد نشده"}</p></div>
+        <div className="grid gap-3 text-sm md:grid-cols-2"><p>برنامه: {selected?.planName||selected?.mainTopic||"انتخاب نشده"}</p><p>تاریخ پخش: {broadcastDate?new Date(broadcastDate+"T12:00:00").toLocaleDateString("fa-IR"):"وارد نشده"}</p><p>مدت: {programDuration||"وارد نشده"}</p><p>آیتم‌ها: {itemsDraft.length} مورد</p><p>عوامل: {crewDraft.length} نفر</p><p>کارشناسان: {expertRows.length} ارتباط</p><p>کلیدواژه‌ها: {keywords.length} مورد</p><p>ساعت شروع: {startTime||"وارد نشده"}</p></div>
       </section>
       </fieldset>
       {issuedProfileId?<p className="alert">شناسنامه ایجاد شده است؛ در صورت خطای کارشناسان، دکمهٔ تکمیل را دوباره بزنید. <Link className="underline" href={`/program-profiles/${issuedProfileId}`}>مشاهده شناسنامه</Link></p>:null}
